@@ -48,6 +48,11 @@ namespace IsoRim
         public bool cutRooms = false;    // walls in front of every roofed room are cut down
         public int turn = 0;             // eighth turns of the camera, clockwise
         public bool snap45 = true;       // Q and E turn an eighth (45 degrees) at a time; otherwise a quarter
+        public bool freeLook = true;     // the view can be turned and tilted by dragging with the mouse
+        public float freeYaw = 0f;       // degrees turned by free look, on top of the eighth turns
+        public float lookSensitivity = 0.25f;   // degrees per pixel dragged
+        public bool invertY = false;     // dragging up tilts toward top-down instead of lower
+        public int lookMode = 0;         // 0 = Alt + middle button, 1 = right button with nothing selected
         public bool pawns3D = true;
         public bool effects3D = true;
         public bool groundShadows = true;
@@ -114,6 +119,11 @@ namespace IsoRim
             Scribe_Values.Look(ref cutRooms, "cutRooms", false);
             Scribe_Values.Look(ref turn, "turnSteps", 0);
             Scribe_Values.Look(ref snap45, "snap45", true);
+            Scribe_Values.Look(ref freeLook, "freeLook", true);
+            Scribe_Values.Look(ref freeYaw, "freeYaw", 0f);
+            Scribe_Values.Look(ref lookSensitivity, "lookSensitivity", 0.25f);
+            Scribe_Values.Look(ref invertY, "invertY", false);
+            Scribe_Values.Look(ref lookMode, "lookMode", 0);
             Scribe_Values.Look(ref pawns3D, "pawns3D", true);
             Scribe_Values.Look(ref effects3D, "effects3D", true);
             Scribe_Values.Look(ref cutHeight, "cutHeight", 0.5f);
@@ -403,6 +413,16 @@ namespace IsoRim
                 Section(l, "Camera", "How the map is seen while the 3D view is on.");
                 Check(l, "Isometric view", ref st.isometric, "The camera turned 45 degrees and lowered, as in isometric games. Off: north is up.");
                 Check(l, "Turn in 45° steps", ref st.snap45, "Q and E turn the camera an eighth of a turn at a time. Off: a quarter turn. Either way the camera swings smoothly.");
+                Check(l, "Free look", ref st.freeLook, "Drag with the mouse to turn the camera all the way round and tilt it (20° to 89°). Q and E snap to the next step; "
+                    + (R3DKeyDefOf.R3D_ResetCamera != null ? R3DKeyDefOf.R3D_ResetCamera.MainKeyLabel : "Home") + " resets the camera.");
+                if (st.freeLook)
+                {
+                    bool rightButton = st.lookMode == 1;
+                    Check(l, "Free look with the right button", ref rightButton, "Drag with the right mouse button while nothing is selected. Off: hold Alt and drag with the middle button.");
+                    st.lookMode = rightButton ? 1 : 0;
+                    st.lookSensitivity = Slider(l, "Free look speed", st.lookSensitivity, 0.05f, 1f, st.lookSensitivity.ToString("0.00") + "°/px");
+                    Check(l, "Invert up and down", ref st.invertY, "Dragging up tilts the camera toward top-down.");
+                }
                 if (st.isometric)
                 {
                     st.isoPitch = Slider(l, "Isometric camera angle", st.isoPitch, View3D.MinPitch, View3D.MaxPitch, st.isoPitch.ToString("0") + "°",
@@ -689,6 +709,7 @@ namespace IsoRim
         public static KeyBindingDef R3D_TiltUp;
         public static KeyBindingDef R3D_TiltDown;
         public static KeyBindingDef R3D_ToggleRoofs;
+        public static KeyBindingDef R3D_ResetCamera;
 
         static R3DKeyDefOf()
         {

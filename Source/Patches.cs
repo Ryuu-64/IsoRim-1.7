@@ -760,6 +760,13 @@ namespace IsoRim
                     dragging = false;
                     return;
                 }
+                if (View3D.LookDragging || View3D.LookHeld())
+                {
+                    // The middle button is turning the view (free look), not dragging the map.
+                    dragging = false;
+                    StopGameDrag(__instance);
+                    return;
+                }
                 bool held = Input.GetMouseButton(2);
                 if (!held)
                 {

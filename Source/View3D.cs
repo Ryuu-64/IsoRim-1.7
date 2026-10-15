@@ -17,8 +17,15 @@ namespace IsoRim
     // after squashing, which is what ends up on screen.
     public static class View3D
     {
-        public const float MinPitch = 30f;
-        public const float MaxPitch = 85f;
+        // Free look (IsoRimSettings.freeLook) opens up the range of camera angles.
+        public static float MinPitch
+        {
+            get { return IsoRimMod.Settings.freeLook ? 20f : 30f; }
+        }
+        public static float MaxPitch
+        {
+            get { return IsoRimMod.Settings.freeLook ? 89f : 85f; }
+        }
         public const float IsoYaw = 45f;   // how far the isometric camera is turned from north, clockwise seen from above
 
         // How far the lighting overlay is pulled toward the camera, and how much depth is kept
@@ -90,7 +97,20 @@ namespace IsoRim
         // Where the camera is turning to: the base direction plus the eighth turns asked for.
         public static float YawTarget
         {
-            get { return Mathf.Repeat((IsoRimMod.Settings.isometric ? IsoYaw : 0f) + 45f * Step, 360f); }
+            get { return Mathf.Repeat(BaseYaw + 45f * Step + IsoRimMod.Settings.freeYaw, 360f); }
+        }
+
+        // The direction the view starts from before any turn: north-east when isometric, north otherwise.
+        private static float BaseYaw
+        {
+            get { return IsoRimMod.Settings.isometric ? IsoYaw : 0f; }
+        }
+
+        // The eighth of a turn the camera is nearest to now (0 to 7, 0 = north). What is built for
+        // the camera's direction (map edge, cut walls) is redrawn when this changes.
+        public static int Facing
+        {
+            get { return Mathf.RoundToInt(Mathf.Repeat(Yaw, 360f) / 45f) % 8; }
         }
 
         // How many eighth turns clockwise the view has been turned from its starting direction (0 to 7).
@@ -103,7 +123,7 @@ namespace IsoRim
         // True while the camera is still swinging toward YawTarget.
         public static bool Turning
         {
-            get { return yawSet && Mathf.Abs(Mathf.DeltaAngle(yawNow, YawTarget)) > 0.05f; }
+            get { return lookDragging || yawSet && Mathf.Abs(Mathf.DeltaAngle(yawNow, YawTarget)) > 0.05f; }
         }
 
         private static float yawNow;
@@ -113,8 +133,9 @@ namespace IsoRim
         private static void TurnCamera()
         {
             float target = YawTarget;
-            if (!yawSet || !Active)
+            if (!yawSet || !Active || lookDragging)
             {
+                // While the view is dragged round with the mouse it follows at once, with no easing.
                 yawNow = target;
                 yawSet = true;
             }
@@ -273,7 +294,14 @@ namespace IsoRim
 
             if (!Active || typing)
             {
+                lookDragging = false;
                 return;
+            }
+
+            HandleLook();
+            if (R3DKeyDefOf.R3D_ResetCamera != null && R3DKeyDefOf.R3D_ResetCamera.JustPressed)
+            {
+                ResetLook();
             }
 
             // Q and E turn the view an eighth or a quarter turn (see the options). The game uses the
@@ -284,11 +312,11 @@ namespace IsoRim
                 IsoRimSettings turnSettings = IsoRimMod.Settings;
                 if (R3DKeyDefOf.R3D_TurnLeft != null && R3DKeyDefOf.R3D_TurnLeft.JustPressed)
                 {
-                    turnSettings.turn = TurnBy(turnSettings.turn, -1, turnSettings.snap45);
+                    SnapTurn(turnSettings, -1);
                 }
                 if (R3DKeyDefOf.R3D_TurnRight != null && R3DKeyDefOf.R3D_TurnRight.JustPressed)
                 {
-                    turnSettings.turn = TurnBy(turnSettings.turn, 1, turnSettings.snap45);
+                    SnapTurn(turnSettings, 1);
                 }
             }
             if (R3DKeyDefOf.R3D_ToggleRoofs != null && R3DKeyDefOf.R3D_ToggleRoofs.JustPressed)
@@ -318,6 +346,105 @@ namespace IsoRim
                     s.pitch = Mathf.Clamp(s.pitch + change, MinPitch, MaxPitch);
                 }
             }
+        }
+
+        // ---------------------------------------------------------------- free look
+
+        private static bool lookDragging;
+        private static Vector3 lookLastMouse;
+
+        // True while the view is being dragged round with the mouse (read by the map drag in
+        // Patches, which then stays out of the way).
+        public static bool LookDragging
+        {
+            get { return lookDragging; }
+        }
+
+        // Whether the mouse buttons and keys for free look are held now (see IsoRimSettings.lookMode):
+        // 0 = Alt + middle button; 1 = right button while nothing is selected and no building is being placed.
+        public static bool LookHeld()
+        {
+            IsoRimSettings st = IsoRimMod.Settings;
+            if (!st.freeLook || !Active)
+            {
+                return false;
+            }
+            if (st.lookMode == 1)
+            {
+                return Input.GetMouseButton(1)
+                    && (Find.DesignatorManager == null || Find.DesignatorManager.SelectedDesignator == null)
+                    && (Find.Selector == null || Find.Selector.NumSelected == 0);
+            }
+            return Input.GetMouseButton(2) && (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt));
+        }
+
+        // Dragging turns the camera round (left and right) and tilts it (up and down). A drag only
+        // starts with the pointer over the map, not over a window.
+        private static void HandleLook()
+        {
+            if (!LookHeld())
+            {
+                lookDragging = false;
+                return;
+            }
+            Vector3 mouse = Input.mousePosition;
+            if (!lookDragging)
+            {
+                if (Find.WindowStack != null && Find.WindowStack.GetWindowAt(UI.MousePositionOnUIInverted) != null)
+                {
+                    return;
+                }
+                lookDragging = true;
+                lookLastMouse = mouse;
+                return;
+            }
+            Vector3 d = mouse - lookLastMouse;
+            lookLastMouse = mouse;
+            if (d.x == 0f && d.y == 0f)
+            {
+                return;
+            }
+            IsoRimSettings st = IsoRimMod.Settings;
+            float sens = Mathf.Clamp(st.lookSensitivity, 0.02f, 2f);
+            st.freeYaw = Mathf.Repeat(st.freeYaw + d.x * sens, 360f);
+            float tilt = (st.invertY ? 1f : -1f) * d.y * sens;
+            if (st.isometric)
+            {
+                st.isoPitch = Mathf.Clamp(st.isoPitch + tilt, MinPitch, MaxPitch);
+            }
+            else
+            {
+                st.pitch = Mathf.Clamp(st.pitch + tilt, MinPitch, MaxPitch);
+            }
+        }
+
+        // Q and E after a free turn: the next eighth (or quarter) in that direction from where the
+        // camera faces now, so the view never stays half way between steps.
+        private static void SnapTurn(IsoRimSettings st, int dir)
+        {
+            float k = Mathf.Repeat(Yaw - BaseYaw, 360f) / 45f;   // eighths turned, 0 to 8
+            int unit = st.snap45 ? 1 : 2;
+            float q = k / unit;
+            int next = dir > 0 ? Mathf.FloorToInt(q + 0.05f) + 1 : Mathf.CeilToInt(q - 0.05f) - 1;
+            st.turn = ((next * unit) % 8 + 8) % 8;
+            st.freeYaw = 0f;
+        }
+
+        // The reset key: the starting direction and angle.
+        public static void ResetLook()
+        {
+            IsoRimSettings st = IsoRimMod.Settings;
+            st.freeYaw = 0f;
+            st.turn = 0;
+            if (st.isometric)
+            {
+                st.isoPitch = 35.3f;
+            }
+            else
+            {
+                st.pitch = 55f;
+            }
+            Messages.Message("IsoRim: camera reset", MessageTypeDefOf.SilentInput, false);
         }
 
         // One step left (-1) or right (+1) from an eighth-turn count. With quarter snaps an odd
@@ -529,7 +656,7 @@ namespace IsoRim
             // (anything redrawn during the swing was built at an angle in between).
             bool turned = false;
             bool turning = Turning;
-            int step = Step;
+            int step = Facing;
             if (litFacing < 0)
             {
                 litFacing = step;
