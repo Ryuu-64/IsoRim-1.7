@@ -24,6 +24,9 @@ namespace IsoRim
         private static bool tried;
         private static Material skyMat;
         private static Material fogMat;
+        private static Material planeMat;
+        private static Mesh plane;
+        private static IntVec3 planeSize;
         private static Mesh quad;
         private static Mesh fogMesh;
 
@@ -74,6 +77,13 @@ namespace IsoRim
                 float sunShow, moonShow;
                 Colours(map, out zenith, out horizon, out sunShow, out moonShow);
                 Horizon = horizon;
+
+                // The game's terrain writes no depth: give the ground its depth first, or the fog and the
+                // sky would cover it as if it were empty.
+                if (planeMat != null)
+                {
+                    Graphics.DrawMesh(PlaneFor(map), Matrix4x4.identity, planeMat, 0, cam);
+                }
 
                 if (st.distanceFog && fogMat != null)
                 {
@@ -154,9 +164,36 @@ namespace IsoRim
             return Color.Lerp(c, g, amount);
         }
 
+        // The map's ground, one quad at height 0 (rebuilt when the map size changes).
+        private static Mesh PlaneFor(Map map)
+        {
+            IntVec3 size = map.Size;
+            if (plane != null && size == planeSize)
+            {
+                return plane;
+            }
+            planeSize = size;
+            if (plane == null)
+            {
+                plane = new Mesh();
+                plane.name = "IsoRim_DepthPlane";
+            }
+            plane.vertices = new Vector3[] { new Vector3(0f, 0f, 0f), new Vector3(0f, 0f, size.z), new Vector3(size.x, 0f, size.z), new Vector3(size.x, 0f, 0f) };
+            plane.triangles = new int[] { 0, 1, 2, 0, 2, 3 };
+            plane.RecalculateBounds();
+            MeshGuard.Check(plane, "sky depth plane");
+            return plane;
+        }
+
         private static void Init()
         {
             tried = true;
+            Shader depth = R3DMaterials.ShaderOf("IsoRimDepthPlane");
+            if (depth != null)
+            {
+                planeMat = new Material(depth);
+                planeMat.name = "IsoRim_DepthPlane";
+            }
             Shader sky = R3DMaterials.ShaderOf("IsoRimSky");
             Shader fog = R3DMaterials.ShaderOf("IsoRimDistFog");
             if (sky != null)
