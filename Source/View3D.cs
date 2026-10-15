@@ -361,7 +361,7 @@ namespace IsoRim
         }
 
         // Whether the mouse buttons and keys for free look are held now (see IsoRimSettings.lookMode):
-        // 0 = Alt + middle button; 1 = right button while nothing is selected and no building is being placed.
+        // 0 = look modifier (Ctrl) + middle button; 1 = right button while nothing is selected and no building is being placed.
         public static bool LookHeld()
         {
             IsoRimSettings st = IsoRimMod.Settings;
@@ -375,7 +375,9 @@ namespace IsoRim
                     && (Find.DesignatorManager == null || Find.DesignatorManager.SelectedDesignator == null)
                     && (Find.Selector == null || Find.Selector.NumSelected == 0);
             }
-            return Input.GetMouseButton(2) && (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt));
+            // The modifier is a key binding of its own (Ctrl by default: Alt is the game's cell inspector).
+            KeyBindingDef mod = R3DKeyDefOf.R3D_LookModifier;
+            return Input.GetMouseButton(2) && mod != null && mod.IsDown;
         }
 
         // Dragging turns the camera round (left and right) and tilts it (up and down). A drag only

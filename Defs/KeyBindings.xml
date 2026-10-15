@@ -62,4 +62,12 @@
     <defaultKeyCodeA>Home</defaultKeyCodeA>
   </KeyBindingDef>
 
+  <KeyBindingDef>
+    <defName>R3D_LookModifier</defName>
+    <label>free look: hold with the middle mouse button</label>
+    <category>IsoRim</category>
+    <defaultKeyCodeA>LeftControl</defaultKeyCodeA>
+    <defaultKeyCodeB>RightControl</defaultKeyCodeB>
+  </KeyBindingDef>
+
 </Defs>

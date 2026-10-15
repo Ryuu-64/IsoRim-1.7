@@ -52,7 +52,7 @@ namespace IsoRim
         public float freeYaw = 0f;       // degrees turned by free look, on top of the eighth turns
         public float lookSensitivity = 0.25f;   // degrees per pixel dragged
         public bool invertY = false;     // dragging up tilts toward top-down instead of lower
-        public int lookMode = 0;         // 0 = Alt + middle button, 1 = right button with nothing selected
+        public int lookMode = 0;         // 0 = Ctrl (R3D_LookModifier) + middle button, 1 = right button with nothing selected
         public bool pawns3D = true;
         public bool effects3D = true;
         public bool groundShadows = true;
@@ -418,7 +418,7 @@ namespace IsoRim
                 if (st.freeLook)
                 {
                     bool rightButton = st.lookMode == 1;
-                    Check(l, "Free look with the right button", ref rightButton, "Drag with the right mouse button while nothing is selected. Off: hold Alt and drag with the middle button.");
+                    Check(l, "Free look with the right button", ref rightButton, "Drag with the right mouse button while nothing is selected. Off: hold " + (R3DKeyDefOf.R3D_LookModifier != null ? R3DKeyDefOf.R3D_LookModifier.MainKeyLabel : "Ctrl") + " and drag with the middle button.");
                     st.lookMode = rightButton ? 1 : 0;
                     st.lookSensitivity = Slider(l, "Free look speed", st.lookSensitivity, 0.05f, 1f, st.lookSensitivity.ToString("0.00") + "°/px");
                     Check(l, "Invert up and down", ref st.invertY, "Dragging up tilts the camera toward top-down.");
@@ -710,6 +710,7 @@ namespace IsoRim
         public static KeyBindingDef R3D_TiltDown;
         public static KeyBindingDef R3D_ToggleRoofs;
         public static KeyBindingDef R3D_ResetCamera;
+        public static KeyBindingDef R3D_LookModifier;
 
         static R3DKeyDefOf()
         {
