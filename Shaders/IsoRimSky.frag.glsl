@@ -106,7 +106,7 @@ vec3 starLayer(vec3 d, float n, float density, float pix, float t, float seed)
     float sz = max(pix * n * 0.75, 0.02);
     float core = exp(-dist * dist / (sz * sz));
     float h2 = hash13(vec3(cell.yx, face * 7.1 + seed * 3.0));
-    float mag = 0.12 + pow(h2, 7.0) * 2.4;
+    float mag = 0.04 + pow(h2, 8.0) * 2.0;
     float tw = 0.7 + 0.3 * sin(t * (2.0 + 4.0 * h.y) + h.z * 6.283);
     vec3 col = mix(vec3(0.7, 0.8, 1.0), vec3(1.0, 0.82, 0.62), h.y * h.z * 1.6);
     return col * core * mag * tw;
@@ -161,8 +161,8 @@ void main()
     if (u._SkyNight.x > 0.001 && above > 0.0)
     {
         float twinkle = time * (1.0 + 2.0 * (1.0 - clamp(e * 3.0, 0.0, 1.0)));
-        vec3 s = starLayer(cs, 420.0, 0.18 + 0.5 * band, pix, twinkle, 1.0);
-        s += starLayer(cs, 140.0, 0.25, pix, twinkle, 5.0) * 1.6;
+        vec3 s = starLayer(cs, 300.0, 0.03 + 0.1 * band, pix, twinkle, 1.0);
+        s += starLayer(cs, 90.0, 0.07, pix, twinkle, 5.0) * 1.4;
         c += s * u._SkyNight.x * above;
     }
 
