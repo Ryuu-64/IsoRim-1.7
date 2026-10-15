@@ -60,6 +60,16 @@ namespace IsoRim
         private static Vector3 right = Vector3.right;
         private static float orthoSize = 20f;
         private static float aspect = 1.6f;
+        private static bool persp;            // this frame uses a perspective camera (IsoRimSettings.perspective)
+        private static float tanHalf = 0.36f; // tan of half the vertical field of view
+        private static float camDist = 50f;   // from the eye to the focus point on the ground
+
+        // A perspective camera (Rim3D-like) instead of the orthographic one. The game's zoom
+        // (orthographicSize) sets the distance, so the ground at the centre of the screen keeps its scale.
+        public static bool Perspective
+        {
+            get { return persp; }
+        }
 
         private static Camera[] cams;
         private static bool camerasOverridden;
@@ -177,6 +187,12 @@ namespace IsoRim
                 float y = Yaw * Mathf.Deg2Rad;
                 return new Vector3(Mathf.Sin(p) * Mathf.Sin(y), Mathf.Cos(p), Mathf.Sin(p) * Mathf.Cos(y));
             }
+        }
+
+        // How far past the focus point the perspective camera shows the map, in cells.
+        public static float ViewDistance
+        {
+            get { return Mathf.Clamp(IsoRimMod.Settings.viewDistance, 40f, 400f); }
         }
 
         public static float WallHeight
@@ -491,9 +507,25 @@ namespace IsoRim
             up = look * Vector3.up;
             right = look * Vector3.right;
 
-            float half = orthoSize / Mathf.Tan(p) + DepthPad;
-            eye = focus - fwd * (half + 5f);
-            float far = 2f * half + 10f;
+            IsoRimSettings st = IsoRimMod.Settings;
+            persp = st.perspective;
+            float near, far;
+            if (persp)
+            {
+                float fov = Mathf.Clamp(st.fov, 15f, 90f);
+                tanHalf = Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad);
+                camDist = orthoSize / tanHalf;
+                eye = focus - fwd * camDist;
+                near = Mathf.Clamp(camDist * 0.02f, 0.3f, 2f);
+                far = camDist + ViewDistance + 2f * DepthPad;
+            }
+            else
+            {
+                float half = orthoSize / Mathf.Tan(p) + DepthPad;
+                eye = focus - fwd * (half + 5f);
+                near = 0.5f;
+                far = 2f * half + 10f;
+            }
 
             Matrix4x4 view = Matrix4x4.Scale(new Vector3(1f, 1f, -1f))
                 * Matrix4x4.TRS(eye, look, Vector3.one).inverse;
@@ -508,7 +540,9 @@ namespace IsoRim
                 }
                 float size = c.orthographicSize;
                 float asp = c.aspect;
-                Matrix4x4 proj = Matrix4x4.Ortho(-size * asp, size * asp, -size, size, 0.5f, far);
+                Matrix4x4 proj = persp
+                    ? Matrix4x4.Perspective(Mathf.Clamp(st.fov, 15f, 90f), asp, near, far)
+                    : Matrix4x4.Ortho(-size * asp, size * asp, -size, size, near, far);
                 c.worldToCameraMatrix = worldToCamera;
                 c.projectionMatrix = proj;
                 c.cullingMatrix = proj * worldToCamera;
@@ -522,7 +556,17 @@ namespace IsoRim
 
             // Moving something straight toward an orthographic camera does not move it on screen,
             // it only puts it in front. That is how the lighting overlay gets to darken upright things.
-            LightingMatrix = Matrix4x4.Translate(new Vector3(-fwd.x * OverlayPull, -fwd.y * OverlayPull / s, -fwd.z * OverlayPull));
+            // With perspective the same is a shrink toward the eye (drawn space: the eye's height unsquashed).
+            if (persp)
+            {
+                float k = Mathf.Clamp(1f - OverlayPull / camDist, 0.3f, 0.9f);
+                Vector3 eyeDrawn = new Vector3(eye.x, eye.y / s, eye.z);
+                LightingMatrix = Matrix4x4.Translate(eyeDrawn) * Matrix4x4.Scale(new Vector3(k, k, k)) * Matrix4x4.Translate(-eyeDrawn);
+            }
+            else
+            {
+                LightingMatrix = Matrix4x4.Translate(new Vector3(-fwd.x * OverlayPull, -fwd.y * OverlayPull / s, -fwd.z * OverlayPull));
+            }
             UprightCards.SetCamera(pitchDeg, Yaw);
         }
 
@@ -824,6 +868,21 @@ namespace IsoRim
         {
             float nx = px.x / Screen.width * 2f - 1f;
             float ny = px.y / Screen.height * 2f - 1f;
+            if (persp)
+            {
+                // A ray from the eye. Toward the horizon (or above it) it is stopped at the view distance.
+                Vector3 dir = fwd + right * (nx * tanHalf * aspect) + up * (ny * tanHalf);
+                float reach = camDist + ViewDistance;
+                float flat = new Vector2(dir.x, dir.z).magnitude;
+                float tMax = flat > 1e-5f ? reach / flat : reach;
+                float tr = dir.y < -1e-5f ? (height - eye.y) / dir.y : tMax;
+                if (tr < 0f || tr > tMax)
+                {
+                    tr = tMax;
+                }
+                Vector3 h = eye + dir * tr;
+                return new Vector3(h.x, height, h.z);
+            }
             Vector3 origin = eye + right * (nx * orthoSize * aspect) + up * (ny * orthoSize);
             float t = (height - origin.y) / fwd.y;
             Vector3 hit = origin + fwd * t;
@@ -835,8 +894,18 @@ namespace IsoRim
         public static Vector2 WorldToScreen(Vector3 p)
         {
             Vector3 d = p - eye;
-            float nx = Vector3.Dot(d, right) / (orthoSize * aspect);
-            float ny = Vector3.Dot(d, up) / orthoSize;
+            float nx, ny;
+            if (persp)
+            {
+                float z = Mathf.Max(0.01f, Vector3.Dot(d, fwd));
+                nx = Vector3.Dot(d, right) / (z * tanHalf * aspect);
+                ny = Vector3.Dot(d, up) / (z * tanHalf);
+            }
+            else
+            {
+                nx = Vector3.Dot(d, right) / (orthoSize * aspect);
+                ny = Vector3.Dot(d, up) / orthoSize;
+            }
             return new Vector2((nx + 1f) * 0.5f * Screen.width, (ny + 1f) * 0.5f * Screen.height);
         }
 

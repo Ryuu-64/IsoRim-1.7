@@ -52,6 +52,9 @@ namespace IsoRim
         public float freeYaw = 0f;       // degrees turned by free look, on top of the eighth turns
         public float lookSensitivity = 0.25f;   // degrees per pixel dragged
         public bool invertY = false;     // dragging up tilts toward top-down instead of lower
+        public bool perspective = true;  // perspective camera (Rim3D-like) instead of orthographic
+        public float fov = 40f;          // perspective: vertical field of view, degrees
+        public float viewDistance = 160f; // perspective: how far past the screen centre the map is drawn, cells
         public int lookMode = 0;         // 0 = Ctrl (R3D_LookModifier) + middle button, 1 = right button with nothing selected
         public bool pawns3D = true;
         public bool effects3D = true;
@@ -124,6 +127,9 @@ namespace IsoRim
             Scribe_Values.Look(ref lookSensitivity, "lookSensitivity", 0.25f);
             Scribe_Values.Look(ref invertY, "invertY", false);
             Scribe_Values.Look(ref lookMode, "lookMode", 0);
+            Scribe_Values.Look(ref perspective, "perspective", true);
+            Scribe_Values.Look(ref fov, "fov", 40f);
+            Scribe_Values.Look(ref viewDistance, "viewDistance", 160f);
             Scribe_Values.Look(ref pawns3D, "pawns3D", true);
             Scribe_Values.Look(ref effects3D, "effects3D", true);
             Scribe_Values.Look(ref cutHeight, "cutHeight", 0.5f);
@@ -422,6 +428,13 @@ namespace IsoRim
                     st.lookMode = rightButton ? 1 : 0;
                     st.lookSensitivity = Slider(l, "Free look speed", st.lookSensitivity, 0.05f, 1f, st.lookSensitivity.ToString("0.00") + "°/px");
                     Check(l, "Invert up and down", ref st.invertY, "Dragging up tilts the camera toward top-down.");
+                }
+                Check(l, "Perspective", ref st.perspective, "A real perspective camera: far things get smaller, as in Rim3D. Off: the flat (orthographic) view.");
+                if (st.perspective)
+                {
+                    st.fov = Slider(l, "Field of view", st.fov, 15f, 90f, st.fov.ToString("0") + "°", "Wider shows more round the edges and makes depth stronger.");
+                    st.viewDistance = Slider(l, "View distance", st.viewDistance, 40f, 400f, st.viewDistance.ToString("0") + " cells",
+                        "How far past the middle of the screen the map is drawn when the camera is low. Further costs frame time.");
                 }
                 if (st.isometric)
                 {
