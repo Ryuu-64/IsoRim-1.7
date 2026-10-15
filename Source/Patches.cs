@@ -25,7 +25,8 @@ namespace IsoRim
         // Set while a standing pawn is being drawn: where its feet are and how big it is
         // compared with a person.
         private static bool pawnUpright;
-        private static bool pawnFigure;      // the pawn being drawn is a 3D figure
+        private static Pawn uprightPawn;     // the pawn pawnUpright is about
+        private static bool pawnFigure;     // the pawn being drawn is a 3D figure
         private static float pawnFacing;     // which way it faces, degrees clockwise from north
         private static float pawnHandHeight; // how high it holds a weapon, in cells
         private static Vector3 pawnFeet;
@@ -124,6 +125,20 @@ namespace IsoRim
             {
                 Patch("skipping sprite work for 3D pawns", preRender, prefix: nameof(PreRender_Prefix));
             }
+
+            // The facing a standing pawn's sprite is drawn with, turned with the camera (View3D.SeenFacing): every
+            // layer of the sprite (body, head, apparel, hair, carried weapon, overlays) takes it from here.
+            MethodInfo preRenderResults = FindMethod(typeof(PawnRenderer), "ParallelGetPreRenderResults");
+            if (preRenderResults != null && preRenderResults.GetParameters().Length > 1 && preRenderResults.GetParameters()[1].ParameterType == typeof(Rot4?))
+            {
+                Patch("upright pawn sprites facing the camera", preRenderResults, prefix: nameof(PreRenderResults_Prefix));
+            }
+            else
+            {
+                missed.Add("upright pawn sprites facing the camera (PawnRenderer.ParallelGetPreRenderResults)");
+            }
+            Patch("upright pawn sprites facing the camera", AccessTools.Method(typeof(PawnRenderUtility), nameof(PawnRenderUtility.CalculateCarriedDrawPos)),
+                prefix: nameof(CarriedDrawPos_Prefix), postfix: nameof(CarriedDrawPos_Postfix));
 
             // Walls, rock and trees live in the mod's own layers. Whenever one appears or goes
             // (built, deconstructed, mined, cut down) those layers are redrawn round it.
@@ -1360,6 +1375,7 @@ namespace IsoRim
                 DrawHook.xform = Matrix4x4.Translate(new Vector3(feet.x - pivot.x, 0f, feet.z - pivot.z)) * View3D.UprightMatrix(pivot);
                 DrawHook.active = true;
                 pawnUpright = true;
+                uprightPawn = pawn;
                 pawnFeet = feet;
                 pawnSize = spriteHeight / 1.5f;
             }
@@ -1579,6 +1595,89 @@ namespace IsoRim
         public static bool DrawSilhouettes_Prefix()
         {
             return !View3D.Ready;
+        }
+
+        // The game chooses a standing pawn's sprites by its facing on the map (pawn.Rotation), assuming north is up
+        // the screen. Stood upright square to a turned camera (RenderPawnAt_Prefix) the sprite must instead show the
+        // facing as the camera sees it (View3D.SeenFacing), or a pawn walking away from the camera shows its side.
+        // __1 is rotOverride: given only for set poses (statues, entities on a holding platform, the order ghost),
+        // which keep theirs. Lying and dead pawns stay flat on the ground and keep the map facing. Runs on the
+        // game's worker threads, ahead of drawing.
+        public static void PreRenderResults_Prefix(PawnRenderer __instance, ref Rot4? __1)
+        {
+            if (__1.HasValue || !View3D.Ready || !IsoRimMod.Settings.uprightPawns)
+            {
+                return;
+            }
+            try
+            {
+                Pawn pawn = pawnOfRenderer != null ? pawnOfRenderer(__instance) : null;
+                if (pawn == null || pawn.Dead || pawn.GetPosture() != PawnPosture.Standing)
+                {
+                    return;
+                }
+                Rot4 seen = View3D.SeenFacing(pawn.Rotation);
+                if (seen != pawn.Rotation)
+                {
+                    __1 = seen;
+                }
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Turning a pawn sprite's facing with the camera failed: " + e, 93611191);
+            }
+        }
+
+        // What an upright pawn sprite carries sits beside it by the pawn's map facing (CalculateCarriedDrawPos reads
+        // pawn.Rotation, not the drawn facing): moved to where the game puts it for the facing seen. Only the game's
+        // plain placement is changed (a job's own placement, or a pushed cart, is left alone).
+        public static void CarriedDrawPos_Prefix(Vector3 __2, out Vector3 __state)
+        {
+            __state = __2;
+        }
+
+        public static void CarriedDrawPos_Postfix(Pawn __0, ref Vector3 __2, Vector3 __state)
+        {
+            if (!pawnUpright || __0 == null || __0 != uprightPawn || !View3D.Ready)
+            {
+                return;
+            }
+            try
+            {
+                Rot4 seen = View3D.SeenFacing(__0.Rotation);
+                if (seen != __0.Rotation && (__2 - (__state + CarryOffset(__0, __0.Rotation))).sqrMagnitude < 1e-8f)
+                {
+                    __2 = __state + CarryOffset(__0, seen);
+                }
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Placing what an upright pawn carries failed: " + e, 93611192);
+            }
+        }
+
+        // The game's plain offset of a carried thing for a facing (PawnRenderUtility.CalculateCarriedDrawPos).
+        private static Vector3 CarryOffset(Pawn pawn, Rot4 facing)
+        {
+            Vector3 o = new Vector3(0f, 0f, -0.1f);
+            switch (facing.AsInt)
+            {
+                case 0:
+                    o.z = 0f;
+                    break;
+                case 1:
+                    o.x = 0.18f;
+                    break;
+                case 3:
+                    o.x = -0.18f;
+                    break;
+            }
+            if (pawn.DevelopmentalStage == DevelopmentalStage.Child)
+            {
+                o.z -= 0.1f;
+            }
+            o.y += facing == Rot4.North ? -0.03658537f : 0.03658537f;
+            return o;
         }
 
         public static bool PreRender_Prefix(PawnRenderer __instance)

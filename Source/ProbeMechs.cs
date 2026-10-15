@@ -22,6 +22,7 @@ namespace IsoRim
     //   walkfilm=N,k,tag,x,z,size[,follow|ticksM] N screenshots, k Unity frames apart (and each written before the next), the game
     //                                 running at normal speed meanwhile (renders\<harness tag>\walk_<tag>_<frame>.png), camera held at (x,z,size);
     //                                 with a 7th part "follow", centred on the pawns walking on a forced job instead
+    //   facecheck=1                   logs every pawn: map facing, step it is walking, sprite facing seen (View3D.SeenFacing), 3D model
     //   turrettarget=x,z,tx,tz        the turret comp of the pawn in (x,z) given the pawn (or cell) at (tx,tz) as its target
     //   mechcheck=1                   logs every mech and carrying pawn on the map (Mechs.Report)
     public static partial class Probe
@@ -275,6 +276,16 @@ namespace IsoRim
                     walkFollow = a.Length > 6 && a[6] == "follow";
                     walkExtraTicks = a.Length > 6 && a[6].StartsWith("ticks") ? I(a[6].Substring(5)) : 0;
                     walkTrack = a.Length > 7 && a[7] == "track";
+                    return true;
+                case "facecheck":
+                    // Each pawn: map facing, the way it is walking, the sprite facing the camera sees, 3D model or not.
+                    foreach (Pawn p in map.mapPawns.AllPawnsSpawned.ToList())
+                    {
+                        IntVec3 step = p.pather != null && p.pather.MovingNow ? p.pather.nextCell - p.Position : IntVec3.Zero;
+                        Log.Message("[IsoRim probe] facecheck " + p.def.defName + " at " + p.Position + " yaw " + View3D.Yaw.ToString("0") + " rot " + p.Rotation
+                            + " step " + step.x + "," + step.z + " seen " + View3D.SeenFacing(p.Rotation) + " posture " + p.GetPosture()
+                            + " model " + Patches.DrawnAsModel(p));
+                    }
                     return true;
                 case "mechcheck":
                     foreach (Pawn p in map.mapPawns.AllPawnsSpawned.ToList())
