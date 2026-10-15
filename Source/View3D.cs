@@ -748,6 +748,17 @@ namespace IsoRim
             return r;
         }
 
+        // The sprite facing that shows a thing facing world way "facing" on a card stood up square to the camera:
+        // the game picks a sprite (back for north, side for east and west) assuming north is up the screen, so
+        // with the camera turned the facing is turned back by the camera's quarter turns. On a diagonal (45 degree
+        // snap) the quarter the camera has turned less into is kept, so the starting isometric view (45) shows the
+        // game's own facings. Used for upright pawn sprites (Patches.PreRenderResults_Prefix) and outfit stands.
+        public static Rot4 SeenFacing(Rot4 facing)
+        {
+            int turns = Mathf.FloorToInt((Mathf.Repeat(Yaw, 360f) + 44f) / 90f) & 3;
+            return new Rot4((facing.AsInt - turns + 4) & 3);
+        }
+
         // Stands a flat sprite up so that it faces the camera, hinged at pivot.
         public static Matrix4x4 UprightMatrix(Vector3 pivot)
         {

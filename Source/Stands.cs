@@ -381,11 +381,10 @@ namespace IsoRim
         }
 
         // The side of the stand the camera sees: its own facing while the camera looks roughly north,
-        // turned with the camera beyond that.
+        // turned with the camera beyond that (the same rule as upright pawn sprites).
         public static Rot4 Seen(Rot4 facing)
         {
-            int turns = Mathf.FloorToInt((Mathf.Repeat(View3D.Yaw, 360f) + 44f) / 90f) & 3;
-            return new Rot4((facing.AsInt - turns + 4) & 3);
+            return View3D.SeenFacing(facing);
         }
 
         // For the harness: what the stand shows and how.
