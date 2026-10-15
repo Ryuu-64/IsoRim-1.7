@@ -249,6 +249,9 @@ namespace IsoRim
     public static class SettingsWindow
     {
         private static int tab;
+        private static int scrollTab = -1;
+        private static Vector2 scroll;
+        private static float contentHeight;
         private static readonly Color Muted = new Color(0.72f, 0.72f, 0.72f);
         private static readonly Color Rule = new Color(1f, 1f, 1f, 0.18f);
         private static readonly Color Accent = new Color(0.55f, 0.78f, 0.95f);
@@ -276,13 +279,23 @@ namespace IsoRim
             Widgets.DrawMenuSection(body);
             TabDrawer.DrawTabs(body, tabs);
 
+            // Both columns scroll together when a tab is taller than the window (the height is
+            // measured from the last frame).
             Rect inner = body.ContractedBy(14f);
+            if (scrollTab != tab)
+            {
+                scrollTab = tab;
+                scroll = Vector2.zero;
+            }
+            bool scrolls = contentHeight > inner.height;
+            Rect view = new Rect(0f, 0f, inner.width - (scrolls ? 18f : 0f), Mathf.Max(contentHeight, inner.height));
+            Widgets.BeginScrollView(inner, ref scroll, view);
             float gap = 24f;
-            float colW = (inner.width - gap) / 2f;
-            Rect left = new Rect(inner.x, inner.y, colW, inner.height);
-            Rect right = new Rect(inner.x + colW + gap, inner.y, colW, inner.height);
+            float colW = (view.width - gap) / 2f;
+            Rect left = new Rect(0f, 0f, colW, 4000f);
+            Rect right = new Rect(colW + gap, 0f, colW, 4000f);
             GUI.color = Rule;
-            Widgets.DrawLineVertical(inner.x + colW + gap / 2f, inner.y, inner.height);
+            Widgets.DrawLineVertical(colW + gap / 2f, 0f, view.height);
             GUI.color = Color.white;
 
             // One column at a time: a listing opens a drawing group, and two open at once would
@@ -290,11 +303,15 @@ namespace IsoRim
             Listing_Standard l = new Listing_Standard();
             l.Begin(left);
             Tab(l, null, st);
+            float leftH = l.CurHeight;
             l.End();
             Listing_Standard r = new Listing_Standard();
             r.Begin(right);
             Tab(null, r, st);
+            float rightH = r.CurHeight;
             r.End();
+            Widgets.EndScrollView();
+            contentHeight = Mathf.Max(leftH, rightH) + 8f;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.UpperLeft;
             GUI.color = Color.white;
