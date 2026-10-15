@@ -1014,6 +1014,10 @@ namespace IsoRim
             {
                 return true;
             }
+            if (!View3D.InFront(__0.DrawPos))
+            {
+                return false;   // behind the camera: it would show mirrored up in the sky
+            }
             float a = View3D.LabelAlpha(__0.DrawPos);
             if (a <= 0.01f)
             {
@@ -1034,7 +1038,15 @@ namespace IsoRim
             {
                 return false;   // first person: no name floating in front of the eyes
             }
-            if (!View3D.Ready || __0 == null || __0.IsColonist)
+            if (!View3D.Ready || __0 == null)
+            {
+                return true;
+            }
+            if (!View3D.InFront(__0.DrawPos))
+            {
+                return false;   // behind the camera: it would show mirrored up in the sky
+            }
+            if (__0.IsColonist)
             {
                 return true;
             }

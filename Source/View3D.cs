@@ -202,6 +202,18 @@ namespace IsoRim
         // How much of a label to show for something at a map position (1 = all, 0 = none). Only with
         // perspective: labels keep their size on screen while what they belong to shrinks, so beyond
         // labelFade times the distance to the screen centre they fade out over the next 40 %.
+        // Whether a map position is in front of the perspective camera. Behind it, the projection
+        // mirrors points up into the sky, so labels for them must not be drawn. Always true orthographic.
+        public static bool InFront(Vector3 pos)
+        {
+            if (!persp)
+            {
+                return true;
+            }
+            Vector3 d = new Vector3(pos.x, 0f, pos.z) - eye;
+            return Vector3.Dot(d, fwd) > 0.2f;
+        }
+
         public static float LabelAlpha(Vector3 pos)
         {
             float fade = IsoRimMod.Settings.labelFade;
