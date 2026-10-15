@@ -62,6 +62,8 @@ namespace IsoRim
         public bool distanceFog = true;  // perspective: the far map fades into the sky's horizon
         public float fogStrength = 1f;   // 1 = solid at the view distance (hides the edge)
         public float fogStart = 0.35f;   // where between the screen centre and the view distance the fog starts
+        public bool antiAlias = true;    // FXAA pass over the 3D view (the engine has no MSAA)
+        public float antiAliasStrength = 1f;
         public int lookMode = 0;         // 0 = Ctrl (R3D_LookModifier) + middle button, 1 = right button with nothing selected
         public bool pawns3D = true;
         public bool effects3D = true;
@@ -143,6 +145,8 @@ namespace IsoRim
             Scribe_Values.Look(ref distanceFog, "distanceFog", true);
             Scribe_Values.Look(ref fogStrength, "fogStrength", 1f);
             Scribe_Values.Look(ref fogStart, "fogStart", 0.35f);
+            Scribe_Values.Look(ref antiAlias, "antiAlias", true);
+            Scribe_Values.Look(ref antiAliasStrength, "antiAliasStrength", 1f);
             Scribe_Values.Look(ref fpEyeHeight, "fpEyeHeight", 0.95f);
             Scribe_Values.Look(ref pawns3D, "pawns3D", true);
             Scribe_Values.Look(ref effects3D, "effects3D", true);
@@ -446,6 +450,11 @@ namespace IsoRim
                 st.fpFov = Slider(l, "First person field of view", st.fpFov, 40f, 100f, st.fpFov.ToString("0") + "°",
                     (R3DKeyDefOf.R3D_FirstPerson != null ? R3DKeyDefOf.R3D_FirstPerson.MainKeyLabel : "F5") + " with one person selected: the camera in their head. Middle button drag looks round.");
                 st.fpEyeHeight = Slider(l, "First person eye height", st.fpEyeHeight, 0.5f, 2f, st.fpEyeHeight.ToString("0.00") + " cells");
+                Check(l, "Smooth edges (anti-aliasing)", ref st.antiAlias, "Softens the stair steps on the edges of walls and models (FXAA). The interface is not touched.");
+                if (st.antiAlias)
+                {
+                    st.antiAliasStrength = Slider(l, "Edge smoothing", st.antiAliasStrength, 0.2f, 1f, (st.antiAliasStrength * 100f).ToString("0") + "%");
+                }
                 Check(l, "Perspective", ref st.perspective, "A real perspective camera: far things get smaller, as in Rim3D. Off: the flat (orthographic) view.");
                 if (st.perspective)
                 {

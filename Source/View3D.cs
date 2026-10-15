@@ -267,6 +267,7 @@ namespace IsoRim
             if (Active)
             {
                 ApplyCamera(main);
+                AntiAlias.Draw(main);
                 Grade.Draw(main);
             }
             else if (camerasOverridden)

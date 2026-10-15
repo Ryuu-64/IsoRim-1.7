@@ -309,4 +309,25 @@
     </shaderProgram>
   </ShaderDef>
 
+  <!-- Anti-aliasing (AntiAlias.cs): FXAA as one full-screen pass over the map view drawn so far
+       (scene grab IsoRimAA), just before the colour grade. The interface is drawn later and untouched. -->
+  <ShaderDef>
+    <defName>IsoRimAA</defName>
+    <shaderProgram>
+      <vertexShaderFileName>IsoRimScreen.vert.glsl</vertexShaderFileName>
+      <fragmentShaderFileName>IsoRimAA.frag.glsl</fragmentShaderFileName>
+      <useTexture>false</useTexture>
+      <flipTextureST>false</flipTextureST>
+      <blendMode>Opaque</blendMode>
+      <depthTest>false</depthTest>
+      <depthWrite>false</depthWrite>
+      <cullMode>None</cullMode>
+      <renderQueue>4890</renderQueue>
+      <sceneGrab>
+        <name>IsoRimAA</name>
+        <queue>4890</queue>
+      </sceneGrab>
+    </shaderProgram>
+  </ShaderDef>
+
 </Defs>
