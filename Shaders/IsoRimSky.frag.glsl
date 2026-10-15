@@ -194,6 +194,10 @@ void main()
         float ra = 1.2 + days * 0.004;
         vec3 gc = vec3(cos(0.96) * cos(ra), cos(0.96) * sin(ra), sin(0.96));
         vec3 g = normalize(gc.x * u._SkyCelA.xyz + gc.y * u._SkyCelB.xyz + gc.z * u._SkyCelP.xyz);
+        // Drawn lower (height above the horizon times _SkyCelP.w), so the map camera sees it.
+        vec2 gf = length(g.xz) > 1e-4 ? normalize(g.xz) : vec2(0.0, 1.0);
+        float gel = asin(clamp(g.y, -1.0, 1.0)) * u._SkyCelP.w;
+        g = vec3(gf.x * cos(gel), sin(gel), gf.y * cos(gel));
         vec3 pole = normalize(u._SkyCelP.xyz * 0.85 + u._SkyCelA.xyz * 0.35 + u._SkyCelB.xyz * 0.2);
         vec3 L = normalize(u._SkyTrueSun.xyz);
         float R = 0.06 * u._SkyMisc.y;

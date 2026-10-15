@@ -104,6 +104,11 @@ namespace IsoRim
                     float hour = GenLocalDate.HourFloat(map);
                     Vector3 sun = R3DMaterials.SunDirAt(Mathf.Clamp(hour, 4.5f, 19.5f));
                     Vector3 moon = R3DMaterials.MoonDir(map);
+                    if (st.lowSky)
+                    {
+                        sun = Lowered(sun, LowSky);
+                        moon = Lowered(moon, LowSky);
+                    }
                     // The sun only shows while it is up.
                     sunShow *= Mathf.Clamp01(sun.y * 6f + 0.3f);
                     Color sunColor = Color.Lerp(new Color(1f, 0.55f, 0.3f), new Color(1f, 0.95f, 0.82f), Mathf.Clamp01(sun.y * 2.5f));
@@ -164,7 +169,7 @@ namespace IsoRim
 
             skyMat.SetVector(celAId, a);
             skyMat.SetVector(celBId, b);
-            skyMat.SetVector(celPId, pole);
+            skyMat.SetVector(celPId, new Vector4(pole.x, pole.y, pole.z, st.lowSky ? LowSky : 1f));
             skyMat.SetVector(nightId, new Vector4(stars, milky, planets, giant));
             skyMat.SetVector(miscId, new Vector4(days, st.gasGiantSize, Time.realtimeSinceStartup % 600f, daylight));
             skyMat.SetVector(trueSunId, new Vector4(sun.x, sun.y, sun.z, phase));
@@ -179,6 +184,22 @@ namespace IsoRim
             Vector3 night = -R3DMaterials.SunDirAt(Mathf.Clamp(other, 6f, 18f));
             float t = hour < 12f ? Mathf.InverseLerp(6.5f, 5.5f, hour) : Mathf.InverseLerp(17.5f, 18.5f, hour);
             return Vector3.Slerp(day, night, Smooth(t)).normalized;
+        }
+
+        // How much lower the sun, moon and gas giant are drawn with "low in the sky" on.
+        private const float LowSky = 0.35f;
+
+        // The same direction with its height above the horizon scaled by k.
+        private static Vector3 Lowered(Vector3 d, float k)
+        {
+            Vector2 flat = new Vector2(d.x, d.z);
+            if (flat.sqrMagnitude < 1e-6f)
+            {
+                flat = new Vector2(0f, 1f);
+            }
+            flat.Normalize();
+            float el = Mathf.Asin(Mathf.Clamp(d.y, -1f, 1f)) * k;
+            return new Vector3(flat.x * Mathf.Cos(el), Mathf.Sin(el), flat.y * Mathf.Cos(el));
         }
 
         private static float Smooth(float t)

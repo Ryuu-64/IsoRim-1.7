@@ -69,6 +69,7 @@ namespace IsoRim
         public float gasGiantSize = 1f;
         public float starBrightness = 1f;
         public bool moonPhases = true;   // the moon waxes and wanes over a quadrum
+        public bool lowSky = true;       // sun, moon and gas giant drawn lower, where the map camera can see them
         public bool antiAlias = true;    // FXAA pass over the 3D view (the engine has no MSAA)
         public float antiAliasStrength = 1f;
         public int lookMode = 0;         // 0 = Ctrl (R3D_LookModifier) + middle button, 1 = right button with nothing selected
@@ -159,6 +160,7 @@ namespace IsoRim
             Scribe_Values.Look(ref gasGiantSize, "gasGiantSize", 1f);
             Scribe_Values.Look(ref starBrightness, "starBrightness", 1f);
             Scribe_Values.Look(ref moonPhases, "moonPhases", true);
+            Scribe_Values.Look(ref lowSky, "lowSky", true);
             Scribe_Values.Look(ref antiAlias, "antiAlias", true);
             Scribe_Values.Look(ref antiAliasStrength, "antiAliasStrength", 1f);
             Scribe_Values.Look(ref fpEyeHeight, "fpEyeHeight", 0.95f);
@@ -548,6 +550,7 @@ namespace IsoRim
                     {
                         st.gasGiantSize = Slider(r, "Gas giant size", st.gasGiantSize, 0.4f, 2.5f, "×" + st.gasGiantSize.ToString("0.0"));
                     }
+                    Check(r, "Sun, moon and gas giant low in the sky", ref st.lowSky, "Drawn about a third as high, so the map camera (which cannot look up) sees them. The light and shadows do not change. Off: where they really are, seen in first person.");
                     Check(r, "Moon phases", ref st.moonPhases, "The moon goes from new to full and back over a quadrum (15 days). Off: always full.");
                     st.starBrightness = Slider(r, "Night sky brightness", st.starBrightness, 0.2f, 2f, (st.starBrightness * 100f).ToString("0") + "%", "Stars, Milky Way and planets.");
                 }

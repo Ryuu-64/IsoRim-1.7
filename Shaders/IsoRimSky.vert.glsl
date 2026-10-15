@@ -21,7 +21,7 @@ layout(set = 2, binding = 0) uniform MaterialUniforms
     vec4 _SkyMoon;     // @default = vec4(0.0, 1.0, 0.0, 0.0)   toward the moon, w = how much it shows
     vec4 _SkyCelA;     // @default = vec4(1.0, 0.0, 0.0, 0.0)   celestial sphere: x axis in world space
     vec4 _SkyCelB;     // @default = vec4(0.0, 0.0, 1.0, 0.0)   y axis
-    vec4 _SkyCelP;     // @default = vec4(0.0, 1.0, 0.0, 0.0)   the pole (z axis)
+    vec4 _SkyCelP;     // @default = vec4(0.0, 1.0, 0.0, 0.0)   the pole (z axis), w = how much lower the sun, moon and gas giant are drawn
     vec4 _SkyNight;    // @default = vec4(0.0, 0.0, 0.0, 0.0)   stars, Milky Way, planets, gas giant (how much each shows)
     vec4 _SkyMisc;     // @default = vec4(0.0, 0.5, 0.0, 1.0)   days passed, gas giant size, seconds (twinkle), daylight
     vec4 _SkyTrueSun;  // @default = vec4(0.0, 1.0, 0.0, 1.0)   the sun's real direction (below the horizon at night), w = moon phase
