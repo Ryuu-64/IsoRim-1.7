@@ -747,6 +747,11 @@ namespace IsoRim
         // x is "right", y is "up the screen".
         public static void DollyVect_Postfix(ref Vector2 __result)
         {
+            if (FirstPerson.On)
+            {
+                __result = Vector2.zero;   // the camera rides with the colonist
+                return;
+            }
             if (View3D.Ready && __result != Vector2.zero)
             {
                 __result = View3D.ScreenMoveToGround(__result, false);
@@ -1025,6 +1030,10 @@ namespace IsoRim
         // The same for names over people and animals. The player's own colonists always keep theirs.
         public static bool DrawPawnLabel_Prefix(Pawn __0, ref float __2)
         {
+            if (__0 != null && __0 == FirstPerson.Pawn)
+            {
+                return false;   // first person: no name floating in front of the eyes
+            }
             if (!View3D.Ready || __0 == null || __0.IsColonist)
             {
                 return true;
@@ -1332,6 +1341,11 @@ namespace IsoRim
                 IsoRimSettings st = IsoRimMod.Settings;
                 Pawn pawn = pawnOfRenderer != null ? pawnOfRenderer(__instance) : null;
                 float spriteHeight = 1.5f;
+
+                if (pawn != null && pawn == FirstPerson.Pawn)
+                {
+                    return false;   // first person: the camera is in this colonist's head
+                }
 
                 if (pawn != null && st.mechs3D && st.models3D && pawn.RaceProps != null && pawn.RaceProps.IsMechanoid
                     && Mechs.Draw(pawn, __0))

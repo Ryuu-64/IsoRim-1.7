@@ -56,6 +56,8 @@ namespace IsoRim
         public float fov = 40f;          // perspective: vertical field of view, degrees
         public float viewDistance = 160f; // perspective: how far past the screen centre the map is drawn, cells
         public float labelFade = 1.4f;   // perspective: labels fade out past this many times the distance to the screen centre (4 = never)
+        public float fpFov = 70f;        // first person: vertical field of view, degrees
+        public float fpEyeHeight = 0.95f; // first person: eye height, cells (a full wall is wallHeight)
         public int lookMode = 0;         // 0 = Ctrl (R3D_LookModifier) + middle button, 1 = right button with nothing selected
         public bool pawns3D = true;
         public bool effects3D = true;
@@ -132,6 +134,8 @@ namespace IsoRim
             Scribe_Values.Look(ref fov, "fov", 40f);
             Scribe_Values.Look(ref viewDistance, "viewDistance", 160f);
             Scribe_Values.Look(ref labelFade, "labelFade", 1.4f);
+            Scribe_Values.Look(ref fpFov, "fpFov", 70f);
+            Scribe_Values.Look(ref fpEyeHeight, "fpEyeHeight", 0.95f);
             Scribe_Values.Look(ref pawns3D, "pawns3D", true);
             Scribe_Values.Look(ref effects3D, "effects3D", true);
             Scribe_Values.Look(ref cutHeight, "cutHeight", 0.5f);
@@ -431,6 +435,9 @@ namespace IsoRim
                     st.lookSensitivity = Slider(l, "Free look speed", st.lookSensitivity, 0.05f, 1f, st.lookSensitivity.ToString("0.00") + "°/px");
                     Check(l, "Invert up and down", ref st.invertY, "Dragging up tilts the camera toward top-down.");
                 }
+                st.fpFov = Slider(l, "First person field of view", st.fpFov, 40f, 100f, st.fpFov.ToString("0") + "°",
+                    (R3DKeyDefOf.R3D_FirstPerson != null ? R3DKeyDefOf.R3D_FirstPerson.MainKeyLabel : "F5") + " with one person selected: the camera in their head. Middle button drag looks round.");
+                st.fpEyeHeight = Slider(l, "First person eye height", st.fpEyeHeight, 0.5f, 2f, st.fpEyeHeight.ToString("0.00") + " cells");
                 Check(l, "Perspective", ref st.perspective, "A real perspective camera: far things get smaller, as in Rim3D. Off: the flat (orthographic) view.");
                 if (st.perspective)
                 {
@@ -728,6 +735,7 @@ namespace IsoRim
         public static KeyBindingDef R3D_ToggleRoofs;
         public static KeyBindingDef R3D_ResetCamera;
         public static KeyBindingDef R3D_LookModifier;
+        public static KeyBindingDef R3D_FirstPerson;
 
         static R3DKeyDefOf()
         {

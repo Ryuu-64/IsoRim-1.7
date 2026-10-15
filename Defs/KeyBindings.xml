@@ -70,4 +70,11 @@
     <defaultKeyCodeB>RightControl</defaultKeyCodeB>
   </KeyBindingDef>
 
+  <KeyBindingDef>
+    <defName>R3D_FirstPerson</defName>
+    <label>first person with the selected person on/off</label>
+    <category>IsoRim</category>
+    <defaultKeyCodeA>F5</defaultKeyCodeA>
+  </KeyBindingDef>
+
 </Defs>
