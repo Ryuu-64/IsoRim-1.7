@@ -259,4 +259,36 @@
     </shaderProgram>
   </ShaderDef>
 
+  <!-- Distance fog for the perspective camera (Sky.cs): layers of full-screen quads at set distances,
+       depth-tested, blended. Queue 3190: after the lighting overlay and the fog-of-war lid. -->
+  <ShaderDef>
+    <defName>IsoRimDistFog</defName>
+    <shaderProgram>
+      <vertexShaderFileName>IsoRimDistFog.vert.glsl</vertexShaderFileName>
+      <fragmentShaderFileName>IsoRimDistFog.frag.glsl</fragmentShaderFileName>
+      <useTexture>false</useTexture>
+      <flipTextureST>false</flipTextureST>
+      <blendMode>Alpha</blendMode>
+      <depthWrite>false</depthWrite>
+      <cullMode>None</cullMode>
+      <renderQueue>3190</renderQueue>
+    </shaderProgram>
+  </ShaderDef>
+
+  <!-- The sky for the perspective camera (Sky.cs): a full-screen quad at the far depth, so only
+       pixels nothing was drawn on take it. Queue 3195: after the distance fog, which would cover it. -->
+  <ShaderDef>
+    <defName>IsoRimSky</defName>
+    <shaderProgram>
+      <vertexShaderFileName>IsoRimSky.vert.glsl</vertexShaderFileName>
+      <fragmentShaderFileName>IsoRimSky.frag.glsl</fragmentShaderFileName>
+      <useTexture>false</useTexture>
+      <flipTextureST>false</flipTextureST>
+      <blendMode>Opaque</blendMode>
+      <depthWrite>false</depthWrite>
+      <cullMode>None</cullMode>
+      <renderQueue>3195</renderQueue>
+    </shaderProgram>
+  </ShaderDef>
+
 </Defs>

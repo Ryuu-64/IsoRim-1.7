@@ -58,6 +58,10 @@ namespace IsoRim
         public float labelFade = 1.4f;   // perspective: labels fade out past this many times the distance to the screen centre (4 = never)
         public float fpFov = 70f;        // first person: vertical field of view, degrees
         public float fpEyeHeight = 0.95f; // first person: eye height, cells (a full wall is wallHeight)
+        public bool sky = true;          // perspective: a sky behind the map instead of black
+        public bool distanceFog = true;  // perspective: the far map fades into the sky's horizon
+        public float fogStrength = 1f;   // 1 = solid at the view distance (hides the edge)
+        public float fogStart = 0.35f;   // where between the screen centre and the view distance the fog starts
         public int lookMode = 0;         // 0 = Ctrl (R3D_LookModifier) + middle button, 1 = right button with nothing selected
         public bool pawns3D = true;
         public bool effects3D = true;
@@ -135,6 +139,10 @@ namespace IsoRim
             Scribe_Values.Look(ref viewDistance, "viewDistance", 160f);
             Scribe_Values.Look(ref labelFade, "labelFade", 1.4f);
             Scribe_Values.Look(ref fpFov, "fpFov", 70f);
+            Scribe_Values.Look(ref sky, "sky", true);
+            Scribe_Values.Look(ref distanceFog, "distanceFog", true);
+            Scribe_Values.Look(ref fogStrength, "fogStrength", 1f);
+            Scribe_Values.Look(ref fogStart, "fogStart", 0.35f);
             Scribe_Values.Look(ref fpEyeHeight, "fpEyeHeight", 0.95f);
             Scribe_Values.Look(ref pawns3D, "pawns3D", true);
             Scribe_Values.Look(ref effects3D, "effects3D", true);
@@ -444,6 +452,13 @@ namespace IsoRim
                     st.fov = Slider(l, "Field of view", st.fov, 15f, 90f, st.fov.ToString("0") + "°", "Wider shows more round the edges and makes depth stronger.");
                     st.viewDistance = Slider(l, "View distance", st.viewDistance, 40f, 400f, st.viewDistance.ToString("0") + " cells",
                         "How far past the middle of the screen the map is drawn when the camera is low. Further costs frame time.");
+                    Check(l, "Sky", ref st.sky, "A sky with the sun and moon behind the map, following the time of day and the weather.");
+                    Check(l, "Distance fog", ref st.distanceFog, "The far map fades into the horizon, so the edge of what is drawn never shows.");
+                    if (st.distanceFog)
+                    {
+                        st.fogStart = Slider(l, "Fog starts", st.fogStart, 0f, 0.95f, (st.fogStart * 100f).ToString("0") + "%", "Where between the middle of the screen and the view distance the fog begins.");
+                        st.fogStrength = Slider(l, "Fog strength", st.fogStrength, 0.2f, 1f, (st.fogStrength * 100f).ToString("0") + "%", "100% is solid at the view distance and hides the edge.");
+                    }
                     st.labelFade = Slider(l, "Far labels fade from", st.labelFade, 1f, 4f, st.labelFade >= 4f ? "never" : "×" + st.labelFade.ToString("0.0"),
                         "Labels (stack counts, quality, names) fade out past this many times the distance to the middle of the screen. Your colonists keep their names.");
                 }

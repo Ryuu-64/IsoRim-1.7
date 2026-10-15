@@ -626,6 +626,16 @@ namespace IsoRim
                 LightingMatrix = Matrix4x4.Translate(new Vector3(-fwd.x * OverlayPull, -fwd.y * OverlayPull / s, -fwd.z * OverlayPull));
             }
             UprightCards.SetCamera(pitchDeg, Yaw);
+
+            if (persp)
+            {
+                // The fog is solid a little before the reach of the pointer rays and of the drawn ground
+                // (view depth is shorter than the distance along the ground toward the screen corners).
+                float reach = camDist + ViewDistance;
+                float fogEnd = reach * 0.92f;
+                float fogStart = Mathf.Lerp(Mathf.Min(camDist * 0.8f, fogEnd * 0.5f), fogEnd, Mathf.Clamp(st.fogStart, 0f, 0.95f));
+                Sky.Draw(main, fwd, right, up, tanHalf * aspect, tanHalf, near, far, fogStart, fogEnd);
+            }
         }
 
         private static void ResetCamera()
