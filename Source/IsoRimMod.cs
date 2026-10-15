@@ -62,6 +62,13 @@ namespace IsoRim
         public bool distanceFog = true;  // perspective: the far map fades into the sky's horizon
         public float fogStrength = 1f;   // 1 = solid at the view distance (hides the edge)
         public float fogStart = 0.35f;   // where between the screen centre and the view distance the fog starts
+        public bool stars = true;        // sky at night: stars
+        public bool milkyWay = true;     // sky at night: the Milky Way band
+        public bool planets = true;      // sky at night: three planets (realistic points)
+        public bool gasGiant = true;     // sky: a ringed gas giant (sci-fi), faint by day
+        public float gasGiantSize = 1f;
+        public float starBrightness = 1f;
+        public bool moonPhases = true;   // the moon waxes and wanes over a quadrum
         public bool antiAlias = true;    // FXAA pass over the 3D view (the engine has no MSAA)
         public float antiAliasStrength = 1f;
         public int lookMode = 0;         // 0 = Ctrl (R3D_LookModifier) + middle button, 1 = right button with nothing selected
@@ -145,6 +152,13 @@ namespace IsoRim
             Scribe_Values.Look(ref distanceFog, "distanceFog", true);
             Scribe_Values.Look(ref fogStrength, "fogStrength", 1f);
             Scribe_Values.Look(ref fogStart, "fogStart", 0.35f);
+            Scribe_Values.Look(ref stars, "stars", true);
+            Scribe_Values.Look(ref milkyWay, "milkyWay", true);
+            Scribe_Values.Look(ref planets, "planets", true);
+            Scribe_Values.Look(ref gasGiant, "gasGiant", true);
+            Scribe_Values.Look(ref gasGiantSize, "gasGiantSize", 1f);
+            Scribe_Values.Look(ref starBrightness, "starBrightness", 1f);
+            Scribe_Values.Look(ref moonPhases, "moonPhases", true);
             Scribe_Values.Look(ref antiAlias, "antiAlias", true);
             Scribe_Values.Look(ref antiAliasStrength, "antiAliasStrength", 1f);
             Scribe_Values.Look(ref fpEyeHeight, "fpEyeHeight", 0.95f);
@@ -505,6 +519,21 @@ namespace IsoRim
                 KeyRow(r, R3DKeyDefOf.R3D_TiltUp, "raise the camera");
                 KeyRow(r, R3DKeyDefOf.R3D_ToggleRoofs, "roofs on and off");
                 Note(r, "The 3D view and the roofs also have buttons in the bottom right corner of the screen, next to the game's own.");
+
+                if (st.perspective && st.sky)
+                {
+                    Section(r, "Night sky", "The sky turns with the hour round a pole set by the map's latitude.");
+                    Check(r, "Stars", ref st.stars, "Thousands of stars that twinkle, more of them near the horizon's haze. Hidden by rain, snow and fog.");
+                    Check(r, "Milky Way", ref st.milkyWay, "A band of the galaxy across the sky, with dark dust lanes and a bright core.");
+                    Check(r, "Planets (realistic)", ref st.planets, "Three steady points of light that wander along the sky from day to day.");
+                    Check(r, "Gas giant with rings (sci-fi)", ref st.gasGiant, "A big ringed planet high in the sky, lit by the sun so it shows phases. Faint by day.");
+                    if (st.gasGiant)
+                    {
+                        st.gasGiantSize = Slider(r, "Gas giant size", st.gasGiantSize, 0.4f, 2.5f, "×" + st.gasGiantSize.ToString("0.0"));
+                    }
+                    Check(r, "Moon phases", ref st.moonPhases, "The moon goes from new to full and back over a quadrum (15 days). Off: always full.");
+                    st.starBrightness = Slider(r, "Night sky brightness", st.starBrightness, 0.2f, 2f, (st.starBrightness * 100f).ToString("0") + "%", "Stars, Milky Way and planets.");
+                }
 
                 Section(r, "Advanced");
                 st.feetOffset = Slider(r, "Where upright sprites stand", st.feetOffset, 0f, 0.5f, st.feetOffset.ToString("0.00"),

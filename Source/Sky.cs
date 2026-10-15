@@ -38,6 +38,12 @@ namespace IsoRim
         private static readonly int sunId = Shader.PropertyToID("_SkySun");
         private static readonly int sunColorId = Shader.PropertyToID("_SkySunColor");
         private static readonly int moonId = Shader.PropertyToID("_SkyMoon");
+        private static readonly int celAId = Shader.PropertyToID("_SkyCelA");
+        private static readonly int celBId = Shader.PropertyToID("_SkyCelB");
+        private static readonly int celPId = Shader.PropertyToID("_SkyCelP");
+        private static readonly int nightId = Shader.PropertyToID("_SkyNight");
+        private static readonly int miscId = Shader.PropertyToID("_SkyMisc");
+        private static readonly int trueSunId = Shader.PropertyToID("_SkyTrueSun");
         private static readonly int fogColorId = Shader.PropertyToID("_FogColor");
         private static readonly int fogDepthId = Shader.PropertyToID("_FogDepth");
         private static readonly int fogShapeId = Shader.PropertyToID("_FogShape");
@@ -74,8 +80,8 @@ namespace IsoRim
             try
             {
                 Color zenith, horizon;
-                float sunShow, moonShow;
-                Colours(map, out zenith, out horizon, out sunShow, out moonShow);
+                float sunShow, moonShow, grey;
+                Colours(map, out zenith, out horizon, out sunShow, out moonShow, out grey);
                 Horizon = horizon;
 
                 // The game's terrain writes no depth: give the ground its depth first, or the fog and the
@@ -110,6 +116,7 @@ namespace IsoRim
                     skyMat.SetVector(sunId, new Vector4(sun.x, sun.y, sun.z, sunShow));
                     skyMat.SetVector(sunColorId, (Vector4)sunColor);
                     skyMat.SetVector(moonId, new Vector4(moon.x, moon.y, moon.z, moonShow));
+                    NightSky(map, hour, grey);
                     Graphics.DrawMesh(quad, Matrix4x4.identity, skyMat, 0, cam);
                 }
             }
@@ -119,8 +126,68 @@ namespace IsoRim
             }
         }
 
+        // C3: the celestial sphere (stars, Milky Way, planets, gas giant) and the moon's phase.
+        private static void NightSky(Map map, float hour, float grey)
+        {
+            IsoRimSettings st = IsoRimMod.Settings;
+            float days = Find.TickManager.TicksAbs / 60000f;
+
+            // The pole stands as high as the map's latitude, to the north (+z) or the south.
+            float lat = 40f;
+            try
+            {
+                lat = Find.WorldGrid.LongLatOf(map.Tile).y;
+            }
+            catch
+            {
+            }
+            float el = Mathf.Max(Mathf.Abs(lat), 3f) * Mathf.Deg2Rad;
+            Vector3 pole = new Vector3(0f, Mathf.Sin(el), Mathf.Cos(el) * (lat < 0f ? -1f : 1f));
+            Vector3 e1 = Vector3.right;
+            Vector3 e2 = Vector3.Cross(pole, e1);
+            // One turn a day, plus one a year (60 days) so the night sky changes with the seasons.
+            float turn = (hour / 24f + days / 60f) * 2f * Mathf.PI;
+            Vector3 a = Mathf.Cos(turn) * e1 + Mathf.Sin(turn) * e2;
+            Vector3 b = -Mathf.Sin(turn) * e1 + Mathf.Cos(turn) * e2;
+
+            float glow = GenCelestial.CurCelestialSunGlow(map);
+            float clear = 1f - grey;
+            float dark = Smooth(Mathf.InverseLerp(0.45f, 0.12f, glow));
+            float bright = st.starBrightness;
+            float stars = st.stars ? dark * clear * bright : 0f;
+            float milky = st.milkyWay ? dark * dark * clear * bright : 0f;
+            float planets = st.planets ? Smooth(Mathf.InverseLerp(0.55f, 0.25f, glow)) * clear * bright : 0f;
+            float giant = st.gasGiant ? 1f - grey * 0.85f : 0f;
+            float daylight = Mathf.InverseLerp(0.3f, 0.75f, glow);
+            float phase = st.moonPhases ? Mathf.Repeat(days / 15f + 0.5f, 1f) : 0.5f;
+            Vector3 sun = TrueSun(hour);
+
+            skyMat.SetVector(celAId, a);
+            skyMat.SetVector(celBId, b);
+            skyMat.SetVector(celPId, pole);
+            skyMat.SetVector(nightId, new Vector4(stars, milky, planets, giant));
+            skyMat.SetVector(miscId, new Vector4(days, st.gasGiantSize, Time.realtimeSinceStartup % 600f, daylight));
+            skyMat.SetVector(trueSunId, new Vector4(sun.x, sun.y, sun.z, phase));
+        }
+
+        // The sun where it really is, below the horizon at night (IsoRim's own sun path only covers
+        // the day): opposite to where it stands twelve hours on, blended across dusk and dawn.
+        private static Vector3 TrueSun(float hour)
+        {
+            Vector3 day = R3DMaterials.SunDirAt(Mathf.Clamp(hour, 6f, 18f));
+            float other = hour < 12f ? hour + 12f : hour - 12f;
+            Vector3 night = -R3DMaterials.SunDirAt(Mathf.Clamp(other, 6f, 18f));
+            float t = hour < 12f ? Mathf.InverseLerp(6.5f, 5.5f, hour) : Mathf.InverseLerp(17.5f, 18.5f, hour);
+            return Vector3.Slerp(day, night, Smooth(t)).normalized;
+        }
+
+        private static float Smooth(float t)
+        {
+            return t * t * (3f - 2f * t);
+        }
+
         // Night, dusk or day by the sun's glow; greyed by rain, snow and fog.
-        private static void Colours(Map map, out Color zenith, out Color horizon, out float sunShow, out float moonShow)
+        private static void Colours(Map map, out Color zenith, out Color horizon, out float sunShow, out float moonShow, out float grey)
         {
             float glow = GenCelestial.CurCelestialSunGlow(map);
             if (glow < 0.45f)
@@ -139,7 +206,7 @@ namespace IsoRim
             sunShow = 1f - night;
             moonShow = night;
 
-            float grey = 0f;
+            grey = 0f;
             WeatherManager w = map.weatherManager;
             if (w != null && w.curWeather != null)
             {
