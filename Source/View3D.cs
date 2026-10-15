@@ -189,6 +189,20 @@ namespace IsoRim
             }
         }
 
+        // How much of a label to show for something at a map position (1 = all, 0 = none). Only with
+        // perspective: labels keep their size on screen while what they belong to shrinks, so beyond
+        // labelFade times the distance to the screen centre they fade out over the next 40 %.
+        public static float LabelAlpha(Vector3 pos)
+        {
+            float fade = IsoRimMod.Settings.labelFade;
+            if (!persp || fade >= 4f)
+            {
+                return 1f;
+            }
+            float d = Vector3.Distance(eye, new Vector3(pos.x, 0f, pos.z)) / Mathf.Max(1f, camDist);
+            return Mathf.Clamp01(1f - (d - fade) / (fade * 0.4f));
+        }
+
         // How far past the focus point the perspective camera shows the map, in cells.
         public static float ViewDistance
         {

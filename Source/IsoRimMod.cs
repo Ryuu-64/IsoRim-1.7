@@ -55,6 +55,7 @@ namespace IsoRim
         public bool perspective = true;  // perspective camera (Rim3D-like) instead of orthographic
         public float fov = 40f;          // perspective: vertical field of view, degrees
         public float viewDistance = 160f; // perspective: how far past the screen centre the map is drawn, cells
+        public float labelFade = 1.4f;   // perspective: labels fade out past this many times the distance to the screen centre (4 = never)
         public int lookMode = 0;         // 0 = Ctrl (R3D_LookModifier) + middle button, 1 = right button with nothing selected
         public bool pawns3D = true;
         public bool effects3D = true;
@@ -130,6 +131,7 @@ namespace IsoRim
             Scribe_Values.Look(ref perspective, "perspective", true);
             Scribe_Values.Look(ref fov, "fov", 40f);
             Scribe_Values.Look(ref viewDistance, "viewDistance", 160f);
+            Scribe_Values.Look(ref labelFade, "labelFade", 1.4f);
             Scribe_Values.Look(ref pawns3D, "pawns3D", true);
             Scribe_Values.Look(ref effects3D, "effects3D", true);
             Scribe_Values.Look(ref cutHeight, "cutHeight", 0.5f);
@@ -435,6 +437,8 @@ namespace IsoRim
                     st.fov = Slider(l, "Field of view", st.fov, 15f, 90f, st.fov.ToString("0") + "°", "Wider shows more round the edges and makes depth stronger.");
                     st.viewDistance = Slider(l, "View distance", st.viewDistance, 40f, 400f, st.viewDistance.ToString("0") + " cells",
                         "How far past the middle of the screen the map is drawn when the camera is low. Further costs frame time.");
+                    st.labelFade = Slider(l, "Far labels fade from", st.labelFade, 1f, 4f, st.labelFade >= 4f ? "never" : "×" + st.labelFade.ToString("0.0"),
+                        "Labels (stack counts, quality, names) fade out past this many times the distance to the middle of the screen. Your colonists keep their names.");
                 }
                 if (st.isometric)
                 {
