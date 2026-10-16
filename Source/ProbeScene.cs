@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 using RimWorld;
+using RimWorld.Planet;
 using UnityEngine;
 using Verse;
 using Verse.AI;
@@ -126,6 +127,10 @@ namespace IsoRim
     //                                colonist and ordered to fire at (tx,tz) (real jobs: run tickuntil=flash after it)
     //   turretcheck=1                logs every turret's verb state, aim override, gun rotation and which gun model it shows
     //   roofclip=0|1                 things under roofs clipped at the roof (RoofClip, default 1) or not (before/after shots)
+    //   spacemap=<size>              a new empty space map (orbit tile, fog cleared) made the current map: later keys and the
+    //                                harness shots work on it (layout shot coords are then plain map cells, see layout_space_edges)
+    //   spaceedges=0|1               space platform sides in 3D (SpaceEdges, default 1) or the game flat strips (before/after)
+    //   spaceedgecheck=1             logs the space-edge sets on the map (loop texture sizes, colour) and both edge layers sizes
     //   ui=1                         map overlays the screenshot mode hides (selection, temperature,
     //                                roof, fertility, areas) are drawn in the shots; overlay=home
     //                                shows the home area
@@ -1308,6 +1313,89 @@ namespace IsoRim
                 case "roofclip":
                     RoofClip.Enabled = a[0] == "1";
                     break;
+                case "spacemap":
+                {
+                    // spacemap=<size>: a new empty space map (Odyssey's "Space" site on a free orbit tile), fog
+                    // cleared, made the current map; later keys and the harness's shots work on it.
+                    PlanetLayer orbit = Find.WorldGrid.Orbit;
+                    if (orbit == null)
+                    {
+                        Log.Warning("[IsoRim probe] spacemap: no orbit layer");
+                        break;
+                    }
+                    PlanetTile tile = PlanetTile.Invalid;
+                    for (int i = 0; i < orbit.TilesCount; i++)
+                    {
+                        PlanetTile pt = new PlanetTile(i, orbit);
+                        if (!Find.WorldObjects.AnyWorldObjectAt(pt))
+                        {
+                            tile = pt;
+                            break;
+                        }
+                    }
+                    int n = I(a[0]);
+                    Map sm = GetOrGenerateMapUtility.GetOrGenerateMap(tile, new IntVec3(n, 1, n), DefDatabase<WorldObjectDef>.GetNamed("Space"));
+                    sm.fogGrid.ClearAllFog();
+                    Current.Game.CurrentMap = sm;
+                    Log.Message("[IsoRim probe] spacemap " + sm.Size + " tile " + tile + " space " + SpaceEdges.DrawsOn(sm) + " clippers " + sm.DrawMapClippers);
+                    break;
+                }
+                case "spaceedges":
+                    // spaceedges=0|1: platform sides in 3D (SpaceEdges, default 1) or the game's flat strips (before/after).
+                    SpaceEdges.Enabled = a[0] == "1";
+                    map.mapDrawer.RegenerateEverythingNow();
+                    break;
+                case "spaceedgecheck":
+                {
+                    // spaceedgecheck=1: per space-edge terrain on the map, its loop texture sizes and colour; then the
+                    // game's edge layer and IsoRim's sides layer: drawn sub-meshes and vertices.
+                    HashSet<TerrainDef> seen = new HashSet<TerrainDef>();
+                    foreach (IntVec3 c in map.AllCells)
+                    {
+                        TerrainDef t = map.terrainGrid.BaseTerrainAt(c);
+                        if (t != null && t.spaceEdgeGraphicData != null && seen.Add(t))
+                        {
+                            List<string> parts = new List<string>();
+                            foreach (SectionLayer_TerrainEdges.EdgeType et in new[] { SectionLayer_TerrainEdges.EdgeType.Loop, SectionLayer_TerrainEdges.EdgeType.LoopLeft,
+                                SectionLayer_TerrainEdges.EdgeType.LoopRight, SectionLayer_TerrainEdges.EdgeType.LoopSingle, SectionLayer_TerrainEdges.EdgeType.Flat })
+                            {
+                                Material m = t.spaceEdgeGraphicData.GetMaterial(t, et);
+                                parts.Add(et + " " + (m != null && m.mainTexture != null ? m.mainTexture.width + "x" + m.mainTexture.height + " " + m.mainTexture.name : "-"));
+                            }
+                            Material m0 = t.spaceEdgeGraphicData.GetMaterial(t, SectionLayer_TerrainEdges.EdgeType.Loop);
+                            Log.Message("[IsoRim probe] spaceedge " + t.defName + " colour " + (m0 != null ? m0.color.ToString() : "-") + ": " + string.Join(", ", parts));
+                        }
+                    }
+                    MethodInfo gl = AccessTools.Method(typeof(Section), "GetLayer");
+                    foreach (Type lt in new[] { typeof(SectionLayer_TerrainEdges), typeof(SectionLayer_IsoRimSpaceEdges) })
+                    {
+                        int subs = 0, verts = 0;
+                        HashSet<Section> done = new HashSet<Section>();
+                        foreach (IntVec3 c in map.AllCells)
+                        {
+                            Section s = map.mapDrawer.SectionAt(c);
+                            if (!done.Add(s))
+                            {
+                                continue;
+                            }
+                            SectionLayer l = gl != null ? gl.Invoke(s, new object[] { lt }) as SectionLayer : null;
+                            if (l == null)
+                            {
+                                continue;
+                            }
+                            foreach (LayerSubMesh sub in l.subMeshes)
+                            {
+                                if (sub.finalized && !sub.disabled && sub.mesh != null && sub.mesh.vertexCount > 0)
+                                {
+                                    subs++;
+                                    verts += sub.mesh.vertexCount;
+                                }
+                            }
+                        }
+                        Log.Message("[IsoRim probe] spaceedge layer " + lt.Name + ": " + subs + " drawn sub-meshes, " + verts + " vertices");
+                    }
+                    break;
+                }
                 case "muzzle":
                     Projectiles.FromMuzzle = a[0] == "1";
                     break;
