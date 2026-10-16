@@ -30,6 +30,7 @@ namespace IsoRim
         private static bool mode3D;      // this cutscene is drawn in 3D
         private static bool takeoff;
         private static ShipSnapshot snap;
+        private static ShipCells cells;
 
         // The pose drawn this frame (true heights).
         private static bool posed;
@@ -58,6 +59,20 @@ namespace IsoRim
         private static readonly Material matExtenderGlow = AccessTools.Field(typeof(GravshipRenderer), "MatGravFieldExtenderGlow").GetValue(null) as Material;
         private static readonly Material matEngineGlow = AccessTools.Field(typeof(GravshipRenderer), "MatGravEngineGlow").GetValue(null) as Material;
         private static readonly int Color2 = Shader.PropertyToID("_Color2");
+        private static readonly int GravshipHeight = Shader.PropertyToID("_GravshipHeight");
+        private static readonly int IsTakeoff = Shader.PropertyToID("_IsTakeoff");
+        private static readonly Material matDownwash = AccessTools.Field(typeof(GravshipRenderer), "MatGravshipDownwash").GetValue(null) as Material;
+        private static readonly Material matDistortion = AccessTools.Field(typeof(GravshipRenderer), "MatGravshipDistortion").GetValue(null) as Material;
+        private static readonly Material matLensFlare = AccessTools.Field(typeof(GravshipRenderer), "MatGravshipLensFlare").GetValue(null) as Material;
+        private static readonly AccessTools.FieldRef<GravshipRenderer, MaterialPropertyBlock> rDistortionBlock = AccessTools.FieldRefAccess<GravshipRenderer, MaterialPropertyBlock>("distortionBlock");
+        private static readonly AccessTools.FieldRef<GravshipRenderer, MaterialPropertyBlock> rFlareBlock = AccessTools.FieldRefAccess<GravshipRenderer, MaterialPropertyBlock>("flareBlock");
+        private static readonly AccessTools.FieldRef<GravshipRenderer, Map> rMap = AccessTools.FieldRefAccess<GravshipRenderer, Map>("map");
+
+        // How high over the deck the thruster nozzles and the engine's orb are, in cells (thruster models are about a wall
+        // high, the nozzle in their middle; the orb floats over the engine).
+        private const float NozzleShare = 0.5f;
+        private const float OrbHeight = 1.2f;
+        private const float ExtenderHeight = 0.6f;
 
         static ShipFlight()
         {
@@ -87,9 +102,23 @@ namespace IsoRim
 
         // ---- start and end
 
-        public static void InitiateTakeoff_Postfix()
+        public static void InitiateTakeoff_Postfix(Building_GravEngine engine)
         {
             Begin(true);
+            if (mode3D && engine != null && engine.Spawned)
+            {
+                // The ship's cells, and its moving parts recorded from now on (ShipCapture), while it still stands here.
+                try
+                {
+                    cells = ShipCells.Of(engine);
+                    ShipCapture.Start(cells);
+                }
+                catch (Exception e)
+                {
+                    cells = null;
+                    Log.ErrorOnce("[IsoRim] Finding the gravship's cells failed: " + e, 93611504);
+                }
+            }
         }
 
         public static void InitiateLanding_Postfix()
@@ -138,6 +167,8 @@ namespace IsoRim
                 snap.Dispose();
                 snap = null;
             }
+            ShipCapture.Stop();
+            cells = null;
             posed = false;
             camSaved = false;
             camFollowing = false;
@@ -157,10 +188,13 @@ namespace IsoRim
                 {
                     snap.Dispose();
                 }
-                snap = ShipSnapshot.Build(engine);
+                List<ShipCapture.Rec> recorded = ShipCapture.Take();
+                ShipCapture.Stop();
+                snap = ShipSnapshot.Build(engine, cells ?? ShipCells.Of(engine), recorded);
             }
             catch (Exception e)
             {
+                ShipCapture.Stop();
                 snap = null;
                 Log.ErrorOnce("[IsoRim] Making the 3D snapshot of the gravship failed (the game's flat cutscene is shown): " + e, 93611501);
             }
@@ -211,7 +245,7 @@ namespace IsoRim
             turn = quaternion;
             posed = true;
             snap.Draw(ground, height, turn);
-            Flames(r, g, rEnginePos(r) + rOffset(r), progress);
+            Effects(r, g, rEnginePos(r) + rOffset(r), progress, num);
         }
 
         // Vanilla's fake height is a slide up the screen by that many cells; a point raised h cells moves h cos(pitch)
@@ -223,20 +257,55 @@ namespace IsoRim
             return Mathf.Min(slide / c, cap);
         }
 
-        // Thruster flames, the field extender and engine glows and the exhaust: vanilla's (GravshipRenderer.DrawGravship,
-        // vanilla 1.7), still flat quads, lifted to the ship's height. (Phase 3 stands them up.)
-        private static void Flames(GravshipRenderer r, Gravship g, Vector3 enginePos, float progress)
+        // Everything vanilla draws round the flying ship (GravshipRenderer.DrawGravship / DrawGravshipGroundEffects,
+        // vanilla 1.7), in 3D: the shadow on the ground (ShipSnapshot.DrawShadow), the thruster flames stood up round
+        // their thrust (axial cards: long along the thrust, turned about it to face the camera) at the nozzles, the engine
+        // and field extender glows as cards facing the camera, the exhaust, and the screen effects (downwash, distortion,
+        // lens flares: the game's screen-space shaders on a card filling the screen, _DrawPos from the 3D points).
+        private static void Effects(GravshipRenderer r, Gravship g, Vector3 enginePos, float progress, float heightShare)
         {
+            Map map = rMap(r);
+            snap.DrawShadow(ground, height, turn, progress, map);
+
+            // Downwash: round the ground under the ship; the card lies at that depth, so the ship in front covers it.
+            if (progress > 0f && map != null && !map.Biome.inVacuum && matDownwash != null)
+            {
+                Vector3 under = new Vector3(ground.x, 0f, ground.z);
+                matDownwash.SetFloat(ShaderPropertyIDs.Progress, progress);
+                matDownwash.SetFloat(GravshipHeight, heightShare);
+                matDownwash.SetVector(ShaderPropertyIDs.DrawPos, View3D.WorldToViewport(under));
+                matDownwash.SetFloat(IsTakeoff, 1f);
+                Graphics.DrawMesh(MeshPool.plane10, View3D.ScreenCard(View3D.DepthOf(under) - 0.5f), matDownwash, 0);
+            }
+
+            float nozzle = View3D.WallHeight * NozzleShare;
+            Vector3 engineAt = Turned(enginePos + g.Engine.def.Size.ToVector3() * 0.25f);
+            Vector3 orb = new Vector3(engineAt.x, height + OrbHeight, engineAt.z);
+            MaterialPropertyBlock distortion = rDistortionBlock(r);
+            if (matDistortion != null && distortion != null)
+            {
+                distortion.SetFloat(ShaderPropertyIDs.Progress, progress);
+                distortion.SetFloat(GravshipHeight, heightShare);
+                distortion.SetVector(ShaderPropertyIDs.DrawPos, View3D.WorldToViewport(orb));
+                distortion.SetFloat(IsTakeoff, 1f);
+                Graphics.DrawMesh(MeshPool.plane10, View3D.ScreenCard(View3D.NearCard), matDistortion, 0, null, 0, distortion);
+            }
             if (progress <= 0f)
             {
                 return;
             }
-            Vector3 lift = new Vector3(0f, height / View3D.Squash, 0f);
             Color value = new Color(1f, 1f, 1f, 1f);
             value *= Mathf.Lerp(0.75f, 1f, Mathf.PerlinNoise1D(progress * 100f));
             value.a = Mathf.InverseLerp(0f, 0.1f, progress);
+            if (matLensFlare != null)
+            {
+                matLensFlare.SetColor(Color2, value);
+            }
             MaterialPropertyBlock block = rFlameBlock(r);
+            MaterialPropertyBlock flare = rFlareBlock(r);
             Dictionary<Thing, EventQueue> timers = rExhaustTimers(r);
+            Vector3 toCamera = -View3D.Forward;
+            float s = View3D.Squash;
             foreach (KeyValuePair<Thing, PositionData.Data> kv in g.ThrusterPlacements)
             {
                 Thing thing = kv.Key;
@@ -250,6 +319,7 @@ namespace IsoRim
                 Vector3 offset = thing.Rotation.AsQuat * props.flameOffsetsPerDirection[thing.Rotation.AsInt];
                 Vector3 local = GenThing.TrueCenter(data.local, thing.Rotation, thing.def.size, 0f) - thing.Rotation.AsIntVec3.ToVector3() * (thing.def.size.z * 0.5f + size * 0.5f) + offset;
                 Vector3 pos = Turned(enginePos + local).SetToAltitude(AltitudeLayer.Skyfaller).WithYOffset(0.07317074f);
+                Vector3 at = new Vector3(pos.x, height + nozzle, pos.z);
                 MaterialRequest req = new MaterialRequest(props.FlameShaderType.Shader);
                 req.renderQueue = 3201;
                 Material mat = MaterialPool.MatFrom(req);
@@ -259,7 +329,21 @@ namespace IsoRim
                 {
                     p.Apply(block);
                 }
-                Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(pos + lift, turn * data.rotation.AsQuat, new Vector3(size, 1f, size)), mat, 0, null, 0, block);
+                // The quad's texture up stays along the thruster's facing as in vanilla (local z); its face turns about
+                // that axis toward the camera.
+                Vector3 along = turn * data.rotation.AsQuat * Vector3.forward;
+                Vector3 face = toCamera - along * Vector3.Dot(along, toCamera);
+                if (face.sqrMagnitude < 1e-4f)
+                {
+                    face = Vector3.up;
+                }
+                Matrix4x4 m = Matrix4x4.Scale(new Vector3(1f, 1f / s, 1f)) * Matrix4x4.TRS(at, Quaternion.LookRotation(along, face.normalized), new Vector3(size, 1f, size));
+                Graphics.DrawMesh(MeshPool.plane10, m, mat, 0, null, 0, block);
+                if (matLensFlare != null && flare != null)
+                {
+                    flare.SetVector(ShaderPropertyIDs.DrawPos, View3D.WorldToViewport(at));
+                    Graphics.DrawMesh(MeshPool.plane10, View3D.ScreenCard(View3D.NearCard), matLensFlare, 0, null, 0, flare);
+                }
                 EventQueue q;
                 if (props.exhaustSettings != null && props.exhaustSettings.enabled && timers != null && timers.TryGetValue(thing, out q))
                 {
@@ -275,17 +359,25 @@ namespace IsoRim
                 matExtenderGlow.SetColor(Color2, value);
                 foreach (IntVec3 c in g.GravFieldExtenderPositions)
                 {
-                    Vector3 p = Turned(enginePos + c.ToVector3() + ThingDefOf.GravFieldExtender.graphicData.drawSize.ToVector3() * 0.5f)
-                        .SetToAltitude(AltitudeLayer.MetaOverlays).WithYOffset(0.07317074f);
-                    Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(p + lift, Quaternion.identity, new Vector3(8f, 1f, 8f)), matExtenderGlow, 0);
+                    Vector3 p = Turned(enginePos + c.ToVector3() + ThingDefOf.GravFieldExtender.graphicData.drawSize.ToVector3() * 0.5f);
+                    Glow(new Vector3(p.x, height + ExtenderHeight, p.z), 8f, matExtenderGlow);
                 }
             }
             if (matEngineGlow != null)
             {
                 matEngineGlow.SetColor(Color2, value);
-                Vector3 p = Turned(enginePos + g.Engine.def.Size.ToVector3() * 0.25f).SetToAltitude(AltitudeLayer.MetaOverlays).WithYOffset(0.07317074f);
-                Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(p + lift, Quaternion.identity, new Vector3(12.5f, 1f, 12.5f)), matEngineGlow, 0);
+                Glow(orb, 12.5f, matEngineGlow);
             }
+        }
+
+        // A glow sprite stood up facing the camera, centred on a point (true height in y). It is moved toward the camera
+        // by more than half its size (no change on screen with the orthographic camera), so the deck it hangs over does not
+        // cut it off with a hard edge.
+        private static void Glow(Vector3 at, float size, Material mat)
+        {
+            at -= View3D.Forward * (size * 0.6f);
+            Vector3 pivot = new Vector3(at.x, at.y / View3D.Squash, at.z);
+            Graphics.DrawMesh(MeshPool.plane10, View3D.UprightMatrix(pivot) * Matrix4x4.TRS(pivot, Quaternion.identity, new Vector3(size, 1f, size)), mat, 0);
         }
 
         private static Vector3 Turned(Vector3 p)
@@ -364,7 +456,7 @@ namespace IsoRim
             {
                 return "flight: 3D, no snapshot";
             }
-            return "flight: 3D, ground " + ground.ToString("F1") + " height " + height.ToString("0.0") + " turn " + turn.eulerAngles.y.ToString("0.0")
+            return "flight: 3D, " + snap.Items + " moving parts, ground " + ground.ToString("F1") + " height " + height.ToString("0.0") + " turn " + turn.eulerAngles.y.ToString("0.0")
                 + ", camera focus " + camFocus.ToString("F1") + " size " + camSize.ToString("0.0");
         }
     }
@@ -393,8 +485,17 @@ namespace IsoRim
         private readonly List<Material> sources = new List<Material>();   // the section's own (for the light-pass mark)
         private readonly List<int> layers = new List<int>();
         private readonly List<bool> depths = new List<bool>();
+        private readonly List<ShipCapture.Rec> items = new List<ShipCapture.Rec>();   // moving parts (matrix relative to the pivot)
         private Vector3 pivot;
         private Vector3 min, max;   // drawn x, z relative to the pivot; y in true cells
+        private Texture2D shadowTex;
+        private Material shadowMat;
+        private Vector2 shadowSize;
+
+        public int Items
+        {
+            get { return items.Count; }
+        }
 
         private static readonly AccessTools.FieldRef<Section, List<SectionLayer>> sectionLayers = AccessTools.FieldRefAccess<Section, List<SectionLayer>>("layers");
         private static readonly int[] DX = { 0, 0, 0, -1, 1, -1, 1, -1, 1 };   // ShaderCut direction codes 1-8
@@ -425,66 +526,25 @@ namespace IsoRim
         public int Vertices { get; private set; }
         public int Triangles { get; private set; }
 
-        public static ShipSnapshot Build(Building_GravEngine engine)
+        public static ShipSnapshot Build(Building_GravEngine engine, ShipCells cells, List<ShipCapture.Rec> recorded)
         {
             Stopwatch watch = Stopwatch.StartNew();
             Map map = engine.Map;
             HashSet<IntVec3> deck = engine.ValidSubstructure;
-            CellRect bounds = CellRect.FromCellList(deck).ExpandedBy(1);   // vanilla's capture bounds (GravshipCapturer)
-            ShipSnapshot s = new ShipSnapshot { pivot = bounds.CenterVector3 };
-            s.pivot.y = 0f;
+            CellRect bounds = cells.bounds;
+            ShipSnapshot s = new ShipSnapshot { pivot = cells.pivot };
+            Func<float, float, byte> cellAt = cells.At;
+            s.MakeShadow(cells);
 
-            // ---- the ship's cells
-            CellRect area = bounds.ExpandedBy(4);
-            byte[] cls = new byte[area.Width * area.Height];
-            Func<int, int, int> at = (x, z) => x < area.minX || z < area.minZ || x > area.maxX || z > area.maxZ ? -1 : (z - area.minZ) * area.Width + (x - area.minX);
-            foreach (IntVec3 c in deck)
+            // ---- the moving parts, as drawn in the frame before (ShipCapture), moved to the pivot
+            if (recorded != null)
             {
-                cls[at(c.x, c.z)] = Deck;
-            }
-            foreach (IntVec3 c in bounds)
-            {
-                int i = at(c.x, c.z);
-                if (cls[i] == 0 && c.InBounds(map) && c.GetEdifice(map) == null && HullCorners.At(map, c, out _, out _))
+                Matrix4x4 back = Matrix4x4.Translate(-s.pivot);
+                foreach (ShipCapture.Rec r in recorded)
                 {
-                    cls[i] = Ship;
+                    s.items.Add(new ShipCapture.Rec { mesh = r.mesh, matrix = back * r.matrix, mat = r.mat, props = r.props });
                 }
             }
-            foreach (IntVec3 c in deck)
-            {
-                List<Thing> things = c.GetThingList(map);
-                for (int k = 0; k < things.Count; k++)
-                {
-                    if (things[k] is Pawn || things[k].def.category != ThingCategory.Building)
-                    {
-                        continue;
-                    }
-                    foreach (IntVec3 o in things[k].OccupiedRect())
-                    {
-                        int i = at(o.x, o.z);
-                        if (i >= 0 && cls[i] < Ship)
-                        {
-                            cls[i] = Ship;
-                        }
-                    }
-                }
-            }
-            foreach (IntVec3 c in deck)
-            {
-                for (int d = 1; d < 9; d++)
-                {
-                    int i = at(c.x + DX[d], c.z + DZ[d]);
-                    if (i >= 0 && cls[i] == 0)
-                    {
-                        cls[i] = Ring;
-                    }
-                }
-            }
-            Func<float, float, byte> cellAt = (x, z) =>
-            {
-                int i = at(Mathf.FloorToInt(x), Mathf.FloorToInt(z));
-                return i < 0 ? (byte)0 : cls[i];
-            };
 
             // ---- the sections over them, current
             Array sections = MapSections.SectionsOf(map);
@@ -654,7 +714,7 @@ namespace IsoRim
                 parts.Add(kv.Key.Replace("SectionLayer_", "") + " " + kv.Value[1] + "/" + kv.Value[0]);
             }
             ModLog.Note("[IsoRim] Gravship snapshot: " + deck.Count + " deck cells, " + list.Count + " sections (regenerated in " + regenMs + " ms), "
-                + s.meshes.Count + " meshes, " + verts + " vertices, " + tris + " triangles, about " + ((verts * 40L + tris * 12L) / 1024) + " KB, built in "
+                + s.meshes.Count + " meshes + " + s.items.Count + " moving parts, " + verts + " vertices, " + tris + " triangles, about " + ((verts * 40L + tris * 12L) / 1024) + " KB, built in "
                 + watch.ElapsedMilliseconds + " ms; triangles kept per layer: " + string.Join(", ", parts)
                 + "; box " + s.min.ToString("F1") + " to " + s.max.ToString("F1"));
             if (skipped.Count > 0)
@@ -848,6 +908,114 @@ namespace IsoRim
                     Graphics.DrawMesh(meshes[i], m, mark, layers[i]);
                 }
             }
+            for (int i = 0; i < items.Count; i++)
+            {
+                ShipCapture.Rec r = items[i];
+                if (r.mesh == null)
+                {
+                    continue;   // a mesh the game has let go of since
+                }
+                Matrix4x4 mi = m * r.matrix;
+                Graphics.DrawMesh(r.mesh, mi, r.mat, 0, null, 0, r.props);
+                Material mark = View3D.Ready ? IsoGlow.MarkFor(r.mat) : null;
+                if (mark != null)
+                {
+                    Graphics.DrawMesh(r.mesh, mi, mark, 0);
+                }
+            }
+        }
+
+        // ---- the shadow: a soft silhouette of the ship's cells (4 texels a cell, corner cells as their wedge half),
+        // made on the CPU (the game's capture is the broken picture), laid on the ground away from IsoRim's sun or moon
+
+        private const int ShadowTexels = 4;
+        private const int ShadowMargin = 2;   // cells round the bounds, for the soft edge
+
+        private void MakeShadow(ShipCells cells)
+        {
+            CellRect r = cells.bounds.ExpandedBy(ShadowMargin);
+            int w = r.Width * ShadowTexels, h = r.Height * ShadowTexels;
+            float[] a = new float[w * h];
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int cx = r.minX + x / ShadowTexels, cz = r.minZ + y / ShadowTexels;
+                    float u = (x % ShadowTexels + 0.5f) / ShadowTexels, v = (y % ShadowTexels + 0.5f) / ShadowTexels;
+                    a[y * w + x] = cells.Covers(cx, cz, u, v) ? 1f : 0f;
+                }
+            }
+            // A soft edge about half a cell wide (wider reads as a smudge, and the ship hides most of it while low).
+            for (int pass = 0; pass < 2; pass++)
+            {
+                a = Box(a, w, h, 1, true);
+                a = Box(a, w, h, 1, false);
+            }
+            Color32[] px = new Color32[w * h];
+            for (int i = 0; i < px.Length; i++)
+            {
+                px[i] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(a[i]) * 255f));
+            }
+            shadowTex = new Texture2D(w, h, TextureFormat.RGBA32, true);
+            shadowTex.name = "IsoRimShipShadow";
+            shadowTex.wrapMode = TextureWrapMode.Clamp;
+            shadowTex.filterMode = FilterMode.Bilinear;
+            shadowTex.SetPixels32(px);
+            shadowTex.Apply(true);
+            shadowMat = new Material(ShaderDatabase.Transparent);
+            shadowMat.name = "IsoRimShipShadow";
+            shadowMat.mainTexture = shadowTex;
+            shadowMat.color = new Color(0f, 0f, 0f, 0f);
+            shadowSize = new Vector2(r.Width, r.Height);
+        }
+
+        private static float[] Box(float[] src, int w, int h, int rad, bool across)
+        {
+            float[] dst = new float[src.Length];
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    float sum = 0f;
+                    int n = 0;
+                    for (int k = -rad; k <= rad; k++)
+                    {
+                        int xx = across ? x + k : x, yy = across ? y : y + k;
+                        if (xx >= 0 && yy >= 0 && xx < w && yy < h)
+                        {
+                            sum += src[yy * w + xx];
+                        }
+                        n++;
+                    }
+                    dst[y * w + x] = sum / n;
+                }
+            }
+            return dst;
+        }
+
+        // Drawn on the ground under the ship (its centre at the ground point of the flight), moved away from the light by
+        // the ship's height (light direction toward the sun or moon: IsoRim's, as every 3D shadow), turned with the ship.
+        // Fades in over the first cell of height (none at rest: the deck itself lies there), fainter at night, and out at
+        // the end of the takeoff as vanilla's (progress 0.9-1).
+        public void DrawShadow(Vector3 ground, float height, Quaternion turn, float progress, Map map)
+        {
+            if (shadowMat == null || map == null || map.Biome == BiomeDefOf.Space || map.Biome == BiomeDefOf.Orbit)
+            {
+                return;   // no ground under a ship over space (vanilla's see-through biomes, WorldComponent_GravshipController.BiomeHasTransparency)
+            }
+            float glow = GenCelestial.CurCelestialSunGlow(map);
+            float alpha = 0.65f * Mathf.Lerp(0.4f, 1f, glow) * Mathf.SmoothStep(0f, 1f, height) * progress.RemapClamped(0.9f, 1f, 1f, 0f);
+            if (alpha <= 0.004f)
+            {
+                return;
+            }
+            Vector3 light = View3D.LightNow();
+            float up = Mathf.Max(0.3f, light.y);
+            Vector3 off = new Vector3(-light.x, 0f, -light.z) / up * height;
+            float grow = 1f + 0.006f * height;
+            Vector3 at = new Vector3(ground.x + off.x, AltitudeLayer.Gas.AltitudeFor(), ground.z + off.z);
+            shadowMat.color = new Color(0f, 0f, 0f, alpha);
+            Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(at, turn, new Vector3(shadowSize.x * grow, 1f, shadowSize.y * grow)), shadowMat, 0);
         }
 
         // The middle of the ship's box, in true space (map x, height in cells, map z).
@@ -886,6 +1054,17 @@ namespace IsoRim
             sources.Clear();
             depths.Clear();
             layers.Clear();
+            items.Clear();
+            if (shadowMat != null)
+            {
+                UnityEngine.Object.Destroy(shadowMat);
+                shadowMat = null;
+            }
+            if (shadowTex != null)
+            {
+                UnityEngine.Object.Destroy(shadowTex);
+                shadowTex = null;
+            }
         }
     }
 }

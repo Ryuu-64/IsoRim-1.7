@@ -118,6 +118,39 @@ namespace IsoRim
             get { return up; }
         }
 
+        // How far a point (true space) is in front of the eye, along the line of sight.
+        public static float DepthOf(Vector3 p)
+        {
+            return Vector3.Dot(p - eye, fwd);
+        }
+
+        // A depth just past the near plane: a screen card there is in front of everything.
+        public static float NearCard
+        {
+            get { return nearNow * 1.5f + 0.05f; }
+        }
+
+        // Where a point (true space) shows in the viewport, 0-1 from the bottom left (as Camera.WorldToViewportPoint).
+        public static Vector2 WorldToViewport(Vector3 p)
+        {
+            Vector2 px = WorldToScreen(p);
+            return new Vector2(px.x / Mathf.Max(1, Screen.width), px.y / Mathf.Max(1, Screen.height));
+        }
+
+        // A square plane (MeshPool.plane10) stood square to the camera at that depth and stretched to fill the screen
+        // exactly, its texture x to the right and y up the screen: for the game's screen-space effects, which draw on a
+        // plane the size of the screen (GravshipRenderer.DrawLayer) and read their position from its texture coordinates.
+        // Drawn space (the height squashed).
+        public static Matrix4x4 ScreenCard(float depth)
+        {
+            depth = Mathf.Max(depth, nearNow * 1.2f);
+            float half = persp ? depth * tanHalf : orthoSize;
+            Matrix4x4 t = Matrix4x4.TRS(eye + fwd * depth, Quaternion.LookRotation(up, -fwd), new Vector3(2f * half * aspect, 1f, 2f * half));
+            return Matrix4x4.Scale(new Vector3(1f, 1f / Squash, 1f)) * t;
+        }
+
+        private static float nearNow = 0.5f;
+
         // How steeply the camera looks down, in degrees: 90 is straight down.
         public static float Pitch
         {
@@ -669,6 +702,7 @@ namespace IsoRim
                 far = 2f * half + 10f;
             }
 
+            nearNow = near;
             Matrix4x4 view = Matrix4x4.Scale(new Vector3(1f, 1f, -1f))
                 * Matrix4x4.TRS(eye, look, Vector3.one).inverse;
             Matrix4x4 worldToCamera = view * Matrix4x4.Scale(new Vector3(1f, s, 1f));

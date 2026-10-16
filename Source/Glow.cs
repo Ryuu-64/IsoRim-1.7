@@ -247,6 +247,10 @@ namespace IsoRim
         // Draws an IsoRim mesh and, for own-cell-lit materials, its stencil mark.
         public static void DrawLit(Mesh mesh, Matrix4x4 matrix, Material mat, int layer)
         {
+            if (ShipCapture.Recording)
+            {
+                ShipCapture.Note(mesh, matrix, mat, null);   // a gravship's moving parts (ShipFlight)
+            }
             Graphics.DrawMesh(mesh, matrix, mat, layer);
             Material mark = View3D.Ready ? MarkFor(mat) : null;
             if (mark != null)

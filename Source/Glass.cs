@@ -157,6 +157,7 @@ namespace IsoRim
             Mesh mesh = MeshFor(entry.glass);
             if (Cull.MeshVisible(mesh, matrix))
             {
+                ShipCapture.Note(mesh, matrix, Mat, null);
                 Graphics.DrawMesh(mesh, matrix, Mat, 0);
             }
         }
