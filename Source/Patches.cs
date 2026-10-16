@@ -411,6 +411,9 @@ namespace IsoRim
             // Culling (Cull): map blocks and moving model parts wholly off screen are not drawn.
             Patch("culling", AccessTools.Method(typeof(MapDrawer), "DrawMapMesh"), transpiler: nameof(CullDrawMapMesh_Transpiler));
             Patch("culling", AccessTools.Method(typeof(LayerSubMesh), "FinalizeMesh"), postfix: nameof(CullFinalizeMesh_Postfix));
+            // Roof clipping (RoofClip): models baked into the game's own layers carry texture coordinate 1, the rest of
+            // the piece is filled up to one per vertex.
+            Patch("things under roofs", AccessTools.Method(typeof(LayerSubMesh), "FinalizeMesh"), prefix: nameof(RoofFinalizeMesh_Prefix));
             Patch("culling", AccessTools.Method(typeof(DynamicDrawManager), "DrawDynamicThings"),
                 prefix: nameof(CullThings_Prefix), finalizer: nameof(CullThings_Finalizer));
             Patch("culling", AccessTools.Method(typeof(Thing), "DynamicDrawPhase"), prefix: nameof(CullThing_Prefix), postfix: nameof(CullThing_Postfix));
@@ -449,6 +452,11 @@ namespace IsoRim
         public static IEnumerable<CodeInstruction> CullDrawMapMesh_Transpiler(IEnumerable<CodeInstruction> instructions)
         {
             return Cull.DrawMapMeshTranspiler(instructions);
+        }
+
+        public static void RoofFinalizeMesh_Prefix(LayerSubMesh __instance)
+        {
+            RoofClip.Pad(__instance);
         }
 
         public static void CullFinalizeMesh_Postfix(LayerSubMesh __instance, MeshParts __0)

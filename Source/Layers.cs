@@ -760,8 +760,8 @@ namespace IsoRim
     [StaticConstructorOnStartup]
     public class SectionLayer_IsoRimRoofs : SectionLayer
     {
-        private const float Rise = 0.03f;       // a built roof sits this far above the wall tops, in cells
-        private const float Overhang = 0.07f;
+        public const float Rise = 0.03f;        // a built roof sits this far above the wall tops, in cells
+        private const float Overhang = 0.07f;    // (RoofClip: IsoRimSolid.frag.glsl / IsoRimCard*.frag.glsl keep the eave strip in step)
         private const float Fascia = 0.10f;
         private const int Rows = 3;              // rows of slates per cell
         private static readonly Color Slate = new Color(0.50f, 0.45f, 0.42f);
@@ -789,6 +789,7 @@ namespace IsoRim
             ClearSubMeshes(MeshParts.All);
             if (!View3D.Active || !IsoRimMod.Settings.showRoofs || R3DMaterials.Roof == null)
             {
+                ClearRoofTexture();
                 return;
             }
             CutTags.Enabled = ShaderCut.On;   // (shader cut-away) every roof cell tagged, opened in the vertex stage
@@ -922,7 +923,7 @@ namespace IsoRim
 
         private const int MaxLevel = 4;          // a roof rises for at most this many cells in from its edge
         public const int Reach = MaxLevel + 2;   // how far a change to one roof cell can alter the roof around it
-        private const float Pitch = 0.55f;       // how much it rises per cell, in cells
+        public const float Pitch = 0.55f;        // how much it rises per cell, in cells
 
         private int[] kinds;
         private int[] levels;
@@ -1008,6 +1009,8 @@ namespace IsoRim
                     levels[j * area.Width + i] = d;
                 }
             }
+
+            WriteRoofTexture(map);
 
             Vector3[] p = new Vector3[4];
             int cellMark = -1;
@@ -1113,6 +1116,39 @@ namespace IsoRim
             }
             CutTags.Apply(this, cellMark, markCell, ShaderCut.Roof);
             ShipRoofs.Build(this, map, section.CellRect, KindAt);   // flat decks over gravships (Gravship.cs)
+        }
+
+        // (RoofClip) The roof over each cell of this block, as drawn here, into the map's roof texture: things under
+        // it are clipped at its underside. Open cells (old cut-away) are lid kind 0 here and clip nothing; with the
+        // shader cut-away every cell is written and the cell texture says which are open.
+        private void WriteRoofTexture(Map map)
+        {
+            IsoCellMap cells = IsoCellMap.For(map);
+            if (cells == null)
+            {
+                return;
+            }
+            foreach (IntVec3 c in section.CellRect)
+            {
+                int kind = KindAt(c.x, c.z);
+                Color32 v = kind == 1
+                    ? RoofClip.Pack(1, CornerLevel(c.x, c.z), CornerLevel(c.x + 1, c.z), CornerLevel(c.x, c.z + 1), CornerLevel(c.x + 1, c.z + 1))
+                    : RoofClip.Pack(kind, 0, 0, 0, 0);   // 4 (a floor above: its slab) packs as no roof
+                cells.SetRoof(c, v);
+            }
+        }
+
+        private void ClearRoofTexture()
+        {
+            IsoCellMap cells = IsoCellMap.Existing(Map);
+            if (cells == null)
+            {
+                return;
+            }
+            foreach (IntVec3 c in section.CellRect)
+            {
+                cells.SetRoof(c, default(Color32));
+            }
         }
 
         // One sloping facet of a built roof, given in cells, lit by the sun: a plain copy that hides

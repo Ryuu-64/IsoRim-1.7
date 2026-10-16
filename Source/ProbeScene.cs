@@ -117,6 +117,7 @@ namespace IsoRim
     //                                some slow fleck emitter (toxic spewer) throws its puffs (at most N <= 900)
     //   interact=x,z                 the nearest free colonist is ordered to activate the building (as its float menu option)
     //   turretcheck=1                logs every turret's verb state, aim override, gun rotation and which gun model it shows
+    //   roofclip=0|1                 things under roofs clipped at the roof (RoofClip, default 1) or not (before/after shots)
     //   ui=1                         map overlays the screenshot mode hides (selection, temperature,
     //                                roof, fertility, areas) are drawn in the shots; overlay=home
     //                                shows the home area
@@ -1211,6 +1212,9 @@ namespace IsoRim
                 case "batch":
                 case "abswitch":
                     PerfKey(key, a, map);
+                    break;
+                case "roofclip":
+                    RoofClip.Enabled = a[0] == "1";
                     break;
                 default:
                     if (CutKey(key, a) || MechKey(key, a, map) || EntityKey(key, a, map))

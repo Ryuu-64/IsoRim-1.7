@@ -1772,7 +1772,21 @@ namespace IsoRim
             baseHeight = wall * Mathf.Clamp01(def.mountHeight);
         }
 
+        // Every model baked into a layer is tagged to be clipped under the roof of the cell it stands in (RoofClip).
         public static bool Bake(SectionLayer layer, Thing thing, ModelEntry entry, float baseHeight)
+        {
+            int mark = RoofClip.Mark(layer);
+            try
+            {
+                return BakeModel(layer, thing, entry, baseHeight);
+            }
+            finally
+            {
+                RoofClip.Tag(layer, mark, thing.TrueCenter().ToIntVec3());   // whatever was written (nothing if it failed)
+            }
+        }
+
+        private static bool BakeModel(SectionLayer layer, Thing thing, ModelEntry entry, float baseHeight)
         {
             ModelDef def = entry.def;
             Model m = entry.Pick(thing);

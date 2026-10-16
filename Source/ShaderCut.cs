@@ -26,6 +26,7 @@ namespace IsoRim
         public const int Twig = 128;         // shown only while the cell's tree is thinned
         public const int Roof = 256;         // hidden while the cell's roof is open
         public const int SecondShift = 9;    // bits 9-12: also lowered with the neighbour this way (1-8), whichever is cut more
+                                             // bits 13-14: roof clipping (RoofClip.Own, RoofClip.Moving)
 
         // How long a cell takes to go down or come back up, in seconds. 0 = at once (the user's choice; the old
         // cut-away popped too, but only after the pointer had rested 0.08 s, and 0.25 s before walls came back).

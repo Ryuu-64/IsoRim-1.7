@@ -48,6 +48,7 @@ layout(set = 2, binding = 0) uniform MaterialUniforms
     vec4 _IsoCellMap; // global, no default: (origin x, origin z, W, H) of the cell texture (IsoCellMap)
     vec4 _IsoLevel;   // global, no default: x = the map's ground height in cells, y = what is left of a cut wall
     vec4 _IsoFloorGlow; // global, no default: stacked floors (Floors.GlowFloors): x = floors above the ground, y = storey height (true cells), z = rows from one floor to the next; 0 without floors
+    vec4 _IsoRoof;    // global, no default: roof clipping (RoofClip): x = 1 on, y = wall height, z = Rise, w = Pitch
 } uMaterial;
 
 // ---- Step 7: the cut-away in the vertex stage (C# ShaderCut, Source\ShaderCut.cs). IsoRim's walls, damage,
@@ -131,21 +132,59 @@ bool CutAway(inout vec3 pos, inout vec2 uv)
     return true;
 }
 
+
+// ---- Roof clipping (Source\RoofClip.cs): which cell's roof clips this vertex (texture coordinate 1 flags: 8192 =
+// baked, the cell in x, y and the mesh position already in that cell's map space; 16384 = a moving model, the cell
+// where the matrix puts the origin) and where the vertex is in that roof's space (x, true height, z, on the owner's
+// floor). Handed to IsoRimSolid.frag.glsl in vNormal (x = 4, y z = the cell) and vPosLocal, which it reads only then.
+bool RoofSpace(vec3 local, vec3 world, vec3 origin, out vec2 owner, out vec3 roofPos)
+{
+    owner = vec2(0.0);
+    roofPos = local;
+    float squash = uMaterial._IsoView.w;
+    if (uMaterial._IsoRoof.x < 0.5 || squash <= 0.0)
+        return false;
+    int flags = int(inUv1.z + 0.5);
+    if ((flags & 8192) != 0)
+    {
+        owner = inUv1.xy;
+        roofPos = vec3(local.x, local.y * squash - uMaterial._IsoLevel.x, local.z);
+        return true;
+    }
+    if ((flags & 16384) != 0)
+    {
+        // Stacked floors (Floors.GlowFloors): a thing at or above floor k's height is on floor k, whose cells are
+        // rows further north (as the light pass reads them).
+        vec4 fg = uMaterial._IsoFloorGlow;
+        float k = 0.0;
+        if (fg.x > 0.5 && fg.y > 0.0)
+            k = clamp(floor((origin.y * squash - uMaterial._IsoLevel.x + 0.01) / fg.y), 0.0, fg.x);
+        owner = vec2(origin.x, origin.z + k * fg.z);
+        roofPos = vec3(world.x, world.y * squash - uMaterial._IsoLevel.x - k * fg.y, world.z + k * fg.z);
+        return true;
+    }
+    return false;
+}
+
 void main()
 {
     vec3 pos = inPosition;
     vec2 uv = inUv0.xy;
     bool keep = CutAway(pos, uv);
 #ifdef INSTANCED
-    vec4 world = instanceTransforms[gl_InstanceIndex] * vec4(pos, 1.0);
+    mat4 model = instanceTransforms[gl_InstanceIndex];
 #else
-    vec4 world = push.modelMatrix * vec4(pos, 1.0);
+    mat4 model = push.modelMatrix;
 #endif
+    vec4 world = model * vec4(pos, 1.0);
+    vec2 roofOwner;
+    vec3 roofPos;
+    bool roofClip = RoofSpace(pos, world.xyz, model[3].xyz, roofOwner, roofPos);
     gl_Position = keep ? uVertex.ViewProj * world : vec4(2.0, 2.0, 0.5, 1.0);   // hidden: outside the view, all corners alike
 
-    vPosLocal = pos;
+    vPosLocal = roofClip ? roofPos : pos;
     vColor = inColor;
     vUv = uv;
     vWorldPos = world.xyz;
-    vNormal = inNormal;
+    vNormal = roofClip ? vec3(4.0, roofOwner) : inNormal;
 }

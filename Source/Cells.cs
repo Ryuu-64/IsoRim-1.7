@@ -13,6 +13,8 @@ namespace IsoRim
     //       (the highest block, or the edifice's 3D height): the fog lid lies on it (IsoRimFog.vert.glsl);
     //   b, a = 0, kept free for the shader cut-away (pointer/colonist/room cut flags) and other
     //       per-cell states to come.
+    // A second texture of the same size (_IsoRoofTex) holds the roof drawn over each cell, written by the roofs
+    // layer as it builds (RoofClip.cs: things under a roof are clipped at its underside).
     // (A float texture would be simpler, but an RGBAFloat texture filled with SetPixels reads as 0 in
     // the shader on 1.7.4977.)
     // The game's glow lives in its own texture (IsoGlowMap): a corner grid sampled bilinear, copied
@@ -53,6 +55,52 @@ namespace IsoRim
             dirty = new bool[width * height];
             cutTarget = new byte[width * height];
             fading = new bool[width * height];
+            roofCells = new Color32[width * height];
+        }
+
+        // ---- the roof over each cell (RoofClip.cs): a second texture, written by the roofs layer as it builds
+
+        private readonly Color32[] roofCells;
+        private bool roofChanged = true;
+        private LiveTexture roofTex;
+
+        // The roof over a cell as the roofs layer draws it (RoofClip.Pack). Ignored outside the map.
+        public void SetRoof(IntVec3 c, Color32 v)
+        {
+            if (c.x < 0 || c.z < 0 || c.x >= width || c.z >= height)
+            {
+                return;
+            }
+            int i = c.z * width + c.x;
+            Color32 o = roofCells[i];
+            if (o.r != v.r || o.g != v.g || o.b != v.b || o.a != v.a)
+            {
+                roofCells[i] = v;
+                roofChanged = true;
+            }
+        }
+
+        public Color32 RoofAt(IntVec3 c)
+        {
+            if (c.x < 0 || c.z < 0 || c.x >= width || c.z >= height)
+            {
+                return default(Color32);
+            }
+            return roofCells[c.z * width + c.x];
+        }
+
+        private void UploadRoofs()
+        {
+            if (!roofChanged && roofTex != null)
+            {
+                return;
+            }
+            if (roofTex == null)
+            {
+                roofTex = new LiveTexture(width, height, "IsoRim_Roofs", FilterMode.Point);
+            }
+            roofTex.Upload(roofCells);
+            roofChanged = false;
         }
 
         // The cell data of a map, made on first use. Maps that are gone are dropped.
@@ -114,6 +162,11 @@ namespace IsoRim
             {
                 tex.Destroy();
                 tex = null;
+            }
+            if (roofTex != null)
+            {
+                roofTex.Destroy();
+                roofTex = null;
             }
         }
 
@@ -295,6 +348,10 @@ namespace IsoRim
                 dirtyList.Clear();
             }
             Fade();
+            if (RoofClip.On)
+            {
+                UploadRoofs();
+            }
             if (!changed && tex != null)
             {
                 return;
@@ -334,12 +391,16 @@ namespace IsoRim
         private static readonly int texId = Shader.PropertyToID("_IsoCellTex");
         private static readonly int mapId = Shader.PropertyToID("_IsoCellMap");
         private static readonly int levelId = Shader.PropertyToID("_IsoLevel");
+        private static readonly int roofId = Shader.PropertyToID("_IsoRoof");
+        private static readonly int roofTexId = Shader.PropertyToID("_IsoRoofTex");
 
         // Before the map's meshes are drawn: brings the shown map's cell texture up to date and hands
         // it to the shaders. Only the fog lid reads it today.
         public static void BeginFrame(Map map)
         {
-            if (!View3D.Active || map == null || !(IsoRimMod.Settings.fogLid || ShaderCut.On))
+            bool roofClip = RoofClip.On;
+            Shader.SetGlobalVector(roofId, roofClip ? RoofClip.Globals : Vector4.zero);   // x = 0: nothing is clipped
+            if (!View3D.Active || map == null || !(IsoRimMod.Settings.fogLid || ShaderCut.On || roofClip))
             {
                 return;
             }
@@ -351,6 +412,10 @@ namespace IsoRim
                 Probe.AddCellTime((Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency);
             }
             Shader.SetGlobalTexture(texId, c.Texture);
+            if (roofClip && c.roofTex != null)
+            {
+                Shader.SetGlobalTexture(roofTexId, c.roofTex.Use());
+            }
             Shader.SetGlobalVector(mapId, new Vector4(c.origin.x, c.origin.y, c.width, c.height));
             Shader.SetGlobalVector(levelId, new Vector4(c.baseY, WallBoxes.CutFraction, 0f, 0f));   // y: what is left of a cut wall
         }

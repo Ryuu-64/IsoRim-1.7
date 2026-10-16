@@ -61,6 +61,12 @@ namespace IsoRim
                 mesh.SetVertices(verts);
                 mesh.SetColors(colors);
                 mesh.SetUVs(0, uvs);
+                List<Vector3> tags = new List<Vector3>(verts.Count);
+                for (int i = 0; i < verts.Count; i++)
+                {
+                    tags.Add(RoofClip.MovingTag);   // clipped under the roof over where it is drawn (RoofClip)
+                }
+                mesh.SetUVs(1, tags);
                 mesh.SetTriangles(tris, 0);
                 mesh.RecalculateBounds();
                 MeshGuard.Check(mesh, "moving model");

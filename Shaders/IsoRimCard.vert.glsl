@@ -18,6 +18,8 @@ layout(push_constant) uniform Push { mat4 modelMatrix; } push;
 layout(location = 0) out vec4 vColor;
 layout(location = 1) out vec2 vUv;
 layout(location = 2) flat out float vFallSeed; // per plant seed from uv z
+layout(location = 3) flat out vec2 vRoofOwner;  // roof clipping (RoofClip): the plant's cell (its hinge)
+layout(location = 4) out vec3 vRoofPos;         // and the corner in roof space (x, true height, z)
 
 layout(set = 0, binding = 0) uniform VertexUniforms
 {
@@ -58,6 +60,8 @@ void main()
     vec3 pos = card + windOffset * inColor.a;
 
     gl_Position = uVertex.ViewProj * push.modelMatrix * vec4(pos, 1.0);
+    vRoofOwner = inPosition.xz;
+    vRoofPos = vec3(pos.x, pos.y * squash, pos.z);
     vColor = inColor;
     vUv = inUv0.xy;
     vFallSeed = inUv0.z;
