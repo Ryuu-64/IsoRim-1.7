@@ -62,6 +62,7 @@ layout(set = 2, binding = 0) uniform MaterialUniforms
     vec4 _IsoLevel;   // global, no default: x = the map's ground height in cells, y = what is left of a cut wall
     vec4 _IsoFloorGlow; // global, no default: stacked floors (Floors.GlowFloors): x = floors above the ground, y = storey height (true cells), z = rows from one floor to the next; 0 without floors
     vec4 _IsoRoof;    // global, no default: roof clipping (RoofClip): x = 1 on, y = wall height, z = Rise, w = Pitch
+    vec4 _IsoEye;     // global, no default: xyz = the eye in drawn space, w = 1 with a perspective camera (View3D)
 } uMaterial;
 
 // ---- Step 7: the cut-away in the vertex stage (C# ShaderCut, Source\ShaderCut.cs). IsoRim's walls, damage,
@@ -239,7 +240,23 @@ void main()
     float pushBy = uMaterial._OutlinePush;
     if (pushBy > 0.0 && squash > 0.0)
     {
-        world.xyz -= vec3(toCamera.x, toCamera.y / squash, toCamera.z) * pushBy;
+        vec4 eye = uMaterial._IsoEye;
+        if (eye.w > 0.5)
+        {
+            // Perspective: along the ray from the eye, which alone leaves the point where it is on screen (a push
+            // along the view direction moved the shell aside, a dark ghost beside a close figure).
+            vec3 ray = world.xyz - eye.xyz;
+            vec3 t = vec3(ray.x, ray.y * squash, ray.z);
+            if (dot(t, t) > 1e-8)
+            {
+                t = normalize(t) * pushBy;
+                world.xyz += vec3(t.x, t.y / squash, t.z);
+            }
+        }
+        else
+        {
+            world.xyz -= vec3(toCamera.x, toCamera.y / squash, toCamera.z) * pushBy;
+        }
     }
 
     gl_Position = keep ? uVertex.ViewProj * world : vec4(2.0, 2.0, 0.5, 1.0);   // hidden: outside the view, all corners alike

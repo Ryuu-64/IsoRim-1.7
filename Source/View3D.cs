@@ -55,6 +55,7 @@ namespace IsoRim
 
         private static bool haveFrame;
         private static Vector3 eye;
+        private static readonly int isoEyeId = Shader.PropertyToID("_IsoEye");
         private static Vector3 fwd = Vector3.down;
         private static Vector3 up = Vector3.forward;
         private static Vector3 right = Vector3.right;
@@ -743,10 +744,12 @@ namespace IsoRim
             {
                 float k = Mathf.Clamp(1f - OverlayPull / camDist, 0.3f, 0.9f);
                 Vector3 eyeDrawn = new Vector3(eye.x, eye.y / s, eye.z);
+                Shader.SetGlobalVector(isoEyeId, new Vector4(eyeDrawn.x, eyeDrawn.y, eyeDrawn.z, 1f));   // moving outlines (IsoRim.vert.glsl)
                 LightingMatrix = Matrix4x4.Translate(eyeDrawn) * Matrix4x4.Scale(new Vector3(k, k, k)) * Matrix4x4.Translate(-eyeDrawn);
             }
             else
             {
+                Shader.SetGlobalVector(isoEyeId, Vector4.zero);
                 LightingMatrix = Matrix4x4.Translate(new Vector3(-fwd.x * OverlayPull, -fwd.y * OverlayPull / s, -fwd.z * OverlayPull));
             }
             UprightCards.SetCamera(pitchDeg, Yaw);
