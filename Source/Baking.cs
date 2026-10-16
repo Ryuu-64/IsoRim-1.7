@@ -316,6 +316,19 @@ namespace IsoRim
             return card;
         }
 
+        // A vanilla plant sprite covers its cell seen from above; stood up it is as tall as it was long, which for
+        // a bush or brambles is taller than a wall. Plants that are not trees can be drawn smaller (the whole card,
+        // from its foot, so it keeps its shape).
+        private static float SizeOf(Thing t)
+        {
+            Plant plant = t as Plant;
+            if (plant == null || plant.def.plant == null || plant.def.plant.IsTree)
+            {
+                return 1f;
+            }
+            return Mathf.Clamp(IsoRimMod.Settings.plantCardSize, 0.3f, 1.5f);
+        }
+
         // How far a card is let down into the ground so that the lowest painted pixel of its sprite stands on it: most
         // plant sprites leave empty rows under the plant, and the card stood on its bottom edge then floats. In the
         // sprite's own units (its length along z); 0 if the pixels cannot be read. Cached per texture and part shown.
@@ -419,12 +432,13 @@ namespace IsoRim
             int n = sm.verts.Count;
             Vector3 hinge = new Vector3(pivot.x, pivot.y + lift / View3D.Squash, pivot.z);
             float sink = Sink(mat, sm, n);
+            float size = SizeOf(PrintContext.thing);
             int start = cs.verts.Count;
             for (int i = n - 4; i < n; i++)
             {
                 Vector3 v = sm.verts[i];
                 cs.verts.Add(hinge);
-                cs.uvsChannelTwo.Add(new Vector3(v.x - pivot.x, v.y - pivot.y, v.z - pivot.z - sink));
+                cs.uvsChannelTwo.Add(new Vector3((v.x - pivot.x) * size, v.y - pivot.y, (v.z - pivot.z - sink) * size));
                 cs.uvs.Add(sm.uvs[i]);
                 cs.colors.Add(sm.colors[i]);
             }

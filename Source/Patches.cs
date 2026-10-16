@@ -1380,6 +1380,7 @@ namespace IsoRim
                     if (IsoRimMod.Settings.uprightPlants)
                     {
                         PrintContext.mode = PrintMode.Upright;
+                        PrintContext.thing = __0;   // the card's size by kind of plant (UprightCards.SizeOf)
                         PrintContext.baseHeight = rim;
                     }
                     else if (rim > 0f)

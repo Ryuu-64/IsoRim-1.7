@@ -23,6 +23,7 @@ namespace IsoRim
 
         public bool uprightPawns = true;
         public bool uprightPlants = true;
+        public float plantCardSize = 1f;   // plants drawn from their sprite (cards), other than trees: how big
         public bool walls3D = true;
         public bool texturedWalls = true;
         public bool autoExtrude = true;
@@ -117,6 +118,7 @@ namespace IsoRim
             Scribe_Values.Look(ref treeShadowLength, "treeShadowLength", 0.2f);
             Scribe_Values.Look(ref uprightPawns, "uprightPawns", true);
             Scribe_Values.Look(ref uprightPlants, "uprightPlants", true);
+            Scribe_Values.Look(ref plantCardSize, "plantCardSize", 1f);
             Scribe_Values.Look(ref walls3D, "walls3D", true);
             Scribe_Values.Look(ref texturedWalls, "texturedWalls", true);
             Scribe_Values.Look(ref autoExtrude, "autoExtrude", true);
@@ -806,6 +808,11 @@ namespace IsoRim
                     "R3D_Settings_ItemsFromArtTip".Translate());
                 Check(l, "R3D_Settings_RawModels".Translate(), ref st.rawModels, "R3D_Settings_RawModelsTip".Translate());
                 Check(l, "R3D_Settings_UprightPlants".Translate(), ref st.uprightPlants);
+                if (st.uprightPlants)
+                {
+                    st.plantCardSize = Slider(l, "R3D_Settings_PlantCardSize".Translate(), st.plantCardSize, 0.3f, 1.5f,
+                        (st.plantCardSize * 100f).ToString("0") + "%", "R3D_Settings_PlantCardSizeTip".Translate());
+                }
                 Check(l, "R3D_Settings_MapEdge3D".Translate(), ref st.mapEdge3D, "R3D_Settings_MapEdge3DTip".Translate());
             }
             if (r != null)

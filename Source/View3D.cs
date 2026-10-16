@@ -801,6 +801,7 @@ namespace IsoRim
                 h = h * 31 + Mathf.RoundToInt(Squash * 10000f);
                 h = h * 31 + Mathf.RoundToInt(WallHeight * 100f);
                 h = h * 31 + (st.uprightPlants ? 1 : 0);
+                h = h * 31 + Mathf.RoundToInt(st.plantCardSize * 100f);
                 h = h * 31 + (st.walls3D ? 1 : 0);
                 h = h * 31 + (st.texturedWalls ? 1 : 0);
                 h = h * 31 + (st.autoExtrude ? 1 : 0);

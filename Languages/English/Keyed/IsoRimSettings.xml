@@ -229,6 +229,8 @@
   <R3D_Settings_RawModels>3D raw materials</R3D_Settings_RawModels>
   <R3D_Settings_RawModelsTip>Steel, wood, blocks, cloth, leather and other resources as 3D models, by stack size.</R3D_Settings_RawModelsTip>
   <R3D_Settings_UprightPlants>Other plants stand upright</R3D_Settings_UprightPlants>
+  <R3D_Settings_PlantCardSize>  Size of plants drawn from their sprite</R3D_Settings_PlantCardSize>
+  <R3D_Settings_PlantCardSizeTip>Bushes, brambles, grass and flowers without a 3D model (trees keep their size). The game's sprite covers the cell seen from above, so stood up it can look too big.</R3D_Settings_PlantCardSizeTip>
   <R3D_Settings_MapEdge3D>Map edge cut through the earth</R3D_Settings_MapEdge3D>
   <R3D_Settings_MapEdge3DTip>The edge of the map shows layers of soil and rock, like a diorama.</R3D_Settings_MapEdge3DTip>
   <R3D_Settings_CreaturesEffects>Creatures and effects</R3D_Settings_CreaturesEffects>
