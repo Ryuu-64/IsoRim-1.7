@@ -46,6 +46,9 @@ namespace IsoRim
             public Rect box;
             public Vector2 offA;
             public Vector2 offB;
+            public bool finished;            // (set, face: they end themselves)
+            public string note;
+            public List<FaceOrder> orders;   // (face, ProbeFixes)
         }
 
         private static readonly List<IxJob> ixJobs = new List<IxJob>();
@@ -167,7 +170,7 @@ namespace IsoRim
             if (j.frame < 0)
             {
                 // Wait for the camera to come to rest (a turn, a tilt, the jump to cam=).
-                ixSteady = View3D.Turning || !View3D.Ready ? 0 : ixSteady + 1;
+                ixSteady = View3D.Active && (View3D.Turning || !View3D.Ready) ? 0 : ixSteady + 1;   // (3D off: nothing to wait for)
                 if (ixSteady < 6)
                 {
                     return;
@@ -188,6 +191,18 @@ namespace IsoRim
                 {
                     ZoneDragStep(map, j);
                 }
+                else if (j.kind == "bdrag")
+                {
+                    BuildDragStep(map, j);
+                }
+                else if (j.kind == "face")
+                {
+                    FaceStep(map, j);
+                }
+                else if (j.kind == "set")
+                {
+                    SetStep(j);
+                }
                 else
                 {
                     ClickStep(map, j);
@@ -199,7 +214,7 @@ namespace IsoRim
                 j.frame = 1000;
             }
             j.frame++;
-            if (j.frame > (j.kind == "click" ? 72 : j.kind == "ddrag" ? 74 : 40))
+            if (j.kind == "face" || j.kind == "set" ? j.finished || j.frame > 7000 : j.frame > (j.kind == "click" ? 72 : j.kind == "ddrag" ? 74 : 40))
             {
                 fakeMouse = null;
                 Find.Selector.dragBox.active = false;
@@ -219,8 +234,18 @@ namespace IsoRim
             }
         }
 
+        // A map point (y its height above its floor) where it shows: on an upper floor's rows (Floors) at that floor.
         private static Vector2 ScreenOf(Vector3 p)
         {
+            if (!View3D.Ready)
+            {
+                Vector3 s = Find.Camera.WorldToScreenPoint(new Vector3(p.x, 0f, p.z));   // the flat view (3D off)
+                return new Vector2(s.x, s.y);
+            }
+            if (Floors.On)
+            {
+                p += Floors.RowOffset(Mathf.FloorToInt(p.z));
+            }
             return View3D.WorldToScreen(p);
         }
 
@@ -293,7 +318,7 @@ namespace IsoRim
                 List<string> extra = new List<string>();
                 foreach (Pawn p in map.mapPawns.AllPawnsSpawned)
                 {
-                    if (!ThingSelectionUtility.SelectableByMapClick(p))
+                    if (!ThingSelectionUtility.SelectableByMapClick(p) || Floors.On && Floors.FloorOfRow(p.Position.z) > Floors.PointerTop)
                     {
                         continue;
                     }
@@ -318,6 +343,7 @@ namespace IsoRim
                 Log.Message("[IsoRim probe] ix " + j.tag + " drag check: pawns showing in the box but not selected: "
                     + (missing.Count == 0 ? "none" : string.Join("; ", missing)) + "; selected pawns not showing in it: "
                     + (extra.Count == 0 ? "none" : string.Join("; ", extra)));
+                CheckWant(j);
                 fakeMouse = pb;
             }
             if (j.frame == 26)
@@ -348,6 +374,7 @@ namespace IsoRim
                     case "sel":
                         selectUnderMouse.Invoke(sel, null);
                         Log.Message(head + " -> selected " + string.Join("; ", sel.SelectedObjects.Select(Desc)));
+                        CheckWant(j);
                         break;
                     case "dbl":
                         selectAllMatching.Invoke(sel, null);

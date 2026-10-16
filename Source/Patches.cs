@@ -63,14 +63,16 @@ namespace IsoRim
 
             // Dragging a selection box, and the name labels under colonists.
             Type selection = AccessTools.TypeByName("RimWorld.ThingSelectionUtility");
-            Patch("box selection in the isometric view", selection == null ? null : AccessTools.Method(selection, "GetMapRect"),
-                postfix: nameof(GetMapRect_Postfix));
             Patch("box selection in the isometric view", selection == null ? null : AccessTools.Method(selection, "MultiSelectableThingsInScreenRectDistinct"),
                 postfix: nameof(DragSelect_Postfix));
             Patch("box selection in the isometric view", selection == null ? null : AccessTools.Method(selection, "MultiSelectableZonesInScreenRectDistinct"),
                 postfix: nameof(DragSelectZones_Postfix));
             Patch("box selection in the isometric view", selection == null ? null : AccessTools.Method(selection, "MultiSelectablePlansInScreenRectDistinct"),
                 postfix: nameof(DragSelectPlans_Postfix));
+            Patch("box selection in the isometric view", AccessTools.Method(typeof(DragBox), nameof(DragBox.Contains), new[] { typeof(Thing) }),
+                prefix: nameof(DragBoxContains_Prefix));
+            Patch("box selection in the isometric view", AccessTools.PropertyGetter(typeof(DragBox), nameof(DragBox.IsValid)),
+                prefix: nameof(DragBoxIsValid_Prefix));
             Patch("name labels in the isometric view", AccessTools.Method(typeof(GenMapUI), "LabelDrawPosFor", new[] { typeof(Thing), typeof(float) }),
                 prefix: nameof(LabelDrawPosFor_Prefix));
 
@@ -881,45 +883,14 @@ namespace IsoRim
             driver.JumpToCurrentMapLoc(new Vector3(target.x, 0f, target.z));
         }
 
-        // A selection box dragged on screen. The game looks for things in the block of cells
-        // between two of the box's corners, which only covers the box while north is up and the
-        // camera looks straight down. In 3D the block reaches all four corners on the ground ...
-        public static void GetMapRect_Postfix(Rect __0, ref CellRect __result)
-        {
-            if (!View3D.Ready)
-            {
-                return;
-            }
-            try
-            {
-                __result = BoxGroundRect(__0, 0);
-            }
-            catch (Exception e)
-            {
-                Log.ErrorOnce("[IsoRim] Working out a selection box failed: " + e, 93611019);
-            }
-        }
-
-        // The cells under a screen box (interface coordinates), widened by margin cells.
-        private static CellRect BoxGroundRect(Rect box, int margin)
-        {
-            float scale = Prefs.UIScale;
-            float h = Verse.UI.screenHeight;
-            Vector3 a = View3D.ScreenToGround(new Vector2(box.xMin, h - box.yMin) * scale);
-            Vector3 b = View3D.ScreenToGround(new Vector2(box.xMax, h - box.yMin) * scale);
-            Vector3 c = View3D.ScreenToGround(new Vector2(box.xMin, h - box.yMax) * scale);
-            Vector3 d = View3D.ScreenToGround(new Vector2(box.xMax, h - box.yMax) * scale);
-            CellRect r = new CellRect();
-            r.minX = Mathf.FloorToInt(Mathf.Min(Mathf.Min(a.x, b.x), Mathf.Min(c.x, d.x))) - margin;
-            r.maxX = Mathf.FloorToInt(Mathf.Max(Mathf.Max(a.x, b.x), Mathf.Max(c.x, d.x))) + margin;
-            r.minZ = Mathf.FloorToInt(Mathf.Min(Mathf.Min(a.z, b.z), Mathf.Min(c.z, d.z))) - margin;
-            r.maxZ = Mathf.FloorToInt(Mathf.Max(Mathf.Max(a.z, b.z), Mathf.Max(c.z, d.z))) + margin;
-            return r;
-        }
-
-        // ... and what is found is what shows inside the box on screen: a thing counts when the box
-        // catches any part of it, standing up from its cell (a colonist's head is enough), as the
-        // flat game counts a thing when the box catches any part of its cell.
+        // A selection box dragged on screen. The game looks for things in the block of cells between two of the box's
+        // corners on the map, which only covers the box while north is up and the camera looks straight down. In 3D
+        // what is found is what shows inside the box on screen, as drawn: a thing counts when the box catches any part
+        // of it standing up from its cell (a colonist's head is enough), as the flat game counts a thing when the box
+        // catches any part of its cell. On stacked floors (Floors) that is every floor from the viewed one down, each at
+        // its own height, a lower floor only where it is seen through the open air above it; hidden floors never.
+        // Things, zones and plans (ThingSelectionUtility's three box lookups) and DragBox.Contains all go through
+        // BoxCells and ShowsInBox; the box itself stays the game's (its start a map point, drawn where it shows).
         public static IEnumerable<Thing> DragSelect_Postfix(IEnumerable<Thing> __result, Rect __0)
         {
             if (__result == null || !View3D.Ready || Find.CurrentMap == null)
@@ -938,7 +909,7 @@ namespace IsoRim
             int margin = Mathf.CeilToInt(2.5f / Mathf.Tan(View3D.Pitch * Mathf.Deg2Rad)) + 1;
             List<Thing> found = new List<Thing>();
             boxYielded.Clear();
-            foreach (IntVec3 c in BoxGroundRect(box, margin))
+            foreach (IntVec3 c in BoxCells(box, margin))
             {
                 if (!c.InBounds(map))
                 {
@@ -959,43 +930,109 @@ namespace IsoRim
             return found;
         }
 
+        // The cells that can show inside a screen box (interface coordinates): on the ground and on every floor from the
+        // viewed one down (Floors), the block under the box at that floor's height in that floor's rows, widened by margin.
+        private static IEnumerable<IntVec3> BoxCells(Rect box, int margin)
+        {
+            for (int k = 0; k <= Floors.PointerTop; k++)
+            {
+                if (!Floors.Shown(k))
+                {
+                    continue;
+                }
+                float height;
+                int zShift;
+                Floors.FloorPlane(k, out height, out zShift);
+                CellRect r = BoxRect(box, height, margin);
+                for (int z = r.minZ; z <= r.maxZ; z++)
+                {
+                    for (int x = r.minX; x <= r.maxX; x++)
+                    {
+                        yield return new IntVec3(x, 0, z + zShift);
+                    }
+                }
+            }
+        }
+
+        // The block of ground cells under a screen box (interface coordinates) seen at a height, widened by margin cells.
+        private static CellRect BoxRect(Rect box, float height, int margin)
+        {
+            float scale = Prefs.UIScale;
+            float h = Verse.UI.screenHeight;
+            Vector3 a = View3D.ScreenToHeight(new Vector2(box.xMin, h - box.yMin) * scale, height);
+            Vector3 b = View3D.ScreenToHeight(new Vector2(box.xMax, h - box.yMin) * scale, height);
+            Vector3 c = View3D.ScreenToHeight(new Vector2(box.xMin, h - box.yMax) * scale, height);
+            Vector3 d = View3D.ScreenToHeight(new Vector2(box.xMax, h - box.yMax) * scale, height);
+            CellRect r = new CellRect();
+            r.minX = Mathf.FloorToInt(Mathf.Min(Mathf.Min(a.x, b.x), Mathf.Min(c.x, d.x))) - margin;
+            r.maxX = Mathf.FloorToInt(Mathf.Max(Mathf.Max(a.x, b.x), Mathf.Max(c.x, d.x))) + margin;
+            r.minZ = Mathf.FloorToInt(Mathf.Min(Mathf.Min(a.z, b.z), Mathf.Min(c.z, d.z))) - margin;
+            r.maxZ = Mathf.FloorToInt(Mathf.Max(Mathf.Max(a.z, b.z), Mathf.Max(c.z, d.z))) + margin;
+            return r;
+        }
+
         // The box (interface coordinates) grown by half a cell, so a thing counts when the box
         // only catches part of it.
         private static Rect GrownBox(Rect box)
         {
-            float slack = Screen.height / (2f * Mathf.Max(1f, Find.Camera.orthographicSize)) * 0.5f / Prefs.UIScale;
+            float slack = HalfCellUi();
             return Rect.MinMaxRect(
                 Mathf.Min(box.xMin, box.xMax) - slack, Mathf.Min(box.yMin, box.yMax) - slack,
                 Mathf.Max(box.xMin, box.xMax) + slack, Mathf.Max(box.yMin, box.yMax) + slack);
         }
 
-        // Whether the upright line from a point on the ground to the height top shows inside the
-        // (grown) box. Upright lines stay upright on screen, so it is a span in y at one x.
-        private static bool ShowsInBox(Vector3 ground, float top, Rect grown)
+        // Half a cell on screen, in interface units.
+        private static float HalfCellUi()
+        {
+            return Screen.height / (2f * Mathf.Max(1f, Find.Camera.orthographicSize)) * 0.5f / Prefs.UIScale;
+        }
+
+        // Whether the upright line from a drawn point (true space: y its height in cells, on its floor) up by top shows
+        // inside the (grown) box. Upright lines stay upright on screen, so it is a span in y at one x. On a floor below
+        // the viewed one it must also be seen: the pointer's ray at one of its ends falls through to that floor.
+        private static bool ShowsInBox(Vector3 at, float top, int floor, Rect grown)
         {
             float scale = Prefs.UIScale;
             float h = Verse.UI.screenHeight;
-            Vector2 g = View3D.WorldToScreen(new Vector3(ground.x, 0f, ground.z));
+            Vector2 g = View3D.WorldToScreen(at);
             float x = g.x / scale;
             if (x < grown.xMin || x > grown.xMax)
             {
                 return false;
             }
+            Vector2 t = top > 0f ? View3D.WorldToScreen(new Vector3(at.x, at.y + top, at.z)) : g;
             float yLow = h - g.y / scale;
-            float yHigh = top > 0f ? h - View3D.WorldToScreen(new Vector3(ground.x, top, ground.z)).y / scale : yLow;
-            return Mathf.Max(yLow, yHigh) >= grown.yMin && Mathf.Min(yLow, yHigh) <= grown.yMax;
+            float yHigh = h - t.y / scale;
+            if (Mathf.Max(yLow, yHigh) < grown.yMin || Mathf.Min(yLow, yHigh) > grown.yMax)
+            {
+                return false;
+            }
+            return floor >= Floors.PointerTop || Floors.PointerFloorAt(g) <= floor || Floors.PointerFloorAt(t) <= floor;
         }
 
+        // A thing: a pawn where it is drawn, anything else by the cells it stands on, on its floor as drawn.
         private static bool ShowsInBox(Thing t, Rect grown)
         {
+            int floor;
+            Vector3 lift;
+            if (!DrawnFloor(t.Position, out floor, out lift))
+            {
+                return false;
+            }
+            if (Floors.On)
+            {
+                lift = Floors.ThingOffset(t);   // its floor's, and the layout's own for this thing (a pawn on a stair)
+            }
             float top = Interaction.PickHeight(t);
             if (t is Pawn)
             {
-                return ShowsInBox(t.DrawPos, top, grown);
+                Vector3 d = t.DrawPos;
+                return ShowsInBox(new Vector3(d.x, 0f, d.z) + lift, top, floor, grown);
             }
             foreach (IntVec3 c in t.OccupiedRect())
             {
-                if (ShowsInBox(c.ToVector3Shifted(), top, grown))
+                Vector3 m = c.ToVector3Shifted();
+                if (ShowsInBox(new Vector3(m.x, 0f, m.z) + lift, top, floor, grown))
                 {
                     return true;
                 }
@@ -1003,28 +1040,96 @@ namespace IsoRim
             return false;
         }
 
-        // Zones and plans lie on the ground: they count when the middle of one of their cells shows
-        // inside the box (the block of cells round a turned box reaches past it).
-        public static IEnumerable<Zone> DragSelectZones_Postfix(IEnumerable<Zone> __result, Rect __0)
+        // A cell lying flat (zones, plans): its middle.
+        private static bool CellShowsInBox(IntVec3 c, Rect grown)
         {
-            if (__result == null || !View3D.Ready || Find.CurrentMap == null)
-            {
-                return __result;
-            }
-            Rect grown = GrownBox(__0);
-            CellRect r = BoxGroundRect(__0, 0);
-            return __result.Where(z => z.Cells.Any(c => r.Contains(c) && ShowsInBox(c.ToVector3Shifted(), 0f, grown))).ToList();
+            int floor;
+            Vector3 lift;
+            Vector3 m = c.ToVector3Shifted();
+            return DrawnFloor(c, out floor, out lift) && ShowsInBox(new Vector3(m.x, 0f, m.z) + lift, 0f, floor, grown);
         }
 
-        public static IEnumerable<Plan> DragSelectPlans_Postfix(IEnumerable<Plan> __result, Rect __0)
+        // The floor a cell is on and how it is moved to where it is drawn (true space); false on a hidden floor, above the
+        // viewed one or between floors.
+        private static bool DrawnFloor(IntVec3 c, out int floor, out Vector3 lift)
         {
-            if (__result == null || !View3D.Ready || Find.CurrentMap == null)
+            floor = 0;
+            lift = Vector3.zero;
+            if (!Floors.On)
+            {
+                return true;
+            }
+            floor = Floors.FloorOfRow(c.z);
+            if (floor < 0 || floor > Floors.PointerTop || !Floors.Shown(floor))
+            {
+                return false;
+            }
+            lift = Floors.RowOffset(c.z);
+            return true;
+        }
+
+        // Zones and plans lie flat: they count when the middle of one of their cells shows inside the box.
+        public static IEnumerable<Zone> DragSelectZones_Postfix(IEnumerable<Zone> __result, Rect __0, Zone __1)
+        {
+            Map map = Find.CurrentMap;
+            if (__result == null || !View3D.Ready || map == null)
             {
                 return __result;
             }
             Rect grown = GrownBox(__0);
-            CellRect r = BoxGroundRect(__0, 0);
-            return __result.Where(p => p.Cells.Any(c => r.Contains(c) && ShowsInBox(c.ToVector3Shifted(), 0f, grown))).ToList();
+            List<Zone> found = new List<Zone>();
+            foreach (IntVec3 c in BoxCells(__0, 0))
+            {
+                Zone z = c.InBounds(map) ? map.zoneManager.ZoneAt(c) : null;
+                if (z != null && z.IsMultiselectable && (__1 == null || z.GetType() == __1.GetType()) && !found.Contains(z) && CellShowsInBox(c, grown))
+                {
+                    found.Add(z);
+                }
+            }
+            return found;
+        }
+
+        public static IEnumerable<Plan> DragSelectPlans_Postfix(IEnumerable<Plan> __result, Rect __0, ColorDef __1)
+        {
+            Map map = Find.CurrentMap;
+            if (__result == null || !View3D.Ready || map == null)
+            {
+                return __result;
+            }
+            Rect grown = GrownBox(__0);
+            List<Plan> found = new List<Plan>();
+            foreach (IntVec3 c in BoxCells(__0, 0))
+            {
+                Plan p = c.InBounds(map) ? c.GetPlan(map) : null;
+                if (p != null && (__1 == null || p.Color == __1) && !found.Contains(p) && CellShowsInBox(c, grown))
+                {
+                    found.Add(p);
+                }
+            }
+            return found;
+        }
+
+        // The game's DragBox (mods ask it): a thing is in the box when it shows inside it on screen, as above.
+        public static bool DragBoxContains_Prefix(DragBox __instance, Thing t, ref bool __result)
+        {
+            if (!View3D.Ready || t == null || !t.Spawned)
+            {
+                return true;
+            }
+            __result = ShowsInBox(t, GrownBox(__instance.ScreenRect));
+            return false;
+        }
+
+        // A drag counts as a box once it is half a cell long on screen, wherever its ends land (the game measures it on
+        // the map, where its start and end may lie on different floors).
+        public static bool DragBoxIsValid_Prefix(DragBox __instance, ref bool __result)
+        {
+            if (!View3D.Ready)
+            {
+                return true;
+            }
+            __result = (__instance.start.MapToUIPosition() - Verse.UI.MousePositionOnUIInverted).magnitude > HalfCellUi();
+            return false;
         }
 
         // Where a thing's name label goes. The game puts it a little to the south of the thing,
@@ -2561,11 +2666,31 @@ namespace IsoRim
             {
                 return;
             }
-            if (p.jobs.curJob != null && p.jobs.curDriver != null && p.CurJob.GetTarget(p.jobs.curDriver.rotateToFace).IsValid)
+            if (p.jobs.curJob != null && p.jobs.curDriver != null && FacesSomething(p, p.CurJob.GetTarget(p.jobs.curDriver.rotateToFace)))
             {
                 return;
             }
             p.Rotation = __state;
+            if (Probe.On)
+            {
+                Probe.NoteDraftFacing(p);
+            }
+        }
+
+        // Whether a job's face target turns the pawn: not when it is the pawn's own cell (or the pawn itself), as the
+        // game's FaceCell skips its own cell. A drafted pawn standing by (Wait_Combat from JobGiver_Orders) has its own
+        // position as the target.
+        private static bool FacesSomething(Pawn p, LocalTargetInfo target)
+        {
+            if (!target.IsValid)
+            {
+                return false;
+            }
+            if (target.HasThing)
+            {
+                return target.Thing != p;
+            }
+            return target.Cell != p.Position;
         }
 
         // ---------------------------------------------------------------- raised things

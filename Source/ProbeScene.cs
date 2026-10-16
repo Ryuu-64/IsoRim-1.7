@@ -155,14 +155,15 @@ namespace IsoRim
             return ApplyDelay;
         }
 
+        // (U<z>: that ground row on floor 2, ProbeFixes)
         private static int I(string s)
         {
-            return int.Parse(s, CultureInfo.InvariantCulture);
+            return s.StartsWith("U") ? int.Parse(s.Substring(1), CultureInfo.InvariantCulture) + UShift() : int.Parse(s, CultureInfo.InvariantCulture);
         }
 
         private static float F(string s)
         {
-            return float.Parse(s, CultureInfo.InvariantCulture);
+            return s.StartsWith("U") ? float.Parse(s.Substring(1), CultureInfo.InvariantCulture) + UShift() : float.Parse(s, CultureInfo.InvariantCulture);
         }
 
         // Times the two halves of a grade table rebuild: working out the table, and the upload.
@@ -1419,7 +1420,7 @@ namespace IsoRim
                     break;
                 }
                 default:
-                    if (CutKey(key, a) || MechKey(key, a, map) || EntityKey(key, a, map))
+                    if (CutKey(key, a) || MechKey(key, a, map) || EntityKey(key, a, map) || FixKey(key, a, map))
                     {
                         break;
                     }

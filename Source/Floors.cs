@@ -364,7 +364,8 @@ namespace IsoRim
 
         // The floors the pointer works on are the shown ones, from the one viewed (PointerTop) down to the ground. The ray
         // under a screen pixel lands on the first of them, from the top, whose floor is built where it meets that floor's
-        // plane: the open air beside a building upstairs lets it through to the floor below, the ground always catches it.
+        // plane, or where something that can be selected stands in that cell (a floor's blueprint or frame on the open
+        // air): the open air beside a building upstairs lets it through to the floor below, the ground always catches it.
         // Hidden floors above the viewed one are never hit. Everything that turns the pointer into a map position goes
         // through here: UI.UIToMapPosition (MouseCell, MouseMapPosition: orders, float menus, designators, drags, labels,
         // brackets), the 3D picking (Interaction) and the cut-away round the pointer (Dynamic).
@@ -397,12 +398,37 @@ namespace IsoRim
                 {
                     continue;
                 }
-                if (HasFloor(frameMap, new IntVec3(Mathf.FloorToInt(p.x), 0, gz + shifts[k])))
+                IntVec3 c = new IntVec3(Mathf.FloorToInt(p.x), 0, gz + shifts[k]);
+                if (HasFloor(frameMap, c) || SelectableOn(frameMap, c))
                 {
                     return k;
                 }
             }
             return 0;
+        }
+
+        // Something that can be selected stands in the cell (the pointer stops there on the open air upstairs).
+        public static bool SelectableOn(Map map, IntVec3 c)
+        {
+            if (!c.InBounds(map))
+            {
+                return false;
+            }
+            List<Thing> things = map.thingGrid.ThingsListAtFast(c);
+            for (int i = 0; i < things.Count; i++)
+            {
+                if (things[i].def.selectable)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Whether floor k is drawn now (the ground always; without floors only the ground exists).
+        public static bool Shown(int k)
+        {
+            return k == 0 || On && k <= count && shown[k];
         }
 
         // Height (cells) of floor k and how far its rows are from the ground's (zero for the ground or without floors).
