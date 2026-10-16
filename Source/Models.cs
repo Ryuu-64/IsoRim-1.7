@@ -91,6 +91,10 @@ namespace IsoRim
         // doorTopModel an optional fixed piece on top (the arch). Drawn by Doors.DrawWide.
         public string doorLeafModel;
         public string doorTopModel;
+        // doorUpperLeafModel (wide doors, optional): a second leaf pair drawn like doorLeafModel but sliding as the game's
+        // upperMoverGraphic does, 0.35 * clamp01(OpenPct * 2.5) door widths, so it is fully back at 40 % open (security
+        // door: the armour plates retract first, then the slabs part).
+        public string doorUpperLeafModel;
         // One-cell supported doors (vac barrier, ancient blast door; Doors.DrawSupported) use model (frame),
         // doorTopModel (lintel) and doorLeafModel (optional, two sliding leaves) the same way, plus
         // hackTerminalModel: drawn while the door's CompHackable is not hacked (the blast door's terminal).
@@ -476,6 +480,7 @@ namespace IsoRim
         public Model top;   // turrets only
         public Model empty;       // emptyModel, or null
         public Model doorLeaf;    // wide doors only
+        public Model doorUpperLeaf;   // wide doors only, doorUpperLeafModel
         public Model doorTop;
         public Model topLoaded;   // turrets whose gun sprite changes once loaded (rocket launchers)
         public Model spin;        // spinModel, or null
@@ -862,6 +867,10 @@ namespace IsoRim
             if (!md.doorLeafModel.NullOrEmpty() && md.modContentPack != null)
             {
                 entry.doorLeaf = LoadFile(Path.Combine(md.modContentPack.RootDir, md.doorLeafModel));
+            }
+            if (!md.doorUpperLeafModel.NullOrEmpty() && md.modContentPack != null)
+            {
+                entry.doorUpperLeaf = LoadFile(Path.Combine(md.modContentPack.RootDir, md.doorUpperLeafModel));
             }
             if (!md.doorTopModel.NullOrEmpty() && md.modContentPack != null)
             {

@@ -105,6 +105,11 @@ namespace IsoRim
     //   halfdone=x,z                 the gene extractor in the cell half way through (its progress bar half full)
     //   emitcheck=1                  logs the smoke emitters and how many puffs are in the air
     //   opendoor=x,z                 the door in the cell opened by a colonist (Building_Door.StartManualOpenBy)
+    //   walkto=px,pz,tx,tz           every free colonist drafted (so none wanders off), the one in cell px,pz ordered to walk
+    //                                to tx,tz (a real Goto job: it opens doors on its path; run tick= or burst= after it)
+    //   burstticks=k                 each burst= frame first runs k game ticks (films a real job, e.g. a door opening),
+    //                                and logs every wide door's open fraction
+    //   lockwall=h                   the wall height locked as ProjectZ locks it (View3D.LockedWallHeight; 0 = unlocked)
     //   hack=x,z[,half]              the hackable building in the cell hacked by a colonist, all the way or half way
     //   doorcheck=1                  logs every door: rotation, cells, open, open fraction
     //   charged=x,z                  the shield in the cell out of its recharge pause
@@ -601,6 +606,10 @@ namespace IsoRim
                     {
                         Find.TickManager.DoSingleTick();
                     }
+                    foreach (Pawn tp in map.mapPawns.AllPawnsSpawned)
+                    {
+                        tp.Drawer.tweener.ResetTweenedPosToRoot();   // paused game: the drawn position follows the ticks
+                    }
                     break;
                 }
                 case "bookcheck":
@@ -1031,6 +1040,32 @@ namespace IsoRim
                     }
                     break;
                 }
+                case "walkto":
+                {
+                    IntVec3 wFrom = new IntVec3(I(a[0]), 0, I(a[1])), wTo = new IntVec3(I(a[2]), 0, I(a[3]));
+                    Pawn walker = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.Position == wFrom);
+                    if (walker == null)
+                    {
+                        Log.Warning("[IsoRim probe] walkto: no colonist at " + a[0] + "," + a[1]);
+                        return;
+                    }
+                    foreach (Pawn dp in map.mapPawns.FreeColonistsSpawned)
+                    {
+                        if (dp.drafter != null)
+                        {
+                            dp.drafter.Drafted = true;
+                        }
+                    }
+                    bool taken = walker.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.Goto, wTo), JobTag.DraftedOrder);
+                    Log.Message("[IsoRim probe] walkto " + walker.LabelShort + " " + wFrom + " -> " + wTo + ": " + taken);
+                    break;
+                }
+                case "burstticks":
+                    burstTicks = Math.Max(0, I(a[0]));
+                    break;
+                case "lockwall":
+                    View3D.LockedWallHeight = F(a[0]);
+                    break;
                 case "opendoor":
                 {
                     // opendoor=x,z: the door in the cell opened as a colonist walking through opens it.
@@ -1066,7 +1101,8 @@ namespace IsoRim
                         CompHackable dh = dc.GetComp<CompHackable>();
                         Log.Message("[IsoRim probe] doorcheck " + dc.def.defName + " " + dc.Position + " rot " + dc.Rotation.ToStringHuman() + " cells " + dc.OccupiedRect() + " open " + dc.Open
                             + " pct " + Traverse.Create(dc).Property("OpenPct").GetValue<float>().ToString("0.00")
-                            + (dh != null ? " hacked " + dh.IsHacked : "") + " cut " + WallBoxes.CellCut(map, dc.Position));
+                            + (dh != null ? " hacked " + dh.IsHacked : "") + " cut " + WallBoxes.CellCut(map, dc.Position)
+                            + " stuck " + Traverse.Create(dc).Property("StuckOpen").GetValue<bool>() + " power " + dc.DoorPowerOn);
                     }
                     break;
                 case "charged":
@@ -1996,6 +2032,7 @@ namespace IsoRim
         private static string burstTag;
         private static Vector3 burstCam;
         private static float burstStart;
+        private static int burstTicks;   // burstticks=k: game ticks run before each burst frame
 
         private static void BurstTick()
         {
@@ -2011,6 +2048,27 @@ namespace IsoRim
             {
                 Find.WindowStack.TryRemove(w, doCloseSound: false);
             }
+            string doors = "";
+            if (burstTicks > 0 && Find.CurrentMap != null)
+            {
+                for (int t = 0; t < burstTicks; t++)
+                {
+                    Find.TickManager.DoSingleTick();
+                }
+                foreach (Building_Door bd in Find.CurrentMap.listerThings.AllThings.OfType<Building_Door>())
+                {
+                    if (bd.def.size.x > 1 || bd.def.size.z > 1)
+                    {
+                        doors += " " + bd.def.defName + bd.Position + " pct " + Traverse.Create(bd).Property("OpenPct").GetValue<float>().ToString("0.00");
+                    }
+                }
+                foreach (Pawn bp in Find.CurrentMap.mapPawns.FreeColonistsSpawned)
+                {
+                    bp.Drawer.tweener.ResetTweenedPosToRoot();   // paused game: the drawn position follows the ticks
+                    doors += " | " + bp.LabelShort + " " + bp.Position + " " + (bp.CurJobDef?.defName ?? "-") + " moving " + bp.pather.Moving;
+                }
+                doors += " tick " + Find.TickManager.TicksGame;
+            }
             if (burstFrame % burstEvery == 0)
             {
                 string dir = System.IO.Path.Combine(GenFilePaths.SaveDataFolderPath, "renders", HarnessTag());
@@ -2019,7 +2077,7 @@ namespace IsoRim
             }
             Log.Message("[IsoRim probe] burst " + burstTag + " frame " + burstFrame + " (Unity frame " + Time.frameCount + "): "
                 + ((Time.realtimeSinceStartup - burstStart) * 1000f).ToString("0") + " ms since start, dt "
-                + (Time.unscaledDeltaTime * 1000f).ToString("0.0") + " ms, 3D " + View3D.Active);
+                + (Time.unscaledDeltaTime * 1000f).ToString("0.0") + " ms, 3D " + View3D.Active + doors);
             burstFrame++;
             burstLeft--;
         }

@@ -4535,6 +4535,17 @@
     <doorTopModel>Models/ornate_door_top.obj</doorTopModel>
     <builtFor>(2, 1)</builtFor>
   </IsoRim.ModelDef>
+  <!-- Security door (Anomaly, 2x1, 2026-10-16): fixed frame (buttress jambs, head beam), two slabs (the game's underlayer
+       mover) and armour plates on both faces (its upper mover, doorUpperLeafModel: fully back at 40 % open), Doors.DrawWide.
+       stuff_plain* only: vanilla grey (105) or paint, no swatch. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_SecurityDoor</defName>
+    <thingDef>SecurityDoor</thingDef>
+    <model>Models/security_door_frame.obj</model>
+    <doorLeafModel>Models/security_door_leaf.obj</doorLeafModel>
+    <doorUpperLeafModel>Models/security_door_plate.obj</doorUpperLeafModel>
+    <builtFor>(2, 1)</builtFor>
+  </IsoRim.ModelDef>
 
   <!-- Coop model batch 2 (D:\ClaudeGPTCoopHere\models_incoming, deliveries 2026-10-14 00:29 to 04:36), bind-only.
        AncientTankTrap: its models are in R3D_NoMatch_AncientTankTrap above. -->

@@ -1491,7 +1491,8 @@ namespace IsoRim
         // walls either side, as far as the game slides its own (0.7 of a leaf's width for the
         // ornate door). Lies along the door's rotation; as tall as the walls, cut down with them
         // (without the arch, which would float over the cut wall). openPct is the game's OpenPct;
-        // a door stuck open shows no leaves, as in the game. Returns false if it drew nothing.
+        // a door stuck open shows no leaves, as in the game. doorUpperLeafModel (security door plates) is a second pair
+        // sliding as the game's upper mover, 0.35 * clamp01(OpenPct * 2.5) door widths. Returns false if it drew nothing.
         public static bool DrawWide(Building_Door door, ModelEntry entry, float openPct, bool stuckOpen)
         {
             Map map = door.Map;
@@ -1533,6 +1534,12 @@ namespace IsoRim
                 float slide = 0.35f * Mathf.Clamp01(openPct) * door.def.size.x * s;
                 DynamicModels.DrawLocal(entry.doorLeaf, centre + along * slide, yaw, sized, tint, swatch);
                 DynamicModels.DrawLocal(entry.doorLeaf, centre - along * slide, yaw + 180f, sized, tint, swatch);
+                if (entry.doorUpperLeaf != null)
+                {
+                    float slide2 = 0.35f * Mathf.Clamp01(openPct * 2.5f) * door.def.size.x * s;
+                    DynamicModels.DrawLocal(entry.doorUpperLeaf, centre + along * slide2, yaw, sized, tint, swatch);
+                    DynamicModels.DrawLocal(entry.doorUpperLeaf, centre - along * slide2, yaw + 180f, sized, tint, swatch);
+                }
             }
             return true;
         }
