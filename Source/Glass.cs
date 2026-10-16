@@ -136,7 +136,7 @@ namespace IsoRim
         // The yaw the thing's model is drawn at (as the baker and Spinners turn it).
         public static float YawOf(Thing t, ModelEntry entry)
         {
-            float yaw = t.Rotation.AsAngle + entry.def.rotation;
+            float yaw = entry.Yaw(t.Rotation);
             if (entry.Swapped(t.def))
             {
                 yaw += 90f;
@@ -165,7 +165,7 @@ namespace IsoRim
         public static Vector3 ContentCentre(Thing t, ModelEntry entry)
         {
             Vector3 c = t.TrueCenter();
-            Vector3 shift = Quaternion.AngleAxis(t.Rotation.AsAngle + entry.def.rotation, Vector3.up) * entry.def.contentOffset;
+            Vector3 shift = Quaternion.AngleAxis(entry.Yaw(t.Rotation), Vector3.up) * entry.def.contentOffset;
             return new Vector3(c.x + shift.x, c.y, c.z + shift.z);
         }
 

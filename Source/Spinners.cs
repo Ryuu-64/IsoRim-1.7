@@ -112,7 +112,7 @@ namespace IsoRim
                 angle = Mathf.Repeat(angle + Mathf.Min(now - was, 60) / 60f * def.spinSpeed, 360f);
                 angles[t.thingIDNumber] = angle;
             }
-            float yaw = t.Rotation.AsAngle + def.rotation;
+            float yaw = entry.Yaw(t.Rotation);
             if (entry.Swapped(t.def))
             {
                 yaw += 90f;

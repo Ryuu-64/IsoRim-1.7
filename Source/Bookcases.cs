@@ -84,7 +84,7 @@ namespace IsoRim
             int count = Mathf.Min(books.Count, Room(entry));
 
             // The same place and turn as the bookcase's own model (ModelBaker.Bake).
-            float yaw = bookcase.Rotation.AsAngle + def.rotation + (entry.Swapped(bookcase.def) ? 90f : 0f);
+            float yaw = entry.Yaw(bookcase.Rotation) + (entry.Swapped(bookcase.def) ? 90f : 0f);
             Quaternion turn = Quaternion.AngleAxis(yaw, Vector3.up);
             Vector3 center = bookcase.DrawPos;
             Vector3 fit = entry.Fit(bookcase.def) * def.scale;

@@ -89,7 +89,7 @@ namespace IsoRim
         private static void Draw(Thing t, ModelEntry entry)
         {
             ModelDef def = entry.def;
-            float yaw = t.Rotation.AsAngle + def.rotation;
+            float yaw = entry.Yaw(t.Rotation);
             if (entry.Swapped(t.def))
             {
                 yaw += 90f;

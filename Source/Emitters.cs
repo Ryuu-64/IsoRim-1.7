@@ -62,7 +62,7 @@ namespace IsoRim
             }
             ModelEntry entry = form.model;
             ModelDef def = entry.def;
-            Quaternion turn = Quaternion.AngleAxis(parent.Rotation.AsAngle + def.rotation + (entry.Swapped(parent.def) ? 90f : 0f), Vector3.up);
+            Quaternion turn = Quaternion.AngleAxis(entry.Yaw(parent.Rotation) + (entry.Swapped(parent.def) ? 90f : 0f), Vector3.up);
             Vector3 fit = entry.Fit(parent.def) * def.scale;
             int lifeTicks = Mathf.CeilToInt((props.fleck.solidTime + props.fleck.fadeInTime + props.fleck.fadeOutTime) * 60f) + 120;
             for (int i = 0; i < props.burstCount; i++)

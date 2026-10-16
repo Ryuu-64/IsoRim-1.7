@@ -162,7 +162,7 @@ namespace IsoRim
                     return;
                 }
                 Vector3 at = GenThing.TrueCenter(center, rot, def.size, 0f);
-                float yaw = rot.AsAngle + entry.def.rotation;
+                float yaw = entry.Yaw(rot);
                 if (entry.Swapped(def))
                 {
                     yaw += 90f;

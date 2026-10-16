@@ -82,7 +82,7 @@ namespace IsoRim
     //   chaincheck=1                 logs each holding platform: what it holds, its chains (to the entity or across), floor height
     //   sealflag=x,z                 the portal in the cell marked sealed (CompSealable) and its map mesh redrawn
     //   portalcheck=1                logs each map portal: enterable (and why not), hacked, form
-    //   dressed=x,z,rot,age[:Body],Def[:Stuff];...  a new drafted colonist (adults male body, or that BodyTypeDef)
+    //   dressed=x,z,rot,age[:Body[:M|F]],Def[:Stuff];...  a new drafted colonist (adults male body, or that BodyTypeDef)
     //                                wearing/holding exactly those ("-" for nothing), facing rot; items hair:<HairDef>
     //                                and beard:<BeardDef> set those styles instead; Def:Stuff:RRGGBB also dyes it that colour
     //   bedrest=px,pz,bx,bz[,nomed]  the colonist in cell px,pz undrafted, made tired and ordered to lie down in the bed at
@@ -865,6 +865,7 @@ namespace IsoRim
                     bool dchild = dage < 13f;
                     // One holding a gun can fire it (attack=, tickuntil=flash).
                     Pawn dp = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDefOf.Colonist, Faction.OfPlayer, PawnGenerationContext.NonPlayer,
+                        fixedGender: dageBody.Length > 2 ? (dageBody[2] == "F" ? Gender.Female : Gender.Male) : (Gender?)null,
                         mustBeCapableOfViolence: a[4].Contains("Gun_"), fixedBiologicalAge: dage, fixedChronologicalAge: dage, developmentalStages: dchild ? DevelopmentalStage.Child : DevelopmentalStage.Adult));
                     dp.apparel.DestroyAll();
                     dp.equipment.DestroyAllEquipment();
@@ -1297,6 +1298,12 @@ namespace IsoRim
                 case "batch":
                 case "abswitch":
                     PerfKey(key, a, map);
+                    break;
+                case "meshstats":
+                case "ghostpreview":
+                case "aim":
+                case "grassab":
+                    Batch5Key(key, a, map);
                     break;
                 case "roofclip":
                     RoofClip.Enabled = a[0] == "1";
@@ -1770,6 +1777,7 @@ namespace IsoRim
             CutTick();
             BurstTick();
             WalkFilmTick();
+            GhostTick();
             if (swayStill)
             {
                 List<Material> plantMats = (List<Material>)plantMaterialsField.GetValue(null);

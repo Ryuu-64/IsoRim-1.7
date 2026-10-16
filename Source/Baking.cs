@@ -1789,7 +1789,7 @@ namespace IsoRim
 
             // Where, which way round and how big.
             float scale = def.scale;
-            float yaw = thing.Rotation.AsAngle + def.rotation;
+            float yaw = entry.Yaw(thing.Rotation);
             int id = thing.thingIDNumber;
             if (def.randomRotation)
             {

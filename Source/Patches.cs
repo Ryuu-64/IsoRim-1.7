@@ -2842,7 +2842,7 @@ namespace IsoRim
                 ThingForm form = Forms.For(t.def);
                 if (form.form == Form3D.Model && form.model != null && form.model.def.contentOffset != Vector3.zero)
                 {
-                    Vector3 shift = Quaternion.AngleAxis(t.Rotation.AsAngle + form.model.def.rotation, Vector3.up) * form.model.def.contentOffset;
+                    Vector3 shift = Quaternion.AngleAxis(form.model.Yaw(t.Rotation), Vector3.up) * form.model.def.contentOffset;
                     DrawHook.xform = Matrix4x4.Translate(new Vector3(shift.x, 0f, shift.z)) * DrawHook.xform;
                 }
                 DrawHook.active = true;

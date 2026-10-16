@@ -9,7 +9,7 @@
          <model>Models/x.obj</model>   use a hand-made model
          <models><li>...</li></models> several models; each thing picks one and keeps it
          <height>0.3</height>          set the height of the automatic shape, in cells
-         <flat>true</flat>             leave it as a flat sprite
+         <flat>true</flat>             leave it as a flat sprite (plants: their sprites stand up as cards)
        Extras for models:
          <scale>1</scale> <offset>(0,0,0)</offset> <rotation>0</rotation>
          <surfaceHeight>0.4</surfaceHeight>   where things on top of it are drawn
@@ -985,36 +985,17 @@
   <IsoRim.ModelDef>
     <defName>R3D_Plant_Grass</defName>
     <thingDef>Plant_Grass</thingDef>
-    <models>
-      <li>Models/grass_1.obj</li>
-      <li>Models/grass_2.obj</li>
-      <li>Models/grass_3.obj</li>
-      <li>Models/grass_4.obj</li>
-    </models>
-    <surfaceHeight>0.00</surfaceHeight>
-    <randomRotation>true</randomRotation>
-    <scaleJitter>0.18</scaleJitter>
-    <growthScale>true</growthScale>
-    <scatter>0.50</scatter>
-    <groundShadow>false</groundShadow>
-    <outline>0.00</outline>
+    <!-- Grass card: no model. The game's own grass sprites (Graphic_Random, plant.maxMeshCount per cell) stand up
+         as camera-facing plant cards (UprightCards), so look and density follow vanilla. -->
+    <flat>true</flat>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
     <defName>R3D_Plant_TallGrass</defName>
     <thingDef>Plant_TallGrass</thingDef>
-    <models>
-      <li>Models/tall_grass_1.obj</li>
-      <li>Models/tall_grass_2.obj</li>
-      <li>Models/tall_grass_3.obj</li>
-    </models>
-    <surfaceHeight>0.00</surfaceHeight>
-    <randomRotation>true</randomRotation>
-    <scaleJitter>0.18</scaleJitter>
-    <growthScale>true</growthScale>
-    <scatter>0.50</scatter>
-    <groundShadow>false</groundShadow>
-    <outline>0.00</outline>
+    <!-- Grass card: no model. The game's own grass sprites (Graphic_Random, plant.maxMeshCount per cell) stand up
+         as camera-facing plant cards (UprightCards), so look and density follow vanilla. -->
+    <flat>true</flat>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -5114,12 +5095,14 @@
     <thingDef>SmallThruster</thingDef>
     <model>Models/small_thruster.obj</model>
     <builtFor>(1, 2)</builtFor>
+    <wallFit>1.65</wallFit>
   </IsoRim.ModelDef>
   <IsoRim.ModelDef>
     <defName>R3D_LargeThruster</defName>
     <thingDef>LargeThruster</thingDef>
     <model>Models/large_thruster.obj</model>
     <builtFor>(2, 2)</builtFor>
+    <wallFit>1.65</wallFit>
   </IsoRim.ModelDef>
   <IsoRim.ModelDef>
     <defName>R3D_ChemfuelTank</defName>
@@ -7430,59 +7413,31 @@
   -->
 
   <!-- Plant batch plants_ody (2026-10-15): Odyssey plants that fell to the herb stand-in or a flat card (make_plants_ody.py,
-       OBJs + plants_ody.mtl go in Models\). Budget: grass-likes stay in the grass budget (yellow grass = grass_1..4 geometry,
-       4 faces; yellow tall grass / night grass = tall_grass_1..3 geometry, 5 faces; reeds 12 faces, budget raised in round 4);
+       OBJs + plants_ody.mtl go in Models\). Budget: reeds 12 faces (raised in round 4); yellow grass, yellow tall grass and
+       night grass are grass cards since 2026-10-16 (no model, like Plant_Grass);
        other small plants <= 34 faces. Archean canopy is leaf_archean* (dropped while leafless, as vanilla's ArcheanTree_Leafless sprite; no keepLeaves),
        twig_archean shows only while bare. Snagroot has no leaves. Wild twins of existing crops reuse the crop's model 1:1.
        Plant_Brambles_Leafless has its own bare-twig model (round 4); Plant_Tinctoria / Plant_Fibercorn share their wild twins' models. -->
   <IsoRim.ModelDef>
     <defName>R3D_Plant_YellowGrass</defName>
     <thingDef>Plant_YellowGrass</thingDef>
-    <models>
-      <li>Models/plant_yellowgrass_a.obj</li>
-      <li>Models/plant_yellowgrass_b.obj</li>
-      <li>Models/plant_yellowgrass_c.obj</li>
-      <li>Models/plant_yellowgrass_d.obj</li>
-    </models>
-    <surfaceHeight>0.00</surfaceHeight>
-    <randomRotation>true</randomRotation>
-    <scaleJitter>0.18</scaleJitter>
-    <growthScale>true</growthScale>
-    <scatter>0.50</scatter>
-    <groundShadow>false</groundShadow>
-    <outline>0.00</outline>
+    <!-- Grass card: no model. The game's own grass sprites (Graphic_Random, plant.maxMeshCount per cell) stand up
+         as camera-facing plant cards (UprightCards), so look and density follow vanilla. -->
+    <flat>true</flat>
   </IsoRim.ModelDef>
   <IsoRim.ModelDef>
     <defName>R3D_Plant_YellowTallGrass</defName>
     <thingDef>Plant_YellowTallGrass</thingDef>
-    <models>
-      <li>Models/plant_yellowtallgrass_a.obj</li>
-      <li>Models/plant_yellowtallgrass_b.obj</li>
-      <li>Models/plant_yellowtallgrass_c.obj</li>
-    </models>
-    <surfaceHeight>0.00</surfaceHeight>
-    <randomRotation>true</randomRotation>
-    <scaleJitter>0.18</scaleJitter>
-    <growthScale>true</growthScale>
-    <scatter>0.50</scatter>
-    <groundShadow>false</groundShadow>
-    <outline>0.00</outline>
+    <!-- Grass card: no model. The game's own grass sprites (Graphic_Random, plant.maxMeshCount per cell) stand up
+         as camera-facing plant cards (UprightCards), so look and density follow vanilla. -->
+    <flat>true</flat>
   </IsoRim.ModelDef>
   <IsoRim.ModelDef>
     <defName>R3D_Plant_Nightgrass</defName>
     <thingDef>Plant_Nightgrass</thingDef>
-    <models>
-      <li>Models/plant_nightgrass_a.obj</li>
-      <li>Models/plant_nightgrass_b.obj</li>
-      <li>Models/plant_nightgrass_c.obj</li>
-    </models>
-    <surfaceHeight>0.00</surfaceHeight>
-    <randomRotation>true</randomRotation>
-    <scaleJitter>0.18</scaleJitter>
-    <growthScale>true</growthScale>
-    <scatter>0.50</scatter>
-    <groundShadow>false</groundShadow>
-    <outline>0.00</outline>
+    <!-- Grass card: no model. The game's own grass sprites (Graphic_Random, plant.maxMeshCount per cell) stand up
+         as camera-facing plant cards (UprightCards), so look and density follow vanilla. -->
+    <flat>true</flat>
   </IsoRim.ModelDef>
   <IsoRim.ModelDef>
     <defName>R3D_Plant_Reeds</defName>
@@ -7789,5 +7744,84 @@
     <growthScale>true</growthScale>
     <outline>0.55</outline>
   </IsoRim.ModelDef>
+
+
+  <!-- Coverage buildings batch 4 (2026-10-15, round 2: user decisions applied; grass dropped): mech-cluster turrets, ancient defender
+       turret, Urn, AncientStorageCylinder. Models\buildings_b4.mtl (b4_* fixed colours); the mech-cluster pieces also use
+       mech_spawners.mtl (spawn_*, as the other mech-cluster buildings). Exact thingDef entries, no match words.
+       Guns: topModel at topHeight, barrel along +x (as turret_gun_*.obj), drawn by Patches.DrawTurret_Prefix. -->
+
+  <IsoRim.ModelDef>
+    <defName>R3D_Turret_AutoMiniTurret</defName>
+    <thingDef>Turret_AutoMiniTurret</thingDef>
+    <model>Models/mech_turret_mini.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+    <topModel>Models/mech_turret_gun_mini.obj</topModel>
+    <topHeight>0.45</topHeight>
+  </IsoRim.ModelDef>
+
+  <!-- The three 2x2 mech turrets share the vanilla base (TurretMechLarge_Base) and so share one model; each its own gun. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_Turret_AutoChargeBlaster</defName>
+    <thingDef>Turret_AutoChargeBlaster</thingDef>
+    <model>Models/mech_turret_large.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+    <topModel>Models/mech_turret_gun_chargeblaster.obj</topModel>
+    <topHeight>0.64</topHeight>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_Turret_AutoInferno</defName>
+    <thingDef>Turret_AutoInferno</thingDef>
+    <model>Models/mech_turret_large.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+    <topModel>Models/mech_turret_gun_inferno.obj</topModel>
+    <topHeight>0.68</topHeight>
+    <ignoreRotation>true</ignoreRotation>   <!-- needs code\isorim_b4.patch: the base stays put (vanilla Graphic_Multi with one
+                                                  texture does not turn); the gun still aims. ChargeBlaster / Mortar are
+                                                  Graphic_Single, which the game does turn, so they keep turning. -->
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_Turret_AutoMortar</defName>
+    <thingDef>Turret_AutoMortar</thingDef>
+    <model>Models/mech_turret_large.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+    <topModel>Models/mech_turret_gun_mortar.obj</topModel>
+    <topHeight>0.72</topHeight>
+  </IsoRim.ModelDef>
+
+  <!-- Odyssey ancient defender turret: 1x1 (the vanilla base sprite is drawn 3x3 but the legs span about one cell). -->
+  <IsoRim.ModelDef>
+    <defName>R3D_Turret_AncientArmoredTurret</defName>
+    <thingDef>Turret_AncientArmoredTurret</thingDef>
+    <model>Models/ancient_armored_turret.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+    <topModel>Models/ancient_armored_turret_gun.obj</topModel>
+    <topHeight>0.44</topHeight>
+  </IsoRim.ModelDef>
+
+  <!-- Urn: stuff Metallic / Stony; body "stuff", foot "stuff_dark", mouth "stuff_deep". -->
+  <IsoRim.ModelDef>
+    <defName>R3D_Urn</defName>
+    <thingDef>Urn</thingDef>
+    <model>Models/urn.obj</model>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <!-- AncientStorageCylinder (远古液罐): 2x1, rotatable; no match word catches it today (extruded sprite). -->
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientStorageCylinder</defName>
+    <thingDef>AncientStorageCylinder</thingDef>
+    <model>Models/ancient_storage_cylinder.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 1)</builtFor>
+  </IsoRim.ModelDef>
+
 
 </Defs>

@@ -76,6 +76,12 @@ namespace IsoRim
         public Vector2 builtFor = Vector2.zero; // the footprint (x, z) in cells the model was built for; it is stretched to the thing's real size
         public string topModel;             // turrets: the gun that turns, drawn every frame
         public float topHeight = 0.5f;      // height of the turret's pivot, in cells
+        public bool ignoreRotation = false; // drawn as built (facing north) whatever the thing's rotation, as the game draws a
+                                            // rotatable thing whose sprite does not turn (the mech inferno turret's base; its
+                                            // gun still turns). Square footprints only (ModelEntry.Yaw)
+        public float wallFit = 0f;          // > 0: the model was built for walls this tall (cells); its height follows the walls
+                                            // drawn now (View3D.WallHeight / wallFit, in Fit), so things that close a wall line
+                                            // (gravship thrusters) stay as tall as the walls; 0 = fixed height
         // Doors wider than one cell (ornate door): model is the fixed frame over the doorway, doorLeafModel one
         // leaf (spanning x 0..1 from the doorway centre; the other leaf is the same turned half round),
         // doorTopModel an optional fixed piece on top (the arch). Drawn by Doors.DrawWide.
@@ -491,7 +497,7 @@ namespace IsoRim
 
         // How much the model is stretched along x, up and along z to fit a thing of this kind:
         // (1, 1, 1) unless the model was built for a different footprint.
-        public Vector3 Fit(ThingDef thing)
+        private Vector3 FootprintFit(ThingDef thing)
         {
             if (def.builtFor.x <= 0f || def.builtFor.y <= 0f || thing == null)
             {
@@ -505,6 +511,24 @@ namespace IsoRim
                 return Vector3.one;
             }
             return new Vector3(sx, Mathf.Sqrt(sx * sz), sz);
+        }
+
+        // How much the model is stretched: the footprint fit above, and up to the walls for a model with wallFit.
+        public Vector3 Fit(ThingDef thing)
+        {
+            Vector3 f = FootprintFit(thing);
+            if (def.wallFit > 0f)
+            {
+                f.y *= View3D.WallHeight / def.wallFit;
+            }
+            return f;
+        }
+
+        // The turn (degrees) a thing's model is drawn at for the thing's rotation: the rotation (none with
+        // ignoreRotation) plus the def's extra rotation. Every drawer of a building's model uses this.
+        public float Yaw(Rot4 rot)
+        {
+            return (def.ignoreRotation ? 0f : rot.AsAngle) + def.rotation;
         }
 
         // The same thing always gets the same variant.

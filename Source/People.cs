@@ -58,6 +58,7 @@ namespace IsoRim
             public bool pads;
             public bool visor;
             public bool faceHidden;   // the game leaves out the eyes (skip flag Eyes): no face, eyes or scars
+            public bool femaleEyes;   // a Female_* head type: vanilla draws its eyes with the longer upturned lash
             public bool headHidden;   // the game leaves out the whole head (skip flag Head, the burka): its covering (hat) instead
             public bool bedHidesHat;  // in a bed that hides headgear when this look was worked out (People.BedHidesHeadgear)
             public Color skin = Color.white;
@@ -130,7 +131,7 @@ namespace IsoRim
             {
                 return o != null && size == o.size && headWide == o.headWide && shoulders == o.shoulders && bodyScale == o.bodyScale && lower == o.lower && upper == o.upper
                     && coat == o.coat && underCoat == o.underCoat && underCoatColor == o.underCoatColor && hair == o.hair && hairTop == o.hairTop && beard == o.beard && hat == o.hat && pads == o.pads && visor == o.visor
-                    && legArmour == o.legArmour && legArmourColor == o.legArmourColor && faceHidden == o.faceHidden && headHidden == o.headHidden
+                    && legArmour == o.legArmour && legArmourColor == o.legArmourColor && faceHidden == o.faceHidden && femaleEyes == o.femaleEyes && headHidden == o.headHidden
                     && skin == o.skin && hairColor == o.hairColor && upperColor == o.upperColor && lowerColor == o.lowerColor
                     && coatColor == o.coatColor && hatColor == o.hatColor && ownHead == o.ownHead && ownFace == o.ownFace && eyeLeft == o.eyeLeft
                     && eyeRight == o.eyeRight && scars == o.scars && skinOverlay == o.skinOverlay && barbs == o.barbs && plating == o.plating
@@ -202,7 +203,7 @@ namespace IsoRim
                     AddPart(head, headPlace, skin);
                     if (!look.faceHidden)
                     {
-                        AddPart(look.ownFace ?? face, headPlace, look.ownFace != null ? look.faceTint : Color.white);
+                        AddPart(look.ownFace ?? (look.femaleEyes && faceFemale != null ? faceFemale : face), headPlace, look.ownFace != null ? look.faceTint : Color.white);
                         AddPart(look.eyeLeft, headPlace, Color.white);
                         AddPart(look.eyeRight, headPlace, Color.white);
                         AddPart(look.scars, headPlace, Color.white);
@@ -276,6 +277,7 @@ namespace IsoRim
         private static readonly Dictionary<string, Model> models = new Dictionary<string, Model>();
         private static Model head;
         private static Model face;
+        private static Model faceFemale;   // person_face_female: the eyes of the Female_* head types
         private static Model visor;
         private static Model pads;
         private static bool tried;
@@ -297,13 +299,17 @@ namespace IsoRim
                 tried = true;
                 head = Part("person_head");
                 face = Part("person_face");
-                if (face != null)
+                faceFemale = Part("person_face_female");
+                foreach (Model eyes in new[] { face, faceFemale })
                 {
-                    // The eyes are flat decals on the face: an outline shell would poke out as dark spikes at grazing angles.
-                    face.noOutline = new bool[face.positions.Length];
-                    for (int i = 0; i < face.noOutline.Length; i++)
+                    if (eyes != null)
                     {
-                        face.noOutline[i] = true;
+                        // The eyes are flat decals on the face: an outline shell would poke out as dark spikes at grazing angles.
+                        eyes.noOutline = new bool[eyes.positions.Length];
+                        for (int i = 0; i < eyes.noOutline.Length; i++)
+                        {
+                            eyes.noOutline[i] = true;
+                        }
                     }
                 }
                 visor = Part("person_visor");
@@ -618,6 +624,8 @@ namespace IsoRim
             // Head, hair and beard.
             string headName = story.headType != null ? (story.headType.defName ?? "") : "";
             look.headWide = Has(headName, "Narrow") ? 0.9f : (Has(headName, "Wide") ? 1.07f : 1f);
+            // Vanilla's eyes are part of the head art: Female_* heads have the upturned lash, all others the male eye.
+            look.femaleEyes = headName.StartsWith("Female", StringComparison.OrdinalIgnoreCase);
             look.skin = Corpses.Skin(pawn, story.SkinColor);   // rotting: the game's rotten colour
             look.hairColor = story.HairColor;
             string hairKind = HairParts.Hair(story.hairDef);
