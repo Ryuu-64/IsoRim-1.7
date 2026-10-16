@@ -8038,4 +8038,327 @@
   <!-- In-place changes to existing entries: none. The exact entries above win over R3D_Match_198_wreck_apc,
        R3D_Match_199_wreck_tank and R3D_Match_200..203_warwalker_*; those keep catching other mods' wrecks. -->
 
+  <!-- Coverage buildings batch 7 (2026-10-16, Blender round 2): Anomaly map objects. Models\buildings_b7.mtl (b7_* fixed
+       colours, glow_b7_* unlit); the fleshmass family uses anomaly_entities.mtl (entity_*, as the fleshbeasts). Exact
+       thingDef entries, no match words. Entries marked NEEDS CODE n must ship with that change (code\isorim_b7.patch,
+       code\code_plan.txt). New fields: pulseParts, activityGlowModel (+ the existing glowMaterials). -->
+
+  <!-- Pits (no code). The rim stands above the ground; the hole is a black floor inside a dark rock wall. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_PitGate</defName>
+    <thingDef>PitGate</thingDef>
+    <model>Models/pit_gate.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(8, 8)</builtFor>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_PitBurrow</defName>
+    <thingDef>PitBurrow</thingDef>
+    <model>Models/pit_burrow.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+    <randomRotation>true</randomRotation>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_PitGateExit</defName>
+    <thingDef>PitGateExit</thingDef>
+    <model>Models/cave_exit.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+
+  <!-- Void monolith. NEEDS CODE 1: models are in the game's graphic index order (Graphic_Indexed A..F; the core's index is
+       the monolith level's graphicIndex, each attachment's the level's attachment graphicIndex). Without code 1 Pick takes
+       thingIDNumber % n, i.e. a random stage. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_VoidMonolith</defName>
+    <thingDef>VoidMonolith</thingDef>
+    <models>
+      <li>Models/void_monolith_a.obj</li>
+      <li>Models/void_monolith_b.obj</li>
+      <li>Models/void_monolith_c.obj</li>
+      <li>Models/void_monolith_d.obj</li>
+      <li>Models/void_monolith_e.obj</li>
+      <li>Models/void_monolith_f.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_VoidMonolithAttachmentLeft</defName>
+    <thingDef>VoidMonolithAttachmentLeft</thingDef>
+    <models>
+      <li>Models/void_monolith_left_b.obj</li>
+      <li>Models/void_monolith_left_c.obj</li>
+      <li>Models/void_monolith_left_d.obj</li>
+      <li>Models/void_monolith_left_e.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_VoidMonolithAttachmentRight</defName>
+    <thingDef>VoidMonolithAttachmentRight</thingDef>
+    <models>
+      <li>Models/void_monolith_right_b.obj</li>
+      <li>Models/void_monolith_right_c.obj</li>
+      <li>Models/void_monolith_right_d.obj</li>
+      <li>Models/void_monolith_right_e.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_VoidMonolithAttachmentTop</defName>
+    <thingDef>VoidMonolithAttachmentTop</thingDef>
+    <models>
+      <li>Models/void_monolith_top_c.obj</li>
+      <li>Models/void_monolith_top_d.obj</li>
+      <li>Models/void_monolith_top_e.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_VoidMonolithAttachmentBottomLeft</defName>
+    <thingDef>VoidMonolithAttachmentBottomLeft</thingDef>
+    <models>
+      <li>Models/void_monolith_pillar_c.obj</li>
+      <li>Models/void_monolith_pillar_d.obj</li>
+      <li>Models/void_monolith_pillar_e.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_VoidMonolithAttachmentBottomRight</defName>
+    <thingDef>VoidMonolithAttachmentBottomRight</thingDef>
+    <models>
+      <li>Models/void_monolith_pillar_c.obj</li>
+      <li>Models/void_monolith_pillar_d.obj</li>
+      <li>Models/void_monolith_pillar_e.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <!-- Obelisks. NEEDS CODE 4 for the runes: they are only in the glow part (hidden below activity 0.1, then glowing up to
+       colorTwo with pulse, flicker and flecks). The labyrinth obelisk has no CompActivity: plain model, no glow part. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_WarpedObelisk_Abductor</defName>
+    <thingDef>WarpedObelisk_Abductor</thingDef>
+    <model>Models/obelisk_warped.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+    <activityGlowModel>Models/obelisk_warped_runes.obj</activityGlowModel>
+    <glowMaterials><li>b7_rune</li></glowMaterials>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_WarpedObelisk_Labyrinth</defName>
+    <thingDef>WarpedObelisk_Labyrinth</thingDef>
+    <model>Models/obelisk_warped.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_WarpedObelisk_Duplicator</defName>
+    <thingDef>WarpedObelisk_Duplicator</thingDef>
+    <model>Models/obelisk_corrupted.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+    <activityGlowModel>Models/obelisk_corrupted_runes.obj</activityGlowModel>
+    <glowMaterials><li>b7_obelisk</li></glowMaterials>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_WarpedObelisk_Mutator</defName>
+    <thingDef>WarpedObelisk_Mutator</thingDef>
+    <model>Models/obelisk_twisted.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+    <activityGlowModel>Models/obelisk_twisted_runes.obj</activityGlowModel>
+    <glowMaterials><li>b7_rune</li></glowMaterials>
+  </IsoRim.ModelDef>
+
+  <!-- Fleshmass: lump in the cell + an arm toward each neighbour it joins (Baking linked rule); height follows the walls.
+       Code 5 (Baking.SharesLink) lets Fleshmass and Fleshmass_Active join each other. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_Fleshmass</defName>
+    <thingDef>Fleshmass</thingDef>
+    <models>
+      <li>Models/fleshmass_core.obj</li>
+      <li>Models/fleshmass_arm.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+    <linked>true</linked>
+    <wallFit>1.65</wallFit>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_Fleshmass_Active</defName>
+    <thingDef>Fleshmass_Active</thingDef>
+    <models>
+      <li>Models/fleshmass_core.obj</li>
+      <li>Models/fleshmass_arm.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+    <linked>true</linked>
+    <wallFit>1.65</wallFit>
+  </IsoRim.ModelDef>
+
+  <!-- NEEDS CODE 3 + 3b (Pulses.cs): the body is the base mound; the three parts beat as the game's (15-tick sine after each
+       beat, centre 1.15 x 1.2, lobes 1.1 delayed 3 / 7 ticks); the game's flat parts are left out. The game's flat fleshmass
+       base sprite (CompFleshmassBase.PostDraw) stays as a ground decal. fleshmass_heart.obj = all parts merged (fallback). -->
+  <IsoRim.ModelDef>
+    <defName>R3D_FleshmassHeart</defName>
+    <thingDef>FleshmassHeart</thingDef>
+    <model>Models/fleshmass_heart_base.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+    <pulseParts>
+      <li><model>Models/fleshmass_heart_centre.obj</model><pivot>(0, -0.35)</pivot><maxScale>(1.15, 1.2)</maxScale><delay>0</delay></li>
+      <li><model>Models/fleshmass_heart_left.obj</model><pivot>(-0.95, 0.15)</pivot><maxScale>(1.1, 1.1)</maxScale><delay>3</delay></li>
+      <li><model>Models/fleshmass_heart_right.obj</model><pivot>(0.95, 0.15)</pivot><maxScale>(1.1, 1.1)</maxScale><delay>7</delay></li>
+    </pulseParts>
+  </IsoRim.ModelDef>
+
+  <!-- Spitter: ready model only (user, round 2). -->
+  <IsoRim.ModelDef>
+    <defName>R3D_FleshmassSpitter</defName>
+    <thingDef>FleshmassSpitter</thingDef>
+    <model>Models/fleshmass_spitter_a.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_Fleshbulb</defName>
+    <thingDef>Fleshbulb</thingDef>
+    <model>Models/fleshbulb.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+    <randomRotation>true</randomRotation>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_FleshSack</defName>
+    <thingDef>FleshSack</thingDef>
+    <model>Models/flesh_sack.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+    <randomRotation>true</randomRotation>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_NerveBundle</defName>
+    <thingDef>NerveBundle</thingDef>
+    <model>Models/nerve_bundle.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <!-- Gray box: open state through the existing emptyModel (CompEmptyStateGraphic); drawRotated false = ignoreRotation. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_GrayBox</defName>
+    <thingDef>GrayBox</thingDef>
+    <model>Models/gray_box.obj</model>
+    <emptyModel>Models/gray_box_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+    <ignoreRotation>true</ignoreRotation>
+  </IsoRim.ModelDef>
+
+  <!-- Voidmetal masses (Graphic_Random A..C: one model each, random turn; spikes overhang like the 2.3 / 3.3 / 4.3 sprites). -->
+  <IsoRim.ModelDef>
+    <defName>R3D_VoidmetalMassSmall</defName>
+    <thingDef>VoidmetalMassSmall</thingDef>
+    <model>Models/voidmetal_mass_small.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+    <randomRotation>true</randomRotation>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_VoidmetalMassMedium</defName>
+    <thingDef>VoidmetalMassMedium</thingDef>
+    <model>Models/voidmetal_mass_medium.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+    <randomRotation>true</randomRotation>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_VoidmetalMassLarge</defName>
+    <thingDef>VoidmetalMassLarge</thingDef>
+    <model>Models/voidmetal_mass_large.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+    <randomRotation>true</randomRotation>
+  </IsoRim.ModelDef>
+
+  <!-- NEEDS CODE 1: index 0 dormant, 1 active (CompVoidStructure sets overrideGraphicIndex 1 and dirties the map mesh). -->
+  <IsoRim.ModelDef>
+    <defName>R3D_VoidStructure</defName>
+    <thingDef>VoidStructure</thingDef>
+    <models>
+      <li>Models/void_structure_a.obj</li>
+      <li>Models/void_structure_b.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(5, 5)</builtFor>
+  </IsoRim.ModelDef>
+
+  <!-- Twisted archotech supports: built facing north (horn arching north); the game spawns them turned toward the void
+       node and IsoRim's yaw follows Thing.Rotation. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_TwistedArchotechSupport_Small</defName>
+    <thingDef>TwistedArchotechSupport_Small</thingDef>
+    <model>Models/twisted_support_small.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 4)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_TwistedArchotechSupport_Large</defName>
+    <thingDef>TwistedArchotechSupport_Large</thingDef>
+    <model>Models/twisted_support_large.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 5)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_TwistedArchotechSupport_Vertical</defName>
+    <thingDef>TwistedArchotechSupport_Vertical</thingDef>
+    <model>Models/twisted_support_vertical.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_Turret_TacticalTurret</defName>
+    <thingDef>Turret_TacticalTurret</thingDef>
+    <model>Models/tactical_turret.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+    <topModel>Models/tactical_turret_gun.obj</topModel>
+    <topHeight>0.36</topHeight>
+  </IsoRim.ModelDef>
+
+  <!-- VoidmetalWall (and Odyssey BurrowWall): no model, they stay procedural blocks; their colours come from code 6
+       (WallBoxes.BlockTones: own atlas, sides + cap). -->
+
 </Defs>

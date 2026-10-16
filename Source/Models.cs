@@ -121,6 +121,16 @@ namespace IsoRim
         public string bobModel;
         public float bobHeight = 0.3f;
         public int bobPeriod = 500;
+        // Parts that beat (the fleshmass heart, Pulses.cs): each built round its own pivot, drawn every frame at that
+        // pivot and scaled about it by the game's own beat (Building_FleshmassHeart.GetBeatScale: a 15-tick sine after
+        // each beat, each part up to its maxScale, delayed by its delay in ticks). The game's flat parts are left out.
+        public List<PulsePart> pulseParts;
+        // A glow part (the obelisks' runes, ActivityGlow.cs): built in the same space as model, drawn every frame unlit
+        // in a colour that follows the thing's activity (CompActivity.ActivityLevel, as the game's Graphic_ActivityMask
+        // lights its mask): hidden below 0.1, then from 0.6 x the part's own colour up to the def's colorTwo (else
+        // glowColor), brighter and pulsing faster as it rises, flickering and throwing glow flecks near the top.
+        // glowMaterials names the part's glowing faces (all of it if left out).
+        public string activityGlowModel;
         // See-through parts (Glass.cs): a glass cover or window built in the same space as model, drawn
         // every frame over the body and over what is inside it, in one shared pale glass colour, darkening
         // with the scene at night. The game's flat glass, top and window sprites over the contents are
@@ -211,6 +221,16 @@ namespace IsoRim
         // (CompActivity.ActivityLevel): from half their own colour at 0 to glowColor at 1 (the nociosphere's red).
         public List<string> glowMaterials;
         public Color glowColor = new Color(0.89f, 0.21f, 0.13f);
+    }
+
+    // One beating part (ModelDef.pulseParts): <li><model>Models/x.obj</model><pivot>(0, -0.35)</pivot>
+    // <maxScale>(1.15, 1.2)</maxScale><delay>0</delay></li>; pivot (x, z) in the thing's space, the model built round it.
+    public class PulsePart
+    {
+        public string model;
+        public Vector2 pivot = Vector2.zero;
+        public Vector2 maxScale = new Vector2(1.1f, 1.1f);
+        public int delay = 0;
     }
 
     // One other look of an entity (ModelDef.looks).
@@ -486,6 +506,9 @@ namespace IsoRim
         public Model spin;        // spinModel, or null
         public Model spinLit;     // spinModel with its litMaterial lit, or null
         public Model bob;         // bobModel, or null
+        public Model[] pulse;     // pulseParts' models (same order), or null
+        public Model activityGlow; // activityGlowModel with its glowing faces lit (ObjLoader.Glowing), or null
+        public Color activityGlowBase; // the lit faces' own colour
         public Model glass;       // glassModel, or null
         public Model hackTerminal; // hackTerminalModel, or null
         public Model head;        // headModel, or null
@@ -574,12 +597,22 @@ namespace IsoRim
             {
                 return stack[StackIndex(t)];
             }
-            int n = t != null ? t.thingIDNumber : 0;
+            // As the game picks the sprite: Graphic_Indexed and Graphic_Random take a forced index first
+            // (Thing.OverrideGraphicIndex: the void monolith's level, its attachments', an activated void structure's);
+            // otherwise Graphic_Indexed shows its first sprite and Graphic_Random one by the thing's ID.
+            int? forced = t != null ? t.OverrideGraphicIndex : null;
+            int n = forced ?? (t == null ? 0 : IndexedGraphic(t.def) ? 0 : t.thingIDNumber);
             if (n < 0)
             {
                 n = -n;
             }
             return variants[n % variants.Length];
+        }
+
+        private static bool IndexedGraphic(ThingDef def)
+        {
+            System.Type gc = def != null && def.graphicData != null ? def.graphicData.graphicClass : null;
+            return gc != null && typeof(Graphic_Indexed).IsAssignableFrom(gc);
         }
 
         // Which of the stack models a stack of this size uses: Graphic_StackCount's rule for 1-3 sprites.
@@ -899,6 +932,32 @@ namespace IsoRim
             if (!md.bobModel.NullOrEmpty() && md.modContentPack != null)
             {
                 entry.bob = LoadFile(Path.Combine(md.modContentPack.RootDir, md.bobModel));
+            }
+            if (md.pulseParts != null && md.pulseParts.Count > 0 && md.modContentPack != null)
+            {
+                entry.pulse = new Model[md.pulseParts.Count];
+                for (int i = 0; i < md.pulseParts.Count; i++)
+                {
+                    entry.pulse[i] = md.pulseParts[i].model.NullOrEmpty() ? null
+                        : LoadFile(Path.Combine(md.modContentPack.RootDir, md.pulseParts[i].model));
+                }
+            }
+            if (!md.activityGlowModel.NullOrEmpty() && md.modContentPack != null)
+            {
+                Model raw = LoadFile(Path.Combine(md.modContentPack.RootDir, md.activityGlowModel));
+                if (raw != null)
+                {
+                    List<string> names = md.glowMaterials;
+                    if (names == null || names.Count == 0)
+                    {
+                        names = new List<string>();
+                        foreach (ModelMaterial mm in raw.materials)
+                        {
+                            names.Add(mm.name);
+                        }
+                    }
+                    entry.activityGlow = ObjLoader.Glowing(raw, names, out entry.activityGlowBase);
+                }
             }
             if (!md.hackTerminalModel.NullOrEmpty() && md.modContentPack != null)
             {

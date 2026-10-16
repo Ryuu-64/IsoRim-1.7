@@ -581,6 +581,95 @@ namespace IsoRim
             return fill;
         }
 
+        // A stuffless block the game draws in plain white (void metal wall, Odyssey burrow wall) takes the colours of its own
+        // atlas instead of coming out white: the sides the mean of the atlas' solid pixels without its dark outlines, the
+        // cap halfway from that to its lightest fifth (the void metal's grey shards, the burrow wall's pale stones).
+        // Read once per def. Anything with stuff, a def colour or a natural rock look keeps its colour.
+        private static readonly Dictionary<ThingDef, Color[]> tones = new Dictionary<ThingDef, Color[]>();
+
+        private static void BlockTones(Thing t, ref Color side, ref Color cap)
+        {
+            ThingDef def = t.def;
+            if (t.Stuff != null || side.r < 0.98f || side.g < 0.98f || side.b < 0.98f || def.IsSmoothed
+                || (def.building != null && def.building.isNaturalRock))
+            {
+                return;
+            }
+            Color[] c;
+            if (!tones.TryGetValue(def, out c))
+            {
+                c = ReadTones(t);
+                tones[def] = c;
+            }
+            if (c != null)
+            {
+                side = c[0];
+                cap = c[1];
+            }
+        }
+
+        private static Color[] ReadTones(Thing t)
+        {
+            try
+            {
+                Graphic g = t.Graphic;
+                Material mat = g != null ? g.MatSingleFor(t) : null;
+                Texture tex = mat != null && mat.HasProperty("_MainTex") ? mat.mainTexture : null;
+                if (tex == null)
+                {
+                    return null;
+                }
+                Color32[] px = SpritePixels.Sample(tex, Vector2.one, Vector2.zero, 32);
+                if (px == null && !SpritePixels.IsSheet(tex))
+                {
+                    px = SpritePixels.GpuSample(tex, 32);
+                }
+                if (px == null)
+                {
+                    return null;
+                }
+                List<Color32> solid = new List<Color32>();
+                for (int i = 0; i < px.Length; i++)
+                {
+                    if (px[i].a >= 128 && px[i].r * 0.3f + px[i].g * 0.59f + px[i].b * 0.11f >= 15f)
+                    {
+                        solid.Add(px[i]);
+                    }
+                }
+                if (solid.Count == 0)
+                {
+                    return null;
+                }
+                solid.Sort((a, b) => (a.r * 30 + a.g * 59 + a.b * 11).CompareTo(b.r * 30 + b.g * 59 + b.b * 11));
+                Color mean = Mean(solid, 0, solid.Count);
+                Color light = Mean(solid, solid.Count * 4 / 5, solid.Count);
+                Color tint = mat.HasProperty("_Color") ? mat.color : Color.white;
+                Color side = mean * tint;
+                Color cap = Color.Lerp(mean, light, 0.5f) * tint;
+                side.a = 1f;
+                cap.a = 1f;
+                return new[] { side, cap };
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Reading a wall atlas' colours failed: " + e, 93611270);
+                return null;
+            }
+        }
+
+        private static Color Mean(List<Color32> px, int from, int to)
+        {
+            float r = 0f, g = 0f, b = 0f;
+            int n = Mathf.Max(1, to - from);
+            for (int i = from; i < to; i++)
+            {
+                r += px[i].r;
+                g += px[i].g;
+                b += px[i].b;
+            }
+            return new Color(r / n / 255f, g / n / 255f, b / n / 255f, 1f);
+        }
+
         // Which set of textures a block uses.
         public static WallKind KindOf(Thing t)
         {
@@ -649,7 +738,9 @@ namespace IsoRim
                 return PrintRock(layer, t, height, kind);
             }
             Color tint = t.DrawColor;
-            Material topMat = MaterialFor(kind, true, 0, false, tint);
+            Color capTint = tint;
+            BlockTones(t, ref tint, ref capTint);
+            Material topMat = MaterialFor(kind, true, 0, false, capTint);
             if (topMat == null)
             {
                 return false;
@@ -1904,7 +1995,19 @@ namespace IsoRim
                 return false;
             }
             return b.def == t.def || b is Building_Door || WallBoxes.BlockHeightAt(map, c) > 0f
-                || (b.def.defName != null && b.def.defName.Contains("Fence"));
+                || (b.def.defName != null && b.def.defName.Contains("Fence")) || SharesLink(t.def, b.def);
+        }
+
+        // Two defs that join in the game through a shared link flag other than walls, rock and the map edge (Fleshmass and
+        // Fleshmass_Active through LinkFlags.Fleshmass).
+        private static bool SharesLink(ThingDef a, ThingDef b)
+        {
+            if (a.graphicData == null || b.graphicData == null)
+            {
+                return false;
+            }
+            LinkFlags shared = a.graphicData.linkFlags & b.graphicData.linkFlags & ~(LinkFlags.Wall | LinkFlags.Rock | LinkFlags.MapEdge);
+            return shared != LinkFlags.None;
         }
 
         // Writes one model into the block's mesh. turn, lay and layLift place it; center is where

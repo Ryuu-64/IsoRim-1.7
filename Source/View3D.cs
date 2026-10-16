@@ -304,6 +304,8 @@ namespace IsoRim
                 Effects.DrawAll();
                 Spinners.DrawAll();
                 Bobbers.DrawAll();
+                Pulses.DrawAll();
+                ActivityGlow.DrawAll();
                 Glass.DrawAll();
                 WorkPanels.DrawAll();
                 Probe.Lap(7);

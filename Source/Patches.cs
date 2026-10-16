@@ -371,6 +371,9 @@ namespace IsoRim
                 prefix: nameof(CerebrexDrawAt_Prefix));
             Patch("3D bobbing parts", AccessTools.DeclaredMethod(typeof(Building_MechRelay), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
                 prefix: nameof(MechRelayDrawAt_Prefix));
+            // Parts that beat in 3D (the fleshmass heart, Pulses): the game's three flat parts are left out while the model stands in.
+            Patch("3D beating parts", AccessTools.DeclaredMethod(typeof(Building_FleshmassHeart), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
+                prefix: nameof(FleshmassHeartDrawAt_Prefix));
 
             // Statues (Statues.cs): the 3D base stands in for the flat base sprite, the subject stands on it as a 3D figure.
             Patch("3D statues", AccessTools.DeclaredMethod(typeof(CompStatue), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
@@ -2628,6 +2631,11 @@ namespace IsoRim
         public static bool MechRelayDrawAt_Prefix(Building_MechRelay __instance, Vector3 drawLoc)
         {
             return Bobbers.MechRelayDrawAt_Prefix(__instance, drawLoc);
+        }
+
+        public static bool FleshmassHeartDrawAt_Prefix(Building_FleshmassHeart __instance, Vector3 drawLoc, bool flip)
+        {
+            return Pulses.HeartDrawAt_Prefix(__instance, drawLoc, flip);
         }
 
         public static bool StatueDrawAt_Prefix(CompStatue __instance, Vector3 __0)
