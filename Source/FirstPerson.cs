@@ -53,9 +53,10 @@ namespace IsoRim
                 {
                     return Vector3.zero;
                 }
-                Vector3 p = pawn.DrawPos;
+                float headRise;
+                Vector3 p = Poses.DrawnSpot(pawn, out headRise);   // sitting: the eye comes down with the head
                 Vector3 o = Floors.ThingOffset(pawn);
-                float h = Mathf.Clamp(IsoRimMod.Settings.fpEyeHeight, 0.3f, 3f);
+                float h = Mathf.Clamp(IsoRimMod.Settings.fpEyeHeight, 0.3f, 3f) + headRise;
                 // A little forward, so the eye is not inside the back of the head.
                 Vector3 f = Quaternion.Euler(0f, heading, 0f) * Vector3.forward * 0.12f;
                 return new Vector3(p.x + o.x + f.x, h + o.y, p.z + o.z + f.z);

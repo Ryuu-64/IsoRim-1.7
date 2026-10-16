@@ -30,6 +30,7 @@ namespace IsoRim
         private static float pawnFacing;     // which way it faces, degrees clockwise from north
         private static float pawnHandHeight; // how high it holds a weapon, in cells
         private static Vector3 pawnFeet;
+        private static float pawnLift;       // an upright card sitting on a seat (Poses): how far it is raised
         private static float pawnSize = 1f;
         private const float HandHeight = 0.55f;   // up the sprite from the feet, in cells
         private const float HandReach = 0.2f;     // how far in front of the pawn the weapon is held
@@ -1026,7 +1027,8 @@ namespace IsoRim
             float top = Interaction.PickHeight(t);
             if (t is Pawn)
             {
-                Vector3 d = t.DrawPos;
+                float headRise;
+                Vector3 d = Poses.DrawnSpot((Pawn)t, out headRise);   // sitting: on its seat (top already counts it)
                 return ShowsInBox(new Vector3(d.x, 0f, d.z) + lift, top, floor, grown);
             }
             foreach (IntVec3 c in t.OccupiedRect())
@@ -1492,6 +1494,7 @@ namespace IsoRim
             DrawHook.billboard = false;
             DrawHook.skip = false;
             pawnUpright = false;
+            pawnLift = 0f;
             pawnFigure = false;
             if (!View3D.Ready)
             {
@@ -1540,7 +1543,10 @@ namespace IsoRim
                     {
                         if (standing)
                         {
-                            DrawHeldWeapon(pawn, __0, pawnHandHeight, pawnFacing);
+                            Vector3 spot = __0;
+                            Poses.Seat figureSeat;
+                            Poses.Seated(pawn, ref spot, out figureSeat);   // on a seat: where the figure is drawn
+                            DrawHeldWeapon(pawn, spot, pawnHandHeight, pawnFacing);
                         }
                         return false;
                     }
@@ -1554,7 +1560,8 @@ namespace IsoRim
                         // that shows who is inside, such as the gene extractor) if it has height.
                         Building_Bed bed = pawn.Dead ? null : pawn.CurrentBed();
                         Building holder = pawn.Dead ? null : Glass.HolderOf(pawn);
-                        float bedTop = bed != null ? Forms.HeightOf(bed) : (holder != null ? Forms.HeightOf(holder) : 0f);
+                        // A flat sprite lies on the top of the bedding, not under the pillow and blanket (Poses).
+                        float bedTop = Poses.FlatLyingHeight((Building)bed ?? holder);
                         Building_GibbetCage gibbet = pawn.Dead ? People.GibbetOf(pawn) : null;
                         if (gibbet != null)
                         {
@@ -1595,7 +1602,22 @@ namespace IsoRim
                 Vector3 pivot = __0;
                 pivot.z -= spriteHeight * st.feetOffset;
                 Vector3 feet = __0 - View3D.GroundForward * (spriteHeight * st.feetOffset);
+                pawnLift = 0f;
+                Vector3 onSeat = __0;
+                Poses.Seat seat;
+                if (pawn != null && Poses.Seated(pawn, ref onSeat, out seat))
+                {
+                    // Sitting (Poses): stood on the seat in the middle of its cell (not slid toward the camera), with the
+                    // game's shift up the screen taken back out.
+                    Vector3 standingFeet = onSeat - View3D.GroundForward * (spriteHeight * st.feetOffset);
+                    feet = Vector3.Lerp(standingFeet, onSeat, seat.amount);
+                    pawnLift = seat.Lift;
+                }
                 DrawHook.xform = Matrix4x4.Translate(new Vector3(feet.x - pivot.x, 0f, feet.z - pivot.z)) * View3D.UprightMatrix(pivot);
+                if (pawnLift > 0f)
+                {
+                    DrawHook.xform = View3D.LiftMatrix(pawnLift) * DrawHook.xform;
+                }
                 if (Statues.ground > 0f)
                 {
                     DrawHook.xform = View3D.LiftMatrix(Statues.ground) * DrawHook.xform;   // a statue's subject, on its 3D base
@@ -2006,7 +2028,7 @@ namespace IsoRim
                 Vector3 hand = pawnFigure
                     ? new Vector3(0f, pawnHandHeight, 0f) + aim * 0.30f
                     : View3D.CardUp * (HandHeight * pawnSize) + aim * HandReach;
-                Vector3 position = new Vector3(pawnFeet.x + hand.x, hand.y, pawnFeet.z + hand.z);
+                Vector3 position = new Vector3(pawnFeet.x + hand.x, hand.y + (pawnFigure ? 0f : pawnLift), pawnFeet.z + hand.z);
                 return !HeldWeapon3D(__0, position, __2);
             }
             catch (Exception e)

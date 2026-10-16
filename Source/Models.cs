@@ -30,6 +30,10 @@ namespace IsoRim
         public float surfaceHeight = -1f;   // where a pawn lying on it rests; -1 uses the top of the model
                                             // (also the height the game's per-frame drawing of it is raised to:
                                             // contents such as a reliquary's relic, a gibbet's corpse, a cocoon's dryad)
+        public float seatHeight = -1f;      // a seat (the game's isSittable): top of the seat, where a sitting pawn's base
+                                            // goes (Poses); -1 uses surfaceHeight
+        public float beddingTop = -1f;      // a bed: top of the bedding (pillow, blanket), where a sleeper drawn as a flat
+                                            // sprite lies (Poses); -1 uses surfaceHeight
         public Vector3 contentOffset = Vector3.zero; // those contents moved this far (x, z; model space, facing north)
                                             // from where the game draws them, to where the model holds them
         public float height = -1f;          // height in cells of the automatic shape; -1 lets the mod decide
@@ -616,6 +620,18 @@ namespace IsoRim
                 }
                 return HasModel ? variants[0].maxY * def.scale : 0f;
             }
+        }
+
+        // Top of the seat (seatHeight, else SurfaceHeight) and of the bedding (beddingTop, else SurfaceHeight), before the
+        // footprint fit (Poses applies it).
+        public float SeatHeight
+        {
+            get { return def.seatHeight >= 0f ? def.seatHeight : SurfaceHeight; }
+        }
+
+        public float BeddingTop
+        {
+            get { return def.beddingTop >= 0f ? def.beddingTop : SurfaceHeight; }
         }
 
         // How tall a thing of this kind is drawn, in cells: the top of its tallest model (variants, per-stuff and

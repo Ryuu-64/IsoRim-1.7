@@ -272,6 +272,7 @@ namespace IsoRim
         private const float FigureHeight = 1.12f; // top of the head of a figure of size 1
         private const float CarryReach = 0.24f;   // a carried thing's middle, in front of the figure
         private const float CarryHeight = 0.36f;  // and the height of its bottom
+        private const float HandY = 0.46f;        // where the hands are on the figure (a held weapon, a work tool)
 
         private static readonly Dictionary<int, Look> looks = new Dictionary<int, Look>();
         private static readonly Dictionary<string, Model> models = new Dictionary<string, Model>();
@@ -353,6 +354,9 @@ namespace IsoRim
                 vat = null;
             }
             bool lying = gibbet == null && vat == null && (dead || pawn.GetPosture() != PawnPosture.Standing);
+            // Sitting (Poses): the game's shift up the screen taken out of drawLoc before the facing is tracked.
+            Poses.Seat seat = default(Poses.Seat);
+            bool seated = !lying && gibbet == null && vat == null && lift <= 0f && Poses.Seated(pawn, ref drawLoc, out seat);
             float size = look.size * (gibbet != null ? GibbetScale : 1f);
             float rise = 0f;
             if (vat != null)
@@ -448,6 +452,10 @@ namespace IsoRim
                 float sway = Mathf.Sin(phase) * 4.5f * gait;
                 pose = Matrix4x4.Translate(new Vector3(0f, bob, 0f)) * Matrix4x4.Rotate(Quaternion.AngleAxis(sway, Vector3.forward));
                 standing = true;
+                if (seated)
+                {
+                    ground = seat.Lift;   // on the seat (the body squashed below)
+                }
 
                 // At work: face the work, lean into each stroke and swing the tool.
                 if (IsoRimMod.Settings.workAnimations && WorkAnimations.Animate(pawn, drawLoc, ref yaw, out workTool, out workLocal, out workLean, out workDip))
@@ -458,19 +466,24 @@ namespace IsoRim
 
             Vector3 at = new Vector3(drawLoc.x, ground + lift, drawLoc.z);
             Matrix4x4 whole = pose * Matrix4x4.Scale(new Vector3(size, size, size));
+            // Seated: the body squashed down onto the seat, the head (and the hands) come down by as much.
+            float squash = seated ? seat.Squash : 1f;
+            Matrix4x4 bodyPlace = seated ? whole * Matrix4x4.Scale(new Vector3(1f, squash, 1f)) : whole;
+            Matrix4x4 headPlace = seated ? whole * Matrix4x4.Translate(new Vector3(0f, -(1f - squash) * Poses.BodyTop, 0f)) : whole;
 
             // The whole figure is two ready-made meshes (body and head), each a single draw, put
             // together once for this look and the way it is facing.
             int turned = Mathf.RoundToInt(Mathf.Repeat(yaw, 360f) / 45f) % 8;
             if (!headOnly)
             {
-                DynamicModels.DrawParts(Merged(look, false, dead, turned), at, yaw, whole);
+                DynamicModels.DrawParts(Merged(look, false, dead, turned), at, yaw, bodyPlace);
             }
-            DynamicModels.DrawParts(Merged(look, true, dead, turned), at, yaw, whole);
+            DynamicModels.DrawParts(Merged(look, true, dead, turned), at, yaw, headPlace);
             if (workTool != null)
             {
                 // The tool is placed in the figure's own space, so it leans and dips with it.
-                DynamicModels.DrawLocal(workTool, at, yaw, whole * workLocal, Color.white, "Wood");
+                Matrix4x4 hands = seated ? whole * Matrix4x4.Translate(new Vector3(0f, -(1f - squash) * HandY, 0f)) : whole;
+                DynamicModels.DrawLocal(workTool, at, yaw, hands * workLocal, Color.white, "Wood");
             }
 
             if (ground <= 0f && lift <= 0f)
@@ -482,9 +495,9 @@ namespace IsoRim
                 // Held in front, at the hands (the game draws it a little in front of the pawn the way it faces).
                 Vector3 front = Quaternion.AngleAxis(yaw, Vector3.up) * Vector3.forward;
                 float reach = CarryReach * size * Mathf.Max(1f, look.bodyScale.z);   // clear of a deeper body
-                Carried.Draw(pawn, new Vector3(at.x + front.x * reach, at.y + CarryHeight * size, at.z + front.z * reach), yaw);
+                Carried.Draw(pawn, new Vector3(at.x + front.x * reach, at.y + CarryHeight * size * squash, at.z + front.z * reach), yaw);
             }
-            handHeight = 0.46f * size + lift;
+            handHeight = HandY * size * squash + lift + (seated ? ground : 0f);
             facing = yaw;
             return true;
         }

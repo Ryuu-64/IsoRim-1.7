@@ -233,7 +233,13 @@ namespace IsoRim
             {
                 if (pawn.RaceProps != null && pawn.RaceProps.Humanlike)
                 {
-                    return pawn.Downed || pawn.Dead ? 0.35f : 1.25f;
+                    if (pawn.Downed || pawn.Dead)
+                    {
+                        return 0.35f;
+                    }
+                    float headRise;
+                    Poses.DrawnSpot(pawn, out headRise);   // sitting: on the seat, the head a little lower
+                    return 1.25f + headRise;
                 }
                 return Mathf.Clamp(0.35f + 0.45f * pawn.BodySize, 0.3f, 2.4f);
             }

@@ -46,6 +46,7 @@
     <defName>R3D_Bed</defName>
     <thingDef>Bed</thingDef>
     <model>Models/bed.obj</model>
+    <beddingTop>0.48</beddingTop>
     <surfaceHeight>0.40</surfaceHeight>
     <rotation>180</rotation>
   </IsoRim.ModelDef>
@@ -54,6 +55,7 @@
     <defName>R3D_DoubleBed</defName>
     <thingDef>DoubleBed</thingDef>
     <model>Models/bed_double.obj</model>
+    <beddingTop>0.48</beddingTop>
     <surfaceHeight>0.40</surfaceHeight>
     <rotation>180</rotation>
   </IsoRim.ModelDef>
@@ -86,18 +88,21 @@
     <defName>R3D_Stool</defName>
     <thingDef>Stool</thingDef>
     <model>Models/stool.obj</model>
+    <seatHeight>0.44</seatHeight>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
     <defName>R3D_DiningChair</defName>
     <thingDef>DiningChair</thingDef>
     <model>Models/dining_chair.obj</model>
+    <seatHeight>0.44</seatHeight>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
     <defName>R3D_Armchair</defName>
     <thingDef>Armchair</thingDef>
     <model>Models/armchair.obj</model>
+    <seatHeight>0.46</seatHeight>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -1394,6 +1399,7 @@
     <defName>R3D_HospitalBed</defName>
     <thingDef>HospitalBed</thingDef>
     <model>Models/hospital_bed.obj</model>
+    <beddingTop>0.61</beddingTop>
     <surfaceHeight>0.46</surfaceHeight>
     <rotation>180</rotation>
     <builtFor>(1, 2)</builtFor>
@@ -1403,6 +1409,7 @@
     <defName>R3D_Bedroll</defName>
     <thingDef>Bedroll</thingDef>
     <model>Models/bedroll.obj</model>
+    <beddingTop>0.16</beddingTop>
     <surfaceHeight>0.08</surfaceHeight>
     <rotation>180</rotation>
     <builtFor>(1, 2)</builtFor>
@@ -1412,6 +1419,7 @@
     <defName>R3D_BedrollDouble</defName>
     <thingDef>BedrollDouble</thingDef>
     <model>Models/bedroll_double.obj</model>
+    <beddingTop>0.16</beddingTop>
     <surfaceHeight>0.08</surfaceHeight>
     <rotation>180</rotation>
     <builtFor>(2, 2)</builtFor>
@@ -4289,6 +4297,7 @@
     <defName>R3D_Crib</defName>
     <thingDef>Crib</thingDef>
     <model>Models/crib.obj</model>
+    <beddingTop>0.38</beddingTop>
     <builtFor>(1, 1)</builtFor>
     <surfaceHeight>0.34</surfaceHeight>
   </IsoRim.ModelDef>
@@ -4666,6 +4675,7 @@
     <defName>R3D_SlabBed</defName>
     <thingDef>SlabBed</thingDef>
     <model>Models/slab_bed.obj</model>
+    <beddingTop>0.46</beddingTop>
     <builtFor>(1, 2)</builtFor>
     <surfaceHeight>0.38</surfaceHeight>
   </IsoRim.ModelDef>
@@ -4674,6 +4684,7 @@
     <defName>R3D_SlabDoubleBed</defName>
     <thingDef>SlabDoubleBed</thingDef>
     <model>Models/slab_double_bed.obj</model>
+    <beddingTop>0.46</beddingTop>
     <builtFor>(2, 2)</builtFor>
     <surfaceHeight>0.38</surfaceHeight>
   </IsoRim.ModelDef>
@@ -4746,6 +4757,7 @@
     <defName>R3D_KneelPillow</defName>
     <thingDef>KneelPillow</thingDef>
     <model>Models/kneel_pillow.obj</model>
+    <seatHeight>0.18</seatHeight>
     <builtFor>(1, 1)</builtFor>
   </IsoRim.ModelDef>
 
@@ -4760,6 +4772,7 @@
     <defName>R3D_Pew</defName>
     <thingDef>Pew</thingDef>
     <model>Models/pew.obj</model>
+    <seatHeight>0.45</seatHeight>
     <builtFor>(3, 1)</builtFor>
   </IsoRim.ModelDef>
 
