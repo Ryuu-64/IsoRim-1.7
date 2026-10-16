@@ -137,7 +137,9 @@ namespace IsoRim
             {
                 return;
             }
-            if (RimWorld.Planet.WorldRendererUtility.WorldRendered)
+            // Only the world view proper (Planet mode). WorldRendered is also true on maps whose generator renders the
+            // planet behind them (Odyssey space maps: Background mode), and those maps have floors like any other.
+            if (!RimWorld.Planet.WorldRendererUtility.DrawingMap)
             {
                 return;   // the world map is drawn: no map rows to move
             }
