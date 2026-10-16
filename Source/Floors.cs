@@ -74,7 +74,7 @@ namespace IsoRim
 
     public static class Floors
     {
-        private const int MaxFloors = 8;
+        private const int MaxFloors = 13;   // ProjectZ allows up to 13 storeys
 
         // True while the current map has floors and the 3D view draws (checked first by every hook).
         public static bool On;
