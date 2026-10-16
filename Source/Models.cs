@@ -2425,7 +2425,8 @@ namespace IsoRim
         private static readonly Material[] litSolid = new Material[2];
         private static readonly Dictionary<string, Material> litByKey = new Dictionary<string, Material>();
 
-        // Which direction group a face pointing along normal belongs to.
+        // Which direction group a face pointing along normal belongs to (edges as BinNormal in
+        // Shaders\IsoRimSolid.frag.glsl: a little off round angles, so model faces do not sit on them).
         public static int BinOf(Vector3 normal)
         {
             float len = normal.magnitude;
@@ -2434,17 +2435,17 @@ namespace IsoRim
                 return 0;
             }
             normal /= len;
-            if (normal.y >= 0.92f)
+            if (normal.y >= 0.90f)
             {
                 return 0;
             }
-            if (normal.y <= -0.5f)
+            if (normal.y <= -0.485f)
             {
                 return 1;
             }
-            int band = normal.y < 0.25f ? 0 : (normal.y < 0.65f ? 1 : 2);
+            int band = normal.y < 0.235f ? 0 : (normal.y < 0.635f ? 1 : 2);
             float az = Mathf.Atan2(normal.x, normal.z) * Mathf.Rad2Deg;
-            int sector = Mathf.RoundToInt(Mathf.Repeat(az, 360f) / 45f) % 8;
+            int sector = Mathf.FloorToInt((Mathf.Repeat(az, 360f) + 1.5f) / 45f + 0.5f) % 8;
             return 2 + band * 8 + sector;
         }
 

@@ -25,6 +25,10 @@ namespace IsoRim
     //   facecheck=1                   logs every pawn: map facing, step it is walking, sprite facing seen (View3D.SeenFacing), 3D model
     //   turrettarget=x,z,tx,tz        the turret comp of the pawn in (x,z) given the pawn (or cell) at (tx,tz) as its target
     //   mechcheck=1                   logs every mech and carrying pawn on the map (Mechs.Report)
+    //   rot=x,z,rotting|dessicated    every corpse in the cell (and one held by the building there) rotted that far (CompRottable.RotImmediately)
+    //   haulcorpse=x,z,ix,iz          the pawn in (x,z) given the job to haul the corpse at (ix,iz) to storage (a real job; zone= first)
+    //   corpsecheck=1                 logs every corpse on the map: rot stage, how the game draws it, drawn as its model
+    //   clearpawns=x0,z0,x1,z1        destroys every pawn in the rectangle, colonists too (carriers left from an earlier pass)
     public static partial class Probe
     {
         private static Pawn PawnAt(Map map, int x, int z)
@@ -285,6 +289,85 @@ namespace IsoRim
                         Log.Message("[IsoRim probe] facecheck " + p.def.defName + " at " + p.Position + " yaw " + View3D.Yaw.ToString("0") + " rot " + p.Rotation
                             + " step " + step.x + "," + step.z + " seen " + View3D.SeenFacing(p.Rotation) + " posture " + p.GetPosture()
                             + " model " + Patches.DrawnAsModel(p));
+                    }
+                    return true;
+                case "rot":
+                {
+                    // Every corpse in the cell, and one held by the building there (gibbet cage), rotted that far the game's way.
+                    IntVec3 c = new IntVec3(I(a[0]), 0, I(a[1]));
+                    RotStage stage = a[2] == "dessicated" ? RotStage.Dessicated : RotStage.Rotting;
+                    List<Corpse> found = c.GetThingList(map).OfType<Corpse>().ToList();
+                    foreach (Thing t in c.GetThingList(map))
+                    {
+                        IThingHolder h = t as IThingHolder;
+                        if (h != null && !(t is Pawn) && !(t is Corpse))
+                        {
+                            found.AddRange(h.GetDirectlyHeldThings().OfType<Corpse>());
+                        }
+                    }
+                    foreach (Corpse corpse in found)
+                    {
+                        CompRottable rot = corpse.TryGetComp<CompRottable>();
+                        if (rot != null)
+                        {
+                            rot.RotImmediately(stage);
+                        }
+                        Log.Message("[IsoRim probe] rot " + corpse.InnerPawn.def.defName + " at " + c + ": " + corpse.CurRotDrawMode);
+                    }
+                    if (found.Count == 0)
+                    {
+                        Log.Warning("[IsoRim probe] rot: no corpse at " + c);
+                    }
+                    return true;
+                }
+                case "haulcorpse":
+                {
+                    // The pawn in (x,z) given the job to haul the corpse at (ix,iz) to storage (a real job; zone= first).
+                    Pawn p = PawnAt(map, I(a[0]), I(a[1]));
+                    Corpse corpse = new IntVec3(I(a[2]), 0, I(a[3])).GetThingList(map).OfType<Corpse>().FirstOrDefault();
+                    if (p == null || corpse == null)
+                    {
+                        Log.Warning("[IsoRim probe] haulcorpse: no pawn or no corpse");
+                        return true;
+                    }
+                    if (p.drafter != null)
+                    {
+                        p.drafter.Drafted = false;
+                    }
+                    foreach (Zone_Stockpile zone in map.zoneManager.AllZones.OfType<Zone_Stockpile>())
+                    {
+                        zone.settings.filter.SetAllow(corpse.def, true);   // as the player ticks the corpse in the stockpile's filter
+                    }
+                    Job job = HaulAIUtility.HaulToStorageJob(p, corpse, false);
+                    if (job == null)
+                    {
+                        Log.Warning("[IsoRim probe] haulcorpse: no storage for " + corpse.LabelCap);
+                        return true;
+                    }
+                    job.playerForced = true;
+                    p.jobs.StartJob(job, JobCondition.InterruptForced);
+                    Log.Message("[IsoRim probe] haulcorpse: " + p.LabelShort + " at " + p.Position + " hauls " + corpse.LabelCap + " from " + corpse.Position);
+                    return true;
+                }
+                case "clearpawns":
+                {
+                    CellRect r = CellRect.FromLimits(I(a[0]), I(a[1]), I(a[2]), I(a[3]));
+                    foreach (Pawn p in map.mapPawns.AllPawnsSpawned.ToList())
+                    {
+                        if (r.Contains(p.Position) && !p.Destroyed)
+                        {
+                            p.Destroy(DestroyMode.Vanish);
+                        }
+                    }
+                    return true;
+                }
+                case "corpsecheck":
+                    foreach (Corpse c in map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).OfType<Corpse>().ToList())
+                    {
+                        Pawn inner = c.InnerPawn;
+                        Thing holder = c.ParentHolder as Thing;
+                        Log.Message("[IsoRim probe] corpsecheck " + inner.def.defName + " at " + c.PositionHeld + " in " + (holder != null ? holder.def.defName : (c.ParentHolder is Pawn_CarryTracker ? "hands" : "map"))
+                            + ": rot " + c.CurRotDrawMode + ", renderer " + Corpses.RotOf(inner) + ", drawn as model " + Patches.DrawnAsModel(inner));
                     }
                     return true;
                 case "mechcheck":

@@ -113,7 +113,7 @@ namespace IsoRim
         {
             ModelEntry entry;
             return pawn != null && pawn.def != null && ModelLibrary.TryGet(pawn.def, out entry) && (entry.def.mech || entry.def.entity) && entry.HasModel
-                && !(entry.def.entity ? pawn.IsPsychologicallyInvisible() : People.Hidden(pawn)) && (!entry.def.entity || EntityShown(pawn));
+                && !(entry.def.entity ? pawn.IsPsychologicallyInvisible() : People.Hidden(pawn)) && (!entry.def.entity || EntityShown(pawn)) && Corpses.ShownAsModel(pawn);
         }
 
         // Draws the mech at drawLoc. Returns false if it has no model, in which
@@ -122,7 +122,7 @@ namespace IsoRim
         {
             ModelEntry entry;
             if (pawn.def == null || !ModelLibrary.TryGet(pawn.def, out entry) || !(entry.def.mech || entry.def.entity) || !entry.HasModel
-                || (entry.def.entity ? pawn.IsPsychologicallyInvisible() : People.Hidden(pawn)) || (entry.def.entity && !EntityShown(pawn)))
+                || (entry.def.entity ? pawn.IsPsychologicallyInvisible() : People.Hidden(pawn)) || (entry.def.entity && !EntityShown(pawn)) || !Corpses.ShownAsModel(pawn))
             {
                 return false;
             }
@@ -138,7 +138,7 @@ namespace IsoRim
             bool dead = pawn.Dead;
             bool lying = dead || pawn.GetPosture() != PawnPosture.Standing;
             bool onSide = dead || pawn.Downed;
-            float lift = Carried.LiftOf(pawn, ref drawLoc);
+            float lift = Carried.LiftOf(pawn, ref drawLoc) + Corpses.RestHeight(pawn);
             // Held on a holding platform drawn as its model: as the game draws it (HeldPawnPosture LayingOnGroundFaceUp,
             // HeldPawnBodyAngle = the platform's rotation), lying on its back on the deck, head toward the platform's facing.
             Building_HoldingPlatform platform = pawn.ParentHolder as Building_HoldingPlatform;
@@ -257,7 +257,7 @@ namespace IsoRim
             }
 
             int worn = def.mech && OtherLook(pawn) ? (pawn.thingIDNumber & 0x7FFFFFFF) % WornVariants : -1;
-            DynamicModels.DrawLocal(Pick(rig, def, null, worn, marked), at, yaw, whole, mark, null);
+            DynamicModels.DrawLocal(Corpses.Body(pawn, Pick(rig, def, null, worn, marked)), at, yaw, whole, mark, null);
 
             // Each moving piece, placed in the body's space (after its parent's movement).
             Matrix4x4[] places = new Matrix4x4[rig.pieces.Count];
@@ -369,7 +369,7 @@ namespace IsoRim
                 {
                     continue;
                 }
-                DynamicModels.DrawLocal(Pick(rig, def, p, worn, marked), at, yaw, whole * places[i], mark, null);
+                DynamicModels.DrawLocal(Corpses.Body(pawn, Pick(rig, def, p, worn, marked)), at, yaw, whole * places[i], mark, null);
             }
             if (showGun && !gunDrawn)
             {
@@ -648,15 +648,15 @@ namespace IsoRim
         }
 
         // An entity is drawn as its model unless the game shows it some other way: held on a holding platform
-        // that is not drawn as its model (the sprite lies on the flat platform), or a corpse dried to bones.
+        // that is not drawn as its model (the sprite lies on the flat platform). A corpse dried to bones keeps
+        // the game's sprite too, as every pawn does (Corpses.ShownAsModel).
         private static bool EntityShown(Pawn pawn)
         {
             if (pawn.ParentHolder is Building_HoldingPlatform platform)
             {
                 return platform.Spawned && SectionLayer_IsoRimBodies.StandsIn(platform);
             }
-            Corpse corpse = pawn.Dead ? pawn.Corpse : null;
-            return corpse == null || corpse.CurRotDrawMode != RotDrawMode.Dessicated;
+            return true;
         }
 
         // Which of an entity's looks the game's state picks now (-1: the binding's own model).

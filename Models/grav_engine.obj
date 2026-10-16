@@ -862,7 +862,7 @@ f 287 195 196
 f 288 193 285
 f 288 196 193
 o grav_engine_7
-usemtl glow_screen
+usemtl glow_b1_core
 v 0.5200 0.1000 -0.0000
 v 0.4804 0.1000 -0.1990
 v 0.3677 0.1000 -0.3677

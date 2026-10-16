@@ -69,16 +69,22 @@ vec3 Dir(float azimuthDeg, float elevationDeg)
 
 // R3DMaterials.BinOf + MakeBinNormals: straight up, straight down, or one of 8 compass sectors
 // at 0, 35 or 62 degrees of elevation.
+// The normal comes from screen derivatives and wobbles a little from pixel to pixel, so a face lying
+// exactly on a group edge flips between two groups in stripes and speckles. Models are full of such
+// faces (rings of 16 or 32 sides put sides at 22.5 degrees, bevels at y 0.65, 30-degree undersides
+// at -0.5, 22.5-degree slopes at 0.924), so the edges sit a little off those round values: compass
+// edges at 21 + 45k degrees, steepness edges at y 0.235 / 0.635 / 0.90, down at -0.485. Keep
+// R3DMaterials.BinOf in step.
 vec3 BinNormal(vec3 n)
 {
-    if (n.y >= 0.92)
+    if (n.y >= 0.90)
         return vec3(0.0, 1.0, 0.0);
-    if (n.y <= -0.5)
+    if (n.y <= -0.485)
         return vec3(0.0, -1.0, 0.0);
-    float elevation = n.y < 0.25 ? 0.0 : (n.y < 0.65 ? 35.0 : 62.0);
+    float elevation = n.y < 0.235 ? 0.0 : (n.y < 0.635 ? 35.0 : 62.0);
     float az = atan(n.x, n.z) / DEG;
     az = az - 360.0 * floor(az / 360.0);
-    float sector = mod(floor(az / 45.0 + 0.5), 8.0);
+    float sector = mod(floor((az + 1.5) / 45.0 + 0.5), 8.0);
     return Dir(sector * 45.0, elevation);
 }
 
