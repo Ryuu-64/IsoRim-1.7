@@ -9,6 +9,5 @@
   <R3D_ToggleRoofs.label>显示屋顶开关</R3D_ToggleRoofs.label>
   <R3D_ResetCamera.label>重置镜头（自由视角）</R3D_ResetCamera.label>
   <R3D_LookModifier.label>自由视角：按住键</R3D_LookModifier.label>
-  <R3D_LookButton.label>自由视角：拖动键</R3D_LookButton.label>
   <R3D_FirstPerson.label>以所选角色第一人称开关</R3D_FirstPerson.label>
 </LanguageData>

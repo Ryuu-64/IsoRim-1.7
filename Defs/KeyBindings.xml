@@ -70,13 +70,6 @@
   </KeyBindingDef>
 
   <KeyBindingDef>
-    <defName>R3D_LookButton</defName>
-    <label>free look: drag button</label>
-    <category>IsoRim</category>
-    <defaultKeyCodeA>Mouse2</defaultKeyCodeA>
-  </KeyBindingDef>
-
-  <KeyBindingDef>
     <defName>R3D_FirstPerson</defName>
     <label>first person with the selected person on/off</label>
     <category>IsoRim</category>

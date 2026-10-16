@@ -428,15 +428,16 @@ namespace IsoRim
         }
 
         // Whether the mouse buttons and keys for free look are held now (see IsoRimSettings.lookMode):
-        // 0 = the look button (middle by default) with the look modifier (Ctrl by default; none if unbound), both key
-        // bindings in the game's keyboard options; 1 = right button while nothing is selected and no building is being placed.
+        // 0 = the middle button with the look modifier (Ctrl by default, a key binding in the game's keyboard options; none
+        // if unbound); 1 = right button while nothing is selected and no building is being placed. The drag button is a
+        // mod setting, not a key binding: the game's keyboard options can't take a mouse button.
         public static bool LookHeld()
         {
             IsoRimSettings st = IsoRimMod.Settings;
             if (FirstPerson.On && Active)
             {
-                // Nothing to drag the map for in first person: the look button alone looks round.
-                return BindingHeld(R3DKeyDefOf.R3D_LookButton, true);
+                // Nothing to drag the map for in first person: the drag button alone looks round.
+                return Input.GetMouseButton(st.lookMode == 1 ? 1 : 2);
             }
             if (!st.freeLook || !Active)
             {
@@ -449,7 +450,7 @@ namespace IsoRim
                     && (Find.Selector == null || Find.Selector.NumSelected == 0);
             }
             // The modifier is a key binding of its own (Ctrl by default: Alt is the game's cell inspector).
-            return BindingHeld(R3DKeyDefOf.R3D_LookButton, false) && BindingHeld(R3DKeyDefOf.R3D_LookModifier, true);
+            return Input.GetMouseButton(2) && BindingHeld(R3DKeyDefOf.R3D_LookModifier, true);
         }
 
         // Whether a key binding is held now. Mouse buttons count too (the game's KeyBindingDef.IsDown only reads keys

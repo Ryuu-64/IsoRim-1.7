@@ -72,7 +72,7 @@ namespace IsoRim
         public bool lowSky = true;       // sun, moon and gas giant drawn lower, where the map camera can see them
         public bool antiAlias = true;    // FXAA pass over the 3D view (the engine has no MSAA)
         public float antiAliasStrength = 1f;
-        public int lookMode = 0;         // 0 = R3D_LookModifier (Ctrl) + R3D_LookButton (middle button), 1 = right button with nothing selected
+        public int lookMode = 0;         // free look drag button: 0 = middle button with R3D_LookModifier (Ctrl), 1 = right button with nothing selected
         public bool pawns3D = true;
         public bool effects3D = true;
         public bool groundShadows = true;
@@ -429,25 +429,22 @@ namespace IsoRim
             return key.MainKeyLabel;
         }
 
-        // A key binding as words: "middle button" for a mouse button, the key's name otherwise.
-        private static string ButtonLabel(KeyBindingDef key)
+        // The free look drag button as words (IsoRimSettings.lookMode: 0 middle, 1 right).
+        private static string DragButtonLabel(IsoRimSettings st)
         {
-            KeyCode k = key != null ? key.MainKey : KeyCode.None;
-            switch (k)
-            {
-                case KeyCode.None: return "-";
-                case KeyCode.Mouse0: return "the left button";
-                case KeyCode.Mouse1: return "the right button";
-                case KeyCode.Mouse2: return "the middle button";
-                default: return k >= KeyCode.Mouse3 && k <= KeyCode.Mouse6 ? "mouse button " + (k - KeyCode.Mouse0 + 1) : key.MainKeyLabel;
-            }
+            return st.lookMode == 1 ? "the right button" : "the middle button";
         }
 
-        // Free look's own keys: "hold Ctrl and drag with the middle button", or without the hold key if it is unbound.
-        private static string LookKeysLabel()
+        // Free look's own keys: "hold Ctrl and drag with the middle button" (without the hold key if it is unbound), or
+        // "drag with the right button while nothing is selected".
+        private static string LookKeysLabel(IsoRimSettings st)
         {
+            if (st.lookMode == 1)
+            {
+                return "drag with the right button while nothing is selected";
+            }
             KeyBindingDef mod = R3DKeyDefOf.R3D_LookModifier;
-            string drag = "drag with " + ButtonLabel(R3DKeyDefOf.R3D_LookButton);
+            string drag = "drag with " + DragButtonLabel(st);
             return mod == null || mod.MainKey == KeyCode.None ? drag : "hold " + mod.MainKeyLabel + " and " + drag;
         }
 
@@ -495,14 +492,22 @@ namespace IsoRim
                 Check(l, "Free look", ref st.freeLook, "Drag with the mouse to turn the camera all the way round and tilt it (20° to 89°). Q and E snap to the next step. The reset key (unbound at first) is in the game's keyboard options.");
                 if (st.freeLook)
                 {
-                    bool rightButton = st.lookMode == 1;
-                    Check(l, "Free look with the right button", ref rightButton, "Drag with the right mouse button while nothing is selected. Off: " + LookKeysLabel() + ".");
-                    st.lookMode = rightButton ? 1 : 0;
+                    // The drag button (a mouse button: the game's keyboard options can't take one). The hold key is there.
+                    KeyBindingDef hold = R3DKeyDefOf.R3D_LookModifier;
+                    string holdLabel = hold == null || hold.MainKey == KeyCode.None ? "" : "Hold " + hold.MainKeyLabel + " and drag. ";
+                    if (l.RadioButton("Free look: middle button", st.lookMode != 1, 12f, holdLabel + "The hold key is in the game's keyboard options."))
+                    {
+                        st.lookMode = 0;
+                    }
+                    if (l.RadioButton("Free look: right button", st.lookMode == 1, 12f, "Drag while nothing is selected."))
+                    {
+                        st.lookMode = 1;
+                    }
                     st.lookSensitivity = Slider(l, "Free look speed", st.lookSensitivity, 0.05f, 1f, st.lookSensitivity.ToString("0.00") + "°/px");
                     Check(l, "Invert up and down", ref st.invertY, "Dragging up tilts the camera toward top-down.");
                 }
                 st.fpFov = Slider(l, "First person field of view", st.fpFov, 40f, 100f, st.fpFov.ToString("0") + "°",
-                    (R3DKeyDefOf.R3D_FirstPerson != null ? R3DKeyDefOf.R3D_FirstPerson.MainKeyLabel : "F5") + " with one person selected: the camera in their head. Drag with " + ButtonLabel(R3DKeyDefOf.R3D_LookButton) + " to look round.");
+                    (R3DKeyDefOf.R3D_FirstPerson != null ? R3DKeyDefOf.R3D_FirstPerson.MainKeyLabel : "F5") + " with one person selected: the camera in their head. Drag with " + DragButtonLabel(st) + " to look round.");
                 st.fpEyeHeight = Slider(l, "First person eye height", st.fpEyeHeight, 0.5f, 2f, st.fpEyeHeight.ToString("0.00") + " cells");
                 Check(l, "Smooth edges (anti-aliasing)", ref st.antiAlias, "Softens the stair steps on the edges of walls and models (FXAA). The interface is not touched.");
                 if (st.antiAlias)
@@ -558,7 +563,11 @@ namespace IsoRim
                 KeyRow(r, R3DKeyDefOf.R3D_TiltDown, "lower the camera");
                 KeyRow(r, R3DKeyDefOf.R3D_TiltUp, "raise the camera");
                 KeyRow(r, R3DKeyDefOf.R3D_ToggleRoofs, "roofs on and off");
-                Note(r, "The 3D view and the roofs also have buttons in the bottom right corner of the screen, next to the game's own.");
+                if (st.freeLook)
+                {
+                    Note(r, "Free look: " + LookKeysLabel(st) + ".");
+                }
+                Note(r,"The 3D view and the roofs also have buttons in the bottom right corner of the screen, next to the game's own.");
 
                 if (st.perspective && st.sky)
                 {
@@ -829,7 +838,6 @@ namespace IsoRim
         public static KeyBindingDef R3D_ToggleRoofs;
         public static KeyBindingDef R3D_ResetCamera;
         public static KeyBindingDef R3D_LookModifier;
-        public static KeyBindingDef R3D_LookButton;
         public static KeyBindingDef R3D_FirstPerson;
 
         static R3DKeyDefOf()

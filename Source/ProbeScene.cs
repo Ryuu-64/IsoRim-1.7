@@ -1211,7 +1211,7 @@ namespace IsoRim
                 case "lookcheck":
                 {
                     // lookcheck=1: the free look key bindings as loaded (defaults, labels) and whether they read as held now.
-                    foreach (KeyBindingDef kd in new[] { R3DKeyDefOf.R3D_LookButton, R3DKeyDefOf.R3D_LookModifier })
+                    foreach (KeyBindingDef kd in new[] { R3DKeyDefOf.R3D_LookModifier })
                     {
                         Log.Message("[IsoRim probe] lookcheck " + (kd == null ? "missing" : kd.defName + " '" + kd.LabelCap + "' A=" + KeyPrefs.KeyPrefsData.GetBoundKeyCode(kd, KeyPrefs.BindingSlot.A)
                             + " B=" + KeyPrefs.KeyPrefsData.GetBoundKeyCode(kd, KeyPrefs.BindingSlot.B) + " held " + View3D.BindingHeld(kd, false)));
