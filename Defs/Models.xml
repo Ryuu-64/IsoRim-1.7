@@ -3805,8 +3805,8 @@
     <legLength>1.202</legLength>
     <legSwing>26</legSwing>
     <stride>2.88</stride>
-    <bodyCentre>1.510</bodyCentre>
-    <bodyHalfWidth>0.529</bodyHalfWidth>
+    <bodyCentre>1.25</bodyCentre>
+    <bodyHalfWidth>0.70</bodyHalfWidth>
     <bodyHalfLength>1.240</bodyHalfLength>
   </IsoRim.ModelDef>
 
