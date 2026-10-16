@@ -1816,7 +1816,7 @@ namespace IsoRim
                 {
                     scale *= plant.def.plant.visualSizeRange.LerpThroughRange(plant.Growth);
                 }
-                bare = plant.LeaflessNow
+                bare = (plant.LeaflessNow && !def.keepLeaves)
                     || (!CutTags.Enabled && plant.def.plant != null && plant.def.plant.IsTree && Cutaway.TreeThinned(thing.Map, thing.Position));
             }
 

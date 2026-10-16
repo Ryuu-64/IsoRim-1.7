@@ -1351,25 +1351,33 @@
 
   <IsoRim.ModelDef>
     <defName>R3D_Plant_Agarilux</defName>
-    <thingDef>Plant_Agarilux</thingDef>
-    <model>Models/glow_mushroom.obj</model>
+    <thingDef>Agarilux</thingDef>
+    <models>
+      <li>Models/plant_agarilux_a.obj</li>
+      <li>Models/plant_agarilux_b.obj</li>
+    </models>
     <surfaceHeight>0.00</surfaceHeight>
     <randomRotation>true</randomRotation>
     <scaleJitter>0.10</scaleJitter>
     <growthScale>true</growthScale>
-    <scatter>0.16</scatter>
+    <scatter>0.10</scatter>
     <groundShadow>false</groundShadow>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
     <defName>R3D_Plant_Bryolux</defName>
-    <thingDef>Plant_Bryolux</thingDef>
-    <model>Models/glow_mushroom.obj</model>
+    <thingDef>Bryolux</thingDef>
+    <models>
+      <li>Models/plant_bryolux_a.obj</li>
+      <li>Models/plant_bryolux_b.obj</li>
+      <li>Models/plant_bryolux_c.obj</li>
+    </models>
     <surfaceHeight>0.00</surfaceHeight>
     <randomRotation>true</randomRotation>
     <scaleJitter>0.10</scaleJitter>
     <growthScale>true</growthScale>
-    <scatter>0.16</scatter>
+    <scatter>0.10</scatter>
+    <outline>0.55</outline>
     <groundShadow>false</groundShadow>
   </IsoRim.ModelDef>
 
@@ -7272,5 +7280,83 @@
       <li>Models/void_sculpture_f.obj</li>
     </models>
     <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+  <!-- Plant batch fungi (2026-10-15): one model per vanilla sprite, in sprite order A-C (make_fungi.py). Agarilux and
+       Bryolux above: their old entries named Plant_Agarilux / Plant_Bryolux, which are not defs, and now use their own models.
+       Polux keeps its leaves while leafless (keepLeaves: vanilla has no leafless Polux sprite). Polux stumps stay flat sprites
+       like every other stump. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Timbershroom</defName>
+    <thingDef>Plant_Timbershroom</thingDef>
+    <models>
+      <li>Models/plant_timbershroom_a.obj</li>
+      <li>Models/plant_timbershroom_b.obj</li>
+      <li>Models/plant_timbershroom_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.12</scaleJitter>
+    <growthScale>true</growthScale>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_TreePolux</defName>
+    <thingDef>Plant_TreePolux</thingDef>
+    <models>
+      <li>Models/tree_polux_a.obj</li>
+      <li>Models/tree_polux_b.obj</li>
+      <li>Models/tree_polux_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.12</scaleJitter>
+    <growthScale>true</growthScale>
+    <outline>0.55</outline>
+    <keepLeaves>true</keepLeaves>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Nutrifungus</defName>
+    <thingDef>Plant_Nutrifungus</thingDef>
+    <models>
+      <li>Models/plant_nutrifungus_a.obj</li>
+      <li>Models/plant_nutrifungus_b.obj</li>
+      <li>Models/plant_nutrifungus_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.16</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Boomshroom</defName>
+    <thingDef>Boomshroom</thingDef>
+    <models>
+      <li>Models/plant_boomshroom_a.obj</li>
+      <li>Models/plant_boomshroom_b.obj</li>
+      <li>Models/plant_boomshroom_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.10</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Psilocap</defName>
+    <thingDef>Plant_Psilocap</thingDef>
+    <models>
+      <li>Models/plant_psilocap_a.obj</li>
+      <li>Models/plant_psilocap_b.obj</li>
+      <li>Models/plant_psilocap_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.16</scatter>
+    <groundShadow>false</groundShadow>
   </IsoRim.ModelDef>
 </Defs>

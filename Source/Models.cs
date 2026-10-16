@@ -49,6 +49,8 @@ namespace IsoRim
         public bool randomRotation = false; // give each thing its own turn
         public float scaleJitter = 0f;      // vary each thing's size by up to this fraction
         public bool growthScale = false;    // scale with how grown a plant is
+        public bool keepLeaves = false;     // a plant's leaf* parts stay while it is leafless (cold, poison): for plants
+                                            // whose vanilla look has no leafless sprite (Polux); thinning near the pointer still applies
         public bool layFlat = false;        // the model is built as held; on the ground it is tipped onto its side
         public float scatter = 0f;          // move each thing up to this far (in cells) off the middle of its cell
         public bool spriteTint = false;     // colour "stuff" parts from the thing's own sprite instead of its material
