@@ -104,8 +104,10 @@ namespace IsoRim
                 matrix = floorMatrix * matrix;
             }
 
-            ShipCapture.Note(mesh, matrix, material, null);
-            Graphics.DrawMesh(mesh, matrix, material, layer);
+            if (!ShipCapture.Note(mesh, matrix, material, null))
+            {
+                Graphics.DrawMesh(mesh, matrix, material, layer);
+            }
         }
 
         public static void DrawMesh(Mesh mesh, Vector3 position, Quaternion rotation, Material material, int layer)
@@ -116,14 +118,18 @@ namespace IsoRim
             }
             if (active || floor)
             {
-                ShipCapture.Note(mesh, Final(Matrix4x4.TRS(position, rotation, Vector3.one)), material, null);
-                Graphics.DrawMesh(mesh, Final(Matrix4x4.TRS(position, rotation, Vector3.one)), material, layer);
+                if (!ShipCapture.Note(mesh, Final(Matrix4x4.TRS(position, rotation, Vector3.one)), material, null))
+                {
+                    Graphics.DrawMesh(mesh, Final(Matrix4x4.TRS(position, rotation, Vector3.one)), material, layer);
+                }
             }
 
             else
             {
-                ShipCapture.Note(mesh, Matrix4x4.TRS(position, rotation, Vector3.one), material, null);
-                Graphics.DrawMesh(mesh, position, rotation, material, layer);
+                if (!ShipCapture.Note(mesh, Matrix4x4.TRS(position, rotation, Vector3.one), material, null))
+                {
+                    Graphics.DrawMesh(mesh, position, rotation, material, layer);
+                }
             }
         }
 
@@ -142,8 +148,10 @@ namespace IsoRim
                 matrix = floorMatrix * matrix;
             }
 
-            ShipCapture.Note(mesh, matrix, material, properties);
-            Graphics.DrawMesh(mesh, matrix, material, layer, camera, submeshIndex, properties);
+            if (!ShipCapture.Note(mesh, matrix, material, properties))
+            {
+                Graphics.DrawMesh(mesh, matrix, material, layer, camera, submeshIndex, properties);
+            }
         }
 
         public static void DrawMesh(Mesh mesh, Vector3 position, Quaternion rotation, Material material, int layer, Camera camera, int submeshIndex, MaterialPropertyBlock properties)
@@ -154,14 +162,18 @@ namespace IsoRim
             }
             if (active || floor)
             {
-                ShipCapture.Note(mesh, Final(Matrix4x4.TRS(position, rotation, Vector3.one)), material, properties);
-                Graphics.DrawMesh(mesh, Final(Matrix4x4.TRS(position, rotation, Vector3.one)), material, layer, camera, submeshIndex, properties);
+                if (!ShipCapture.Note(mesh, Final(Matrix4x4.TRS(position, rotation, Vector3.one)), material, properties))
+                {
+                    Graphics.DrawMesh(mesh, Final(Matrix4x4.TRS(position, rotation, Vector3.one)), material, layer, camera, submeshIndex, properties);
+                }
             }
 
             else
             {
-                ShipCapture.Note(mesh, Matrix4x4.TRS(position, rotation, Vector3.one), material, properties);
-                Graphics.DrawMesh(mesh, position, rotation, material, layer, camera, submeshIndex, properties);
+                if (!ShipCapture.Note(mesh, Matrix4x4.TRS(position, rotation, Vector3.one), material, properties))
+                {
+                    Graphics.DrawMesh(mesh, position, rotation, material, layer, camera, submeshIndex, properties);
+                }
             }
         }
 
@@ -210,8 +222,10 @@ namespace IsoRim
                 matrix = floorMatrix * matrix;
             }
 
-            ShipCapture.Note(mesh, matrix, material, null);
-            Graphics.DrawMesh(mesh, matrix, material, layer, camera, submeshIndex);
+            if (!ShipCapture.Note(mesh, matrix, material, null))
+            {
+                Graphics.DrawMesh(mesh, matrix, material, layer, camera, submeshIndex);
+            }
         }
 
         // Graphic_RandomRotated (weapons and other items lying at an angle): a relic in a reliquary.
@@ -223,13 +237,17 @@ namespace IsoRim
             }
             if (active || floor)
             {
-                ShipCapture.Note(mesh, Final(Matrix4x4.TRS(position, rotation, Vector3.one)), material, null);
-                Graphics.DrawMesh(mesh, Final(Matrix4x4.TRS(position, rotation, Vector3.one)), material, layer, camera, submeshIndex);
+                if (!ShipCapture.Note(mesh, Final(Matrix4x4.TRS(position, rotation, Vector3.one)), material, null))
+                {
+                    Graphics.DrawMesh(mesh, Final(Matrix4x4.TRS(position, rotation, Vector3.one)), material, layer, camera, submeshIndex);
+                }
             }
             else
             {
-                ShipCapture.Note(mesh, Matrix4x4.TRS(position, rotation, Vector3.one), material, null);
-                Graphics.DrawMesh(mesh, position, rotation, material, layer, camera, submeshIndex);
+                if (!ShipCapture.Note(mesh, Matrix4x4.TRS(position, rotation, Vector3.one), material, null))
+                {
+                    Graphics.DrawMesh(mesh, position, rotation, material, layer, camera, submeshIndex);
+                }
             }
         }
 

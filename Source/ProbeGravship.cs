@@ -24,8 +24,10 @@ namespace IsoRim
     //                                at or after each listed progress (0-1) of the takeoff and of the landing
     //                                (renders\<harness tag>\cut_<tag>_<T|L>_<progress>.png); the progress is logged
     //   shipflight=0|1               the cutscene flown in 3D (ShipFlight.Enabled, default 1) or the game's own (before/after)
-    //   gship=build,x,z              a small ship on the current map (e.g. a space map from spacemap=), its south-west deck
-    //                                corner at (x,z): 13 x 11 deck, hull round it, engine (console at x+6,z+8), two filled
+    //   gship=build,x,z[,w,h[,ext[,rooms]]]  a ship on the current map (e.g. a space map from spacemap=), its south-west deck
+    //                                corner at (x,z), w x h deck (default 13 x 11), ext grav field extenders round the engine,
+    //                                rooms: hull walls every 8 cells inside (the largest-ship perf check). Default ship:
+    //                                hull round it, engine (console at x+6,z+8), two filled
     //                                chemfuel tanks, two thrusters at the stern (exhaust south), and a grav anchor beside it (so it can land back)
     // The harness (Capture17) is held from the launch until the landing has ended (or 6000 frames without one).
     public static partial class Probe
@@ -80,7 +82,7 @@ namespace IsoRim
                     }
                     else if (a[0] == "build")
                     {
-                        GshipBuild(map, new IntVec3(I(a[1]), 0, I(a[2])));
+                        GshipBuild(map, new IntVec3(I(a[1]), 0, I(a[2])), a.Length > 4 ? I(a[3]) : 13, a.Length > 4 ? I(a[4]) : 11, a.Length > 5 ? I(a[5]) : 0, a.Length > 6 && a[6] == "rooms");
                     }
                     else
                     {
@@ -116,14 +118,16 @@ namespace IsoRim
                 postfix: new HarmonyMethod(typeof(Probe), nameof(GshipFrame)));
         }
 
-        private static void GshipBuild(Map map, IntVec3 o)
+        private static void GshipBuild(Map map, IntVec3 o, int w, int h, int extenders, bool rooms)
         {
             TerrainDef deck = DefDatabase<TerrainDef>.GetNamed("Substructure");
-            for (int x = 0; x < 13; x++)
+            int ex = w / 2, ez = h / 2;
+            int[] thrusterX = w <= 15 ? new[] { 3, w - 4 } : new[] { 3, w / 4, w / 2 - 3, w / 2 + 3, w - w / 4 - 1, w - 4 };
+            for (int x = 0; x < w; x++)
             {
-                for (int z = -2; z < 11; z++)
+                for (int z = -2; z < h; z++)
                 {
-                    if (z >= 0 || x == 3 || x == 9)
+                    if (z >= 0 || Array.IndexOf(thrusterX, x) >= 0)
                     {
                         map.terrainGrid.SetTerrain(o + new IntVec3(x, 0, z), deck);
                     }
@@ -139,29 +143,56 @@ namespace IsoRim
                 }
                 return GenSpawn.Spawn(t, c, map, rot);
             };
-            for (int x = 0; x < 13; x++)
+            HashSet<IntVec3> keep = new HashSet<IntVec3>();   // cells left free inside (round the engine, the console, tanks)
+            foreach (IntVec3 c in CellRect.CenteredOn(o + new IntVec3(ex, 0, ez), 3))
             {
-                for (int z = 0; z < 11; z++)
+                keep.Add(c);
+            }
+            for (int x = 0; x < w; x++)
+            {
+                for (int z = 0; z < h; z++)
                 {
-                    if (x == 0 || z == 0 || x == 12 || z == 10)
+                    bool ring = x == 0 || z == 0 || x == w - 1 || z == h - 1;
+                    // Rooms: walls every 8 cells, with a gap of 2 in each wall.
+                    bool inner = rooms && !ring && ((x % 8 == 0 && z % 8 > 1) || (z % 8 == 0 && x % 8 > 1));
+                    IntVec3 c = o + new IntVec3(x, 0, z);
+                    if ((ring || inner) && !keep.Contains(c))
                     {
-                        put("GravshipHull", o + new IntVec3(x, 0, z), Rot4.North);
+                        put("GravshipHull", c, Rot4.North);
                     }
                 }
             }
-            put("GravEngine", o + new IntVec3(6, 0, 5), Rot4.North);
-            put("PilotConsole", o + new IntVec3(6, 0, 8), Rot4.North);
-            foreach (int x in new[] { 3, 9 })
+            put("GravEngine", o + new IntVec3(ex, 0, ez), Rot4.North);
+            put("PilotConsole", o + new IntVec3(ex, 0, ez + 3), Rot4.North);
+            int tanks = 0;
+            foreach (int dx in new[] { -3, 3 })
             {
-                Thing tank = put("ChemfuelTank", o + new IntVec3(x, 0, 5), Rot4.North);
+                Thing tank = put("ChemfuelTank", o + new IntVec3(ex + dx, 0, ez), Rot4.North);
                 CompRefuelable fuel = tank.TryGetComp<CompRefuelable>();
                 if (fuel != null)
                 {
                     fuel.Refuel(fuel.Props.fuelCapacity - fuel.Fuel);
                 }
+                tanks++;
+            }
+            foreach (int x in thrusterX)
+            {
                 put("SmallThruster", o + new IntVec3(x, 0, -2), Rot4.North);   // exhaust out to the south
             }
-            IntVec3 anchor = o + new IntVec3(20, 0, 5);
+            for (int k = 0; k < extenders; k++)
+            {
+                float a = k * Mathf.PI * 2f / extenders;
+                IntVec3 c = o + new IntVec3(ex + Mathf.RoundToInt(Mathf.Cos(a) * 6f), 0, ez + Mathf.RoundToInt(Mathf.Sin(a) * 6f));
+                foreach (Thing t in c.GetThingList(map).ToList())
+                {
+                    if (t.def.defName == "GravshipHull")
+                    {
+                        t.Destroy();
+                    }
+                }
+                put("GravFieldExtender", c, Rot4.North);
+            }
+            IntVec3 anchor = o + new IntVec3(w + 8, 0, ez);
             foreach (IntVec3 c in CellRect.CenteredOn(anchor, 3))
             {
                 if (c.InBounds(map) && (c.GetTerrain(map).passability == Traversability.Impassable || c.GetTerrain(map).defName == "Space"))
@@ -170,7 +201,13 @@ namespace IsoRim
                 }
             }
             put("GravAnchor", anchor, Rot4.North);
-            Log.Message("[IsoRim probe] gship build at " + o + ": console " + (o + new IntVec3(6, 0, 8)) + ", engine " + (o + new IntVec3(6, 0, 5)));
+            Building_GravEngine engine = (o + new IntVec3(ex, 0, ez)).GetFirstThing<Building_GravEngine>(map);
+            if (engine != null)
+            {
+                engine.ForceSubstructureDirty();
+            }
+            Log.Message("[IsoRim probe] gship build at " + o + ", " + w + " x " + h + ", " + extenders + " extenders: console " + (o + new IntVec3(ex, 0, ez + 3))
+                + ", engine " + (o + new IntVec3(ex, 0, ez)) + ", valid substructure " + (engine != null ? engine.ValidSubstructure.Count : -1));
         }
 
         private static void GshipLaunch(Map map, IntVec3 consoleCell, string target)

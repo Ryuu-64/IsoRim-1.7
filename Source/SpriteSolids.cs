@@ -51,8 +51,10 @@ namespace IsoRim
                 * Matrix4x4.Scale(new Vector3(draw.x * Size, draw.y * Size, 1f));
             m = Floors.DrawnMatrix(m);
             IsoGlow.DrawLit(solid.sides, m, sideMat, 0);
-            ShipCapture.Note(solid.faces, m, mat, null);
-            Graphics.DrawMesh(solid.faces, m, mat, 0);
+            if (!ShipCapture.Note(solid.faces, m, mat, null))
+            {
+                Graphics.DrawMesh(solid.faces, m, mat, 0);
+            }
             return true;
         }
 
@@ -84,8 +86,10 @@ namespace IsoRim
                 * Matrix4x4.Scale(new Vector3(draw.x * Size * scale, draw.y * Size * scale, 1f));
             m = Floors.DrawnMatrix(m);
             IsoGlow.DrawLit(solid.sides, m, sideMat, 0);
-            ShipCapture.Note(solid.faces, m, mat, null);
-            Graphics.DrawMesh(solid.faces, m, mat, 0);
+            if (!ShipCapture.Note(solid.faces, m, mat, null))
+            {
+                Graphics.DrawMesh(solid.faces, m, mat, 0);
+            }
             return true;
         }
 
@@ -115,8 +119,10 @@ namespace IsoRim
                 * Matrix4x4.Scale(new Vector3(draw.x * scale, draw.y * scale, thick / Thickness));
             m = Floors.DrawnMatrix(m);
             IsoGlow.DrawLit(solid.sides, m, sideMat, 0);
-            ShipCapture.Note(solid.faces, m, mat, null);
-            Graphics.DrawMesh(solid.faces, m, mat, 0);
+            if (!ShipCapture.Note(solid.faces, m, mat, null))
+            {
+                Graphics.DrawMesh(solid.faces, m, mat, 0);
+            }
             return true;
         }
 
