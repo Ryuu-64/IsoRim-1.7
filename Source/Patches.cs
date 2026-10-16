@@ -347,6 +347,10 @@ namespace IsoRim
             Patch("3D turning parts", AccessTools.DeclaredMethod(typeof(Mote), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
                 prefix: nameof(MoteDrawAt_Prefix));
 
+            // Parts that bob in 3D (the grav engine's orb, Bobbers): the game's flat orb is left out while the model stands in.
+            Patch("3D bobbing parts", AccessTools.DeclaredMethod(typeof(Building_GravEngine), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
+                prefix: nameof(GravEngineDrawAt_Prefix));
+
             // Shield bubbles: a dome over the circle instead of a flat ring on the ground (ShieldDomes).
             Patch("shield domes", AccessTools.DeclaredMethod(typeof(CompProjectileInterceptor), "PostDraw"), transpiler: nameof(ShieldDraw_Transpiler));
 
@@ -2364,6 +2368,11 @@ namespace IsoRim
             {
                 Log.ErrorOnce("[IsoRim] Repainting a building's 3D model failed: " + e, 93611123);
             }
+        }
+
+        public static bool GravEngineDrawAt_Prefix(Building_GravEngine __instance, Vector3 drawLoc, bool flip)
+        {
+            return Bobbers.GravEngineDrawAt_Prefix(__instance, drawLoc, flip);
         }
 
         public static bool MoteDrawAt_Prefix(Mote __instance)

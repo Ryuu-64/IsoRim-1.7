@@ -6954,4 +6954,80 @@
     <bodyHalfWidth>0.422</bodyHalfWidth>
     <bodyHalfLength>0.493</bodyHalfLength>
   </IsoRim.ModelDef>
+  <!-- Coverage buildings batch 1 (2026-10-15): the 12 most used Odyssey + Anomaly buildings that had no own model
+       (ranking model-review/buildings/buildings_rank.txt). Close to the vanilla sprites, built at the def size, stuffless
+       fixed colours (buildings_b1.mtl). Generator: tools/make_buildings_b1.py. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_GravEngine</defName>
+    <thingDef>GravEngine</thingDef>
+    <model>Models/grav_engine.obj</model>
+    <builtFor>(3, 3)</builtFor>
+    <bobModel>Models/grav_engine_orb.obj</bobModel>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_GravcorePowerCell</defName>
+    <thingDef>GravcorePowerCell</thingDef>
+    <model>Models/gravcore_power_cell.obj</model>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_GravAnchor</defName>
+    <thingDef>GravAnchor</thingDef>
+    <model>Models/grav_anchor.obj</model>
+    <builtFor>(4, 4)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_ShardInhibitor</defName>
+    <thingDef>ShardInhibitor</thingDef>
+    <model>Models/shard_inhibitor.obj</model>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_AtmosphericHeater</defName>
+    <thingDef>AtmosphericHeater</thingDef>
+    <model>Models/atmospheric_heater.obj</model>
+    <builtFor>(3, 3)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_FrenzyInducer</defName>
+    <thingDef>FrenzyInducer</thingDef>
+    <model>Models/frenzy_inducer.obj</model>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_HunterDroneTrap</defName>
+    <thingDef>HunterDroneTrap</thingDef>
+    <model>Models/hunter_trap.obj</model>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_ShardBeacon</defName>
+    <thingDef>ShardBeacon</thingDef>
+    <model>Models/shard_beacon.obj</model>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_GravshipShieldGenerator</defName>
+    <thingDef>GravshipShieldGenerator</thingDef>
+    <model>Models/gravship_shield_generator.obj</model>
+    <builtFor>(3, 3)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_FuelOptimizer</defName>
+    <thingDef>FuelOptimizer</thingDef>
+    <model>Models/fuel_optimizer.obj</model>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_PilotSubpersonaCore</defName>
+    <thingDef>PilotSubpersonaCore</thingDef>
+    <model>Models/pilot_subpersona_core.obj</model>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_WaspDroneTrap</defName>
+    <thingDef>WaspDroneTrap</thingDef>
+    <model>Models/wasp_trap.obj</model>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
 </Defs>

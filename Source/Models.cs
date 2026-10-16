@@ -95,6 +95,12 @@ namespace IsoRim
         public string litMaterial;          // a material of spinModel that lights up while the part turns (the lightball's
                                             // lenses, party_lens): unlit, in litColors, one colour per separate piece in turn
         public List<Color> litColors;
+        // A part that bobs up and down over the model (the grav engine's orb), drawn every frame (Bobbers.cs). Built in
+        // the same space as model (same ground origin, facing north) at its lowest point; it rises bobHeight cells and
+        // sinks back once every bobPeriod game ticks (the game's own sine), standing still while the game is paused.
+        public string bobModel;
+        public float bobHeight = 0.3f;
+        public int bobPeriod = 500;
         // See-through parts (Glass.cs): a glass cover or window built in the same space as model, drawn
         // every frame over the body and over what is inside it, in one shared pale glass colour, darkening
         // with the scene at night. The game's flat glass, top and window sprites over the contents are
@@ -458,6 +464,7 @@ namespace IsoRim
         public Model topLoaded;   // turrets whose gun sprite changes once loaded (rocket launchers)
         public Model spin;        // spinModel, or null
         public Model spinLit;     // spinModel with its litMaterial lit, or null
+        public Model bob;         // bobModel, or null
         public Model glass;       // glassModel, or null
         public Model hackTerminal; // hackTerminalModel, or null
         public Model head;        // headModel, or null
@@ -828,6 +835,10 @@ namespace IsoRim
                 {
                     entry.spinLit = ObjLoader.Relit(entry.spin, md.litMaterial, md.litColors);
                 }
+            }
+            if (!md.bobModel.NullOrEmpty() && md.modContentPack != null)
+            {
+                entry.bob = LoadFile(Path.Combine(md.modContentPack.RootDir, md.bobModel));
             }
             if (!md.hackTerminalModel.NullOrEmpty() && md.modContentPack != null)
             {
