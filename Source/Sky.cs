@@ -17,6 +17,7 @@ namespace IsoRim
     //
     // Colours follow the game: the sun's glow picks night, dusk or day, rain, snow and fog grey it,
     // and the sun and moon sit where IsoRim's light comes from.
+    [StaticConstructorOnStartup]
     public static class Sky
     {
         private const int FogLayers = 24;

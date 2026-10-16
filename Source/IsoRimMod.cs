@@ -52,7 +52,7 @@ namespace IsoRim
         public float freeYaw = 0f;       // degrees turned by free look, on top of the eighth turns
         public float lookSensitivity = 0.25f;   // degrees per pixel dragged
         public bool invertY = false;     // dragging up tilts toward top-down instead of lower
-        public bool perspective = true;  // perspective camera (Rim3D-like) instead of orthographic
+        public bool perspective = false; // perspective camera (Rim3D-like) instead of orthographic
         public float fov = 40f;          // perspective: vertical field of view, degrees
         public float viewDistance = 160f; // perspective: how far past the screen centre the map is drawn, cells
         public float labelFade = 1.4f;   // perspective: labels fade out past this many times the distance to the screen centre (4 = never)
@@ -144,7 +144,7 @@ namespace IsoRim
             Scribe_Values.Look(ref lookSensitivity, "lookSensitivity", 0.25f);
             Scribe_Values.Look(ref invertY, "invertY", false);
             Scribe_Values.Look(ref lookMode, "lookMode", 0);
-            Scribe_Values.Look(ref perspective, "perspective", true);
+            Scribe_Values.Look(ref perspective, "perspective", false);
             Scribe_Values.Look(ref fov, "fov", 40f);
             Scribe_Values.Look(ref viewDistance, "viewDistance", 160f);
             Scribe_Values.Look(ref labelFade, "labelFade", 1.4f);
@@ -470,8 +470,7 @@ namespace IsoRim
                 Section(l, "Camera", "How the map is seen while the 3D view is on.");
                 Check(l, "Isometric view", ref st.isometric, "The camera turned 45 degrees and lowered, as in isometric games. Off: north is up.");
                 Check(l, "Turn in 45° steps", ref st.snap45, "Q and E turn the camera an eighth of a turn at a time. Off: a quarter turn. Either way the camera swings smoothly.");
-                Check(l, "Free look", ref st.freeLook, "Drag with the mouse to turn the camera all the way round and tilt it (20° to 89°). Q and E snap to the next step; "
-                    + (R3DKeyDefOf.R3D_ResetCamera != null ? R3DKeyDefOf.R3D_ResetCamera.MainKeyLabel : "Home") + " resets the camera.");
+                Check(l, "Free look", ref st.freeLook, "Drag with the mouse to turn the camera all the way round and tilt it (20° to 89°). Q and E snap to the next step. The reset key (unbound at first) is in the game's keyboard options.");
                 if (st.freeLook)
                 {
                     bool rightButton = st.lookMode == 1;

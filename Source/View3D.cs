@@ -501,7 +501,7 @@ namespace IsoRim
         // camera faces now, so the view never stays half way between steps.
         private static void SnapTurn(IsoRimSettings st, int dir)
         {
-            float k = Mathf.Repeat(Yaw - BaseYaw, 360f) / 45f;   // eighths turned, 0 to 8
+            float k = Mathf.Repeat(YawTarget - BaseYaw, 360f) / 45f;   // eighths turned toward, 0 to 8 (the target, so quick presses add up)
             int unit = st.snap45 ? 1 : 2;
             float q = k / unit;
             int next = dir > 0 ? Mathf.FloorToInt(q + 0.05f) + 1 : Mathf.CeilToInt(q - 0.05f) - 1;

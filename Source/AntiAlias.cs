@@ -9,6 +9,7 @@ namespace IsoRim
     // when the engine starts, before any mod loads), so edges of walls and models show stair steps,
     // worst with the perspective camera. This draws one full-screen FXAA pass (Shaders\IsoRimAA.frag.glsl)
     // over the map view, before the colour grade; the interface is drawn later and is not touched.
+    [StaticConstructorOnStartup]
     public static class AntiAlias
     {
         private static bool tried;

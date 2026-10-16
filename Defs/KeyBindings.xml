@@ -59,7 +59,6 @@
     <defName>R3D_ResetCamera</defName>
     <label>reset the camera (free look)</label>
     <category>IsoRim</category>
-    <defaultKeyCodeA>Home</defaultKeyCodeA>
   </KeyBindingDef>
 
   <KeyBindingDef>
