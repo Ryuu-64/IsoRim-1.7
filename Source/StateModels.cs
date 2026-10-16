@@ -37,6 +37,16 @@ namespace IsoRim
             {
                 return portal.IsEnterable(out string _) ? entry.open : normal;
             }
+            // A hacked model (relay stabilizer: its core goes dark), as the game's CompHackable.PostPrintOnto prints its
+            // hacked sprite. Hacking redraws the map mesh (CompHackable.Hack: DirtyMapMesh), so the block is rebuilt.
+            if (entry.hacked != null)
+            {
+                CompHackable hack = (t as ThingWithComps)?.GetComp<CompHackable>();
+                if (hack != null && hack.IsHacked)
+                {
+                    return entry.hacked;
+                }
+            }
             CompEmptyStateGraphic c = CompOf(t);
             if (c == null)
             {

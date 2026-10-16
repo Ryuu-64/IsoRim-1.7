@@ -364,6 +364,10 @@ namespace IsoRim
             // Parts that bob in 3D (the grav engine's orb, Bobbers): the game's flat orb is left out while the model stands in.
             Patch("3D bobbing parts", AccessTools.DeclaredMethod(typeof(Building_GravEngine), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
                 prefix: nameof(GravEngineDrawAt_Prefix));
+            Patch("3D bobbing parts", AccessTools.DeclaredMethod(typeof(CompCerebrexCore), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
+                prefix: nameof(CerebrexDrawAt_Prefix));
+            Patch("3D bobbing parts", AccessTools.DeclaredMethod(typeof(Building_MechRelay), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
+                prefix: nameof(MechRelayDrawAt_Prefix));
 
             // Statues (Statues.cs): the 3D base stands in for the flat base sprite, the subject stands on it as a 3D figure.
             Patch("3D statues", AccessTools.DeclaredMethod(typeof(CompStatue), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
@@ -2487,6 +2491,16 @@ namespace IsoRim
         public static bool GravEngineDrawAt_Prefix(Building_GravEngine __instance, Vector3 drawLoc, bool flip)
         {
             return Bobbers.GravEngineDrawAt_Prefix(__instance, drawLoc, flip);
+        }
+
+        public static bool CerebrexDrawAt_Prefix(CompCerebrexCore __instance)
+        {
+            return Bobbers.CerebrexDrawAt_Prefix(__instance);
+        }
+
+        public static bool MechRelayDrawAt_Prefix(Building_MechRelay __instance, Vector3 drawLoc)
+        {
+            return Bobbers.MechRelayDrawAt_Prefix(__instance, drawLoc);
         }
 
         public static bool StatueDrawAt_Prefix(CompStatue __instance, Vector3 __0)

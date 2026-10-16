@@ -91,6 +91,9 @@ namespace IsoRim
         // doorTopModel (lintel) and doorLeafModel (optional, two sliding leaves) the same way, plus
         // hackTerminalModel: drawn while the door's CompHackable is not hacked (the blast door's terminal).
         public string hackTerminalModel;
+        // Used instead of model once the thing's CompHackable is hacked, as the game prints its hackedGraphicData (the
+        // relay stabilizer's dark core). Picked by StateModels.Choose; hacking redraws the map mesh (CompHackable.Hack).
+        public string hackedModel;
         public List<Vector3> emitters;      // nozzles (x, height, z; model space, facing north) the game's thrown smoke or dust comes out of (Emitters.cs)
         public float emitterRise = 0.4f;    // how fast those puffs rise, in cells a second
         public string topModelLoaded;       // the gun while the game shows its loaded gun sprite (rocketswarm launcher: fully loaded)
@@ -103,9 +106,10 @@ namespace IsoRim
         public string litMaterial;          // a material of spinModel that lights up while the part turns (the lightball's
                                             // lenses, party_lens): unlit, in litColors, one colour per separate piece in turn
         public List<Color> litColors;
-        // A part that bobs up and down over the model (the grav engine's orb), drawn every frame (Bobbers.cs). Built in
-        // the same space as model (same ground origin, facing north) at its lowest point; it rises bobHeight cells and
-        // sinks back once every bobPeriod game ticks (the game's own sine), standing still while the game is paused.
+        // A part that bobs up and down over the model (the grav engine's orb, the Cerebrex core's brain, the mech relay's
+        // crystal), drawn every frame (Bobbers.cs). Built in the same space as model (same ground origin, facing north) at
+        // its lowest point; it rises bobHeight cells and sinks back once every bobPeriod game ticks (the game's own sine),
+        // standing still while the game is paused. The game's own flat sprite of that part is left out (Bobbers prefixes).
         public string bobModel;
         public float bobHeight = 0.3f;
         public int bobPeriod = 500;
@@ -477,6 +481,7 @@ namespace IsoRim
         public Model hackTerminal; // hackTerminalModel, or null
         public Model head;        // headModel, or null
         public Model open;        // openModel (with openParts), or null
+        public Model hacked;      // hackedModel, or null
 
         public bool HasModel
         {
@@ -849,6 +854,10 @@ namespace IsoRim
             if (!md.emptyModel.NullOrEmpty() && md.modContentPack != null)
             {
                 entry.empty = LoadFile(Path.Combine(md.modContentPack.RootDir, md.emptyModel));
+            }
+            if (!md.hackedModel.NullOrEmpty() && md.modContentPack != null)
+            {
+                entry.hacked = LoadFile(Path.Combine(md.modContentPack.RootDir, md.hackedModel));
             }
             if (!md.topModelLoaded.NullOrEmpty() && md.modContentPack != null)
             {

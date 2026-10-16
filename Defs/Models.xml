@@ -7824,4 +7824,194 @@
   </IsoRim.ModelDef>
 
 
+
+  <!-- Coverage buildings batch 6 (2026-10-16, Blender round 2): ancient war walker / warsprinter / warspider / APC / tank wrecks
+       (Core) and the Odyssey mechanoid structures. Models\buildings_b6.mtl (b6_* fixed colours); the mech pieces also use
+       mech_spawners.mtl (spawn_*) and isorim.mtl glow_red / glow_amber / glow. Exact thingDef entries, no match words: they
+       outrank the original keyword entries (R3D_Match_198..203), which stay for other mods' wrecks. -->
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientWarwalkerTorso</defName>
+    <thingDef>AncientWarwalkerTorso</thingDef>
+    <model>Models/warwalker_torso_b6.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(4, 6)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientWarwalkerShell</defName>
+    <thingDef>AncientWarwalkerShell</thingDef>
+    <model>Models/warwalker_shell_b6.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(5, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientWarwalkerLeg</defName>
+    <thingDef>AncientWarwalkerLeg</thingDef>
+    <model>Models/warwalker_leg_b6.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 4)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientWarwalkerClaw</defName>
+    <thingDef>AncientWarwalkerClaw</thingDef>
+    <model>Models/warwalker_claw_b6.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientWarwalkerFoot</defName>
+    <thingDef>AncientWarwalkerFoot</thingDef>
+    <model>Models/warwalker_foot_b6.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientMiniWarwalkerRemains</defName>
+    <thingDef>AncientMiniWarwalkerRemains</thingDef>
+    <model>Models/mini_warwalker_remains.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(5, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientAPC</defName>
+    <thingDef>AncientAPC</thingDef>
+    <model>Models/ancient_apc.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(5, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientTank</defName>
+    <thingDef>AncientTank</thingDef>
+    <model>Models/ancient_tank.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(5, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientWarspiderRemains</defName>
+    <thingDef>AncientWarspiderRemains</thingDef>
+    <model>Models/warspider_remains.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(5, 5)</builtFor>
+  </IsoRim.ModelDef>
+
+  <!-- Odyssey mechanoid structures. Graphic_Random defs list their models in the sprite order A, B, C. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_MechanoidProcessor</defName>
+    <thingDef>MechanoidProcessor</thingDef>
+    <models>
+      <li>Models/mech_processor_a.obj</li>
+      <li>Models/mech_processor_b.obj</li>
+      <li>Models/mech_processor_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(4, 4)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_MechPylon</defName>
+    <thingDef>MechPylon</thingDef>
+    <model>Models/mech_pylon.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <!-- RealtimeOnly: the pad is baked, the crystal floats and bobs as the game's (Building_MechRelay.DrawAt: 0.55 lift built into
+       the crystal, + 0..0.35 every 300 ticks; Bobbers, code patch). The game's drop-spot shadow is kept. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_MechRelay</defName>
+    <thingDef>MechRelay</thingDef>
+    <model>Models/mech_relay.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+    <bobModel>Models/mech_relay_crystal.obj</bobModel>
+    <bobHeight>0.35</bobHeight>
+    <bobPeriod>300</bobPeriod>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_MechRelay_Crashed</defName>
+    <thingDef>MechRelay_Crashed</thingDef>
+    <model>Models/mech_relay_crashed.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_MechStabilizer</defName>
+    <thingDef>MechStabilizer</thingDef>
+    <model>Models/mech_stabilizer.obj</model>
+    <hackedModel>Models/mech_stabilizer_off.obj</hackedModel>   <!-- hacked: dark core and panel (vanilla _Off sprite; code patch) -->
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_MechhiveAssembler</defName>
+    <thingDef>MechhiveAssembler</thingDef>
+    <model>Models/mechhive_assembler.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(4, 4)</builtFor>
+  </IsoRim.ModelDef>
+
+  <!-- The brain floats and bobs over the core as the game's (CompCerebrexCore.DrawAt: 0.35 cells every 300 ticks), drawn by
+       Bobbers; the game's flat brain sprite is left out (code patch). CerebrexCore_Destroyed is its own def: no brain. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_CerebrexCore</defName>
+    <thingDef>CerebrexCore</thingDef>
+    <model>Models/cerebrex_core.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(7, 7)</builtFor>
+    <bobModel>Models/cerebrex_brain.obj</bobModel>
+    <bobHeight>0.35</bobHeight>
+    <bobPeriod>300</bobPeriod>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_CerebrexCore_Destroyed</defName>
+    <thingDef>CerebrexCore_Destroyed</thingDef>
+    <model>Models/cerebrex_core_destroyed.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(7, 7)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_CerebrexStabilizer</defName>
+    <thingDef>CerebrexStabilizer</thingDef>
+    <model>Models/cerebrex_stabilizer.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <!-- 1x1 cell, drawSize 2: the pod is 1.4 wide like the sprite (overhangs its cell by 0.2 a side). -->
+  <IsoRim.ModelDef>
+    <defName>R3D_MechanoidDropPod</defName>
+    <thingDef>MechanoidDropPod</thingDef>
+    <model>Models/mech_drop_pod.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_ShipChunk_Mech</defName>
+    <thingDef>ShipChunk_Mech</thingDef>
+    <models>
+      <li>Models/mech_ship_chunk_a.obj</li>
+      <li>Models/mech_ship_chunk_b.obj</li>
+      <li>Models/mech_ship_chunk_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <!-- In-place changes to existing entries: none. The exact entries above win over R3D_Match_198_wreck_apc,
+       R3D_Match_199_wreck_tank and R3D_Match_200..203_warwalker_*; those keep catching other mods' wrecks. -->
+
 </Defs>

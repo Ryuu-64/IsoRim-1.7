@@ -13,10 +13,17 @@ namespace IsoRim
     // point while the engine cools down after a flight (as Building_GravEngine.DrawAt does). The game's own flat orb
     // (drawn in Building_GravEngine.DrawAt after the body) is left out while the model stands in; with the 3D view or
     // models off the game draws everything as usual.
+    // Also the Cerebrex core's brain (CompCerebrexCore.DrawAt: 0.35 cells, 300 ticks; its flat brain left out) and the
+    // mech relay's crystal (Building_MechRelay.DrawAt: the same sine; the game's drop-spot shadow kept, its flat crystal
+    // left out). A relay about to break down sinks to the ground and turns 45 degrees over its last 120 ticks, as the game's.
     public static class Bobbers
     {
         private static List<ThingDef> defs;
         private static Action<ThingWithComps, Vector3, bool> baseDrawAt;
+        private static Material relayShadow;
+
+        // Building_MechRelay.DrawAt lifts its sprite 0.55 cells before the bob; the crystal model is built at that lift.
+        private const float RelayLift = 0.55f;
 
         private static void Init()
         {
@@ -40,7 +47,40 @@ namespace IsoRim
                 return 0f;
             }
             int period = Mathf.Max(1, def.bobPeriod);
-            return 0.5f * (1f + Mathf.Sin(Mathf.PI * 2f * GenTicks.TicksGame / period)) * def.bobHeight;
+            float rise = 0.5f * (1f + Mathf.Sin(Mathf.PI * 2f * GenTicks.TicksGame / period)) * def.bobHeight;
+            Building_MechRelay relay = t as Building_MechRelay;
+            if (relay != null)
+            {
+                rise = Mathf.Lerp(rise, -RelayLift, RelayFall(relay));
+            }
+            return rise;
+        }
+
+        // How far a mech relay has fallen (0..1) in its last 120 ticks before it breaks down, as Building_MechRelay.DrawAt.
+        private static float RelayFall(Building_MechRelay relay)
+        {
+            CompMechRelay comp = relay.GetComp<CompMechRelay>();
+            if (comp == null || comp.DestabilizationTick == -1)
+            {
+                return 0f;
+            }
+            return Mathf.Pow(1f - Mathf.Clamp01((comp.DestabilizationTick - Find.TickManager.TicksGame) / 120f), 2f);
+        }
+
+        // True while the bob part is drawn for this thing (as DrawAll draws it): models on, the 3D view up, a model with a
+        // bob part; a body drawn every frame (RealtimeOnly) only once its baked model stands in.
+        private static bool PartStandsIn(Thing t)
+        {
+            if (t == null || !IsoRimMod.Settings.models3D || !View3D.Ready)
+            {
+                return false;
+            }
+            ThingForm form = Forms.For(t.def);
+            if (form.form != Form3D.Model || form.model == null || form.model.bob == null)
+            {
+                return false;
+            }
+            return t.def.drawerType != DrawerType.RealtimeOnly || SectionLayer_IsoRimBodies.StandsIn(t);
         }
 
         // Called every frame while the 3D view is on.
@@ -94,6 +134,11 @@ namespace IsoRim
             {
                 yaw += 90f;
             }
+            Building_MechRelay relay = t as Building_MechRelay;
+            if (relay != null)
+            {
+                yaw += Mathf.Lerp(0f, 45f, RelayFall(relay));
+            }
             Vector3 at = t.TrueCenter();
             Vector3 offset = Quaternion.AngleAxis(yaw, Vector3.up) * def.offset;
             DynamicModels.Draw(entry.bob, new Vector3(at.x + offset.x, offset.y + Rise(t, def), at.z + offset.z), yaw,
@@ -126,6 +171,44 @@ namespace IsoRim
             catch (Exception e)
             {
                 Log.ErrorOnce("[IsoRim] Leaving out the grav engine's flat orb failed: " + e, 93611252);
+                return true;
+            }
+        }
+
+        // CompCerebrexCore.DrawAt prefix: the brain is the model's bob part; the game's flat brain is left out.
+        public static bool CerebrexDrawAt_Prefix(ThingComp comp)
+        {
+            try
+            {
+                return comp == null || !PartStandsIn(comp.parent);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Leaving out the Cerebrex core's flat brain failed: " + e, 93611253);
+                return true;
+            }
+        }
+
+        // Building_MechRelay.DrawAt prefix: the crystal is the bob part over the baked pad; the game's drop-spot shadow is
+        // drawn as the game does, its flat bobbing crystal left out.
+        public static bool MechRelayDrawAt_Prefix(Building_MechRelay relay, Vector3 drawLoc)
+        {
+            try
+            {
+                if (relay == null || !relay.Spawned || !PartStandsIn(relay))
+                {
+                    return true;
+                }
+                if (relayShadow == null)
+                {
+                    relayShadow = MaterialPool.MatFrom("Things/Skyfaller/SkyfallerShadowDropPod", ShaderDatabase.Transparent);
+                }
+                Skyfaller.DrawDropSpotShadow(drawLoc, Rot4.North, relayShadow, relay.def.size.ToVector2(), 65);
+                return false;
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Leaving out the mech relay's flat crystal failed: " + e, 93611254);
                 return true;
             }
         }
