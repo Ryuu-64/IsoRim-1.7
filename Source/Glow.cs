@@ -181,6 +181,7 @@ namespace IsoRim
 
         public const string MarkDef = "IsoRimLitMark";
         public const string MarkTexDef = "IsoRimLitMarkTex";
+        public const string MarkCardDef = "IsoRimLitMarkCard";
         public const string OverlayDef = "IsoRimLightOverlay";
 
         private static Texture2D neutral;
@@ -214,6 +215,27 @@ namespace IsoRim
             mark.SetFloat(markPassId, 1f);
             marks[m] = mark;
             SyncMark(m, mark);
+        }
+
+        // A plant card (UprightCards) takes the light of its own cell too, by a light pass on the card's own vertex
+        // stage. Without the def the card keeps the pulled overlay, as before.
+        public static void UseCard(Material card)
+        {
+            if (card == null || marks.ContainsKey(card))
+            {
+                return;
+            }
+            Shader s = R3DMaterials.ShaderOf(MarkCardDef);
+            if (s == null)
+            {
+                return;
+            }
+            Material mark = new Material(s);
+            mark.CopyPropertiesFromMaterial(card);
+            mark.name = card.name + "_Mark";
+            mark.renderQueue = 3099;
+            marks[card] = mark;
+            WindManager.Notify_PlantMaterialCreated(mark);   // sways with the card
         }
 
         private static void SyncMark(Material m, Material mark)

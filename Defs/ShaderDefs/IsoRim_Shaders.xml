@@ -131,6 +131,28 @@
     </shaderProgram>
   </ShaderDef>
 
+  <!-- The same for the plant cards (UprightCards): their own vertex stage, so the pass covers exactly the stood-up,
+       swaying card; cut out like the card. -->
+  <ShaderDef>
+    <defName>IsoRimLitMarkCard</defName>
+    <shaderProgram>
+      <vertexShaderFileName>IsoRimCard.vert.glsl</vertexShaderFileName>
+      <fragmentShaderFileName>IsoRimCardMark.frag.glsl</fragmentShaderFileName>
+      <blendMode>Custom</blendMode>
+      <blendSrcFactor>DstColor</blendSrcFactor>
+      <blendDstFactor>SrcColor</blendDstFactor>
+      <depthWrite>false</depthWrite>
+      <cullMode>None</cullMode>
+      <stencilEnabled>true</stencilEnabled>
+      <stencilCompare>NotEqual</stencilCompare>
+      <stencilPassOp>Replace</stencilPassOp>
+      <stencilRef>32</stencilRef>
+      <stencilReadMask>32</stencilReadMask>
+      <stencilWriteMask>32</stencilWriteMask>
+      <renderQueue>3099</renderQueue>
+    </shaderProgram>
+  </ShaderDef>
+
   <!-- The game's lighting overlay (its own LightOverlay.frag.glsl and render state), pulled toward
        the camera by IsoRim, but skipping the pixels marked above: those faces carry their own light. -->
   <ShaderDef>

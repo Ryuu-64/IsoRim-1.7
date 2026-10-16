@@ -307,6 +307,10 @@ namespace IsoRim
                 card.renderQueue = mat.renderQueue;
                 card.name = mat.name + "_Card";
                 WindManager.Notify_PlantMaterialCreated(card);
+                if (!snow)
+                {
+                    IsoGlow.UseCard(card);   // lit from its own cell, not by the pulled overlay
+                }
             }
             cards[mat] = card;
             return card;
