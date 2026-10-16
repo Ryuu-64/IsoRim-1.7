@@ -316,6 +316,84 @@ namespace IsoRim
             return card;
         }
 
+        // How far a card is let down into the ground so that the lowest painted pixel of its sprite stands on it: most
+        // plant sprites leave empty rows under the plant, and the card stood on its bottom edge then floats. In the
+        // sprite's own units (its length along z); 0 if the pixels cannot be read. Cached per texture and part shown.
+        private const int SinkSamples = 32;
+        private const float MaxSink = 0.6f;   // of the sprite's height: a sprite that is nearly all margin is left as it is
+        private static readonly Dictionary<long, float> sinks = new Dictionary<long, float>();
+
+        private static float Sink(Material mat, LayerSubMesh sm, int n)
+        {
+            Texture tex = mat != null ? mat.mainTexture : null;
+            if (tex == null || n < 4)
+            {
+                return 0f;
+            }
+            float zMin = float.MaxValue, zMax = float.MinValue, vBottom = 0f;
+            float uMin = float.MaxValue, uMax = float.MinValue, vMin = float.MaxValue, vMax = float.MinValue;
+            for (int i = n - 4; i < n; i++)
+            {
+                Vector3 v = sm.verts[i];
+                Vector3 uv = sm.uvs[i];
+                if (v.z < zMin)
+                {
+                    zMin = v.z;
+                    vBottom = uv.y;
+                }
+                zMax = Mathf.Max(zMax, v.z);
+                uMin = Mathf.Min(uMin, uv.x);
+                uMax = Mathf.Max(uMax, uv.x);
+                vMin = Mathf.Min(vMin, uv.y);
+                vMax = Mathf.Max(vMax, uv.y);
+            }
+            float height = zMax - zMin;
+            if (height <= 0f || uMax <= uMin || vMax <= vMin)
+            {
+                return 0f;
+            }
+            bool flipped = Mathf.Abs(vBottom - vMax) < Mathf.Abs(vBottom - vMin);   // the sprite's foot is at the top of its part
+            long key;
+            unchecked
+            {
+                key = (long)tex.GetHashCode() * 31L + Mathf.RoundToInt(uMin * 4096f);
+                key = key * 31L + Mathf.RoundToInt(vMin * 4096f);
+                key = key * 31L + Mathf.RoundToInt(uMax * 4096f);
+                key = key * 31L + Mathf.RoundToInt(vMax * 4096f);
+                key = key * 2L + (flipped ? 1 : 0);
+            }
+            float fraction;
+            if (!sinks.TryGetValue(key, out fraction))
+            {
+                fraction = EmptyBelow(tex, new Vector2(uMax - uMin, vMax - vMin), new Vector2(uMin, vMin), flipped);
+                sinks[key] = fraction;
+            }
+            return fraction * height;
+        }
+
+        // The share of the sprite's rows under its lowest painted pixel (rows read bottom first; from the top if flipped).
+        private static float EmptyBelow(Texture tex, Vector2 scale, Vector2 offset, bool flipped)
+        {
+            Color32[] px = SpritePixels.Sample(tex, scale, offset, SinkSamples);
+            if (px == null || px.Length < SinkSamples * SinkSamples)
+            {
+                return 0f;
+            }
+            const byte Painted = 90;   // as the card's cut-out (alpha 0.35)
+            for (int k = 0; k < SinkSamples; k++)
+            {
+                int row = flipped ? SinkSamples - 1 - k : k;
+                for (int x = 0; x < SinkSamples; x++)
+                {
+                    if (px[row * SinkSamples + x].a >= Painted)
+                    {
+                        return Mathf.Min(k / (float)SinkSamples, MaxSink);
+                    }
+                }
+            }
+            return 0f;
+        }
+
         // The camera's angle for the card shader (global _IsoCard), every frame while the 3D view is on.
         public static void SetCamera(float pitch, float yaw)
         {
@@ -340,12 +418,13 @@ namespace IsoRim
             }
             int n = sm.verts.Count;
             Vector3 hinge = new Vector3(pivot.x, pivot.y + lift / View3D.Squash, pivot.z);
+            float sink = Sink(mat, sm, n);
             int start = cs.verts.Count;
             for (int i = n - 4; i < n; i++)
             {
                 Vector3 v = sm.verts[i];
                 cs.verts.Add(hinge);
-                cs.uvsChannelTwo.Add(new Vector3(v.x - pivot.x, v.y - pivot.y, v.z - pivot.z));
+                cs.uvsChannelTwo.Add(new Vector3(v.x - pivot.x, v.y - pivot.y, v.z - pivot.z - sink));
                 cs.uvs.Add(sm.uvs[i]);
                 cs.colors.Add(sm.colors[i]);
             }
