@@ -266,7 +266,7 @@ namespace IsoRim
             handHeight = 0.5f;
             facing = 0f;
             standing = false;
-            if (pawn.story == null || !FigureRace(pawn) || Hidden(pawn))
+            if (pawn.story == null || !FigureRace(pawn) || Hidden(pawn) || !Corpses.ShownAsModel(pawn))
             {
                 return false;
             }
@@ -375,6 +375,7 @@ namespace IsoRim
                 }
                 else
                 {
+                    ground = Corpses.RestHeight(pawn);
                     pose = Matrix4x4.Translate(new Vector3(0f, 0.15f * size, 0.55f * size)) * Matrix4x4.Rotate(onBack);
                     if (!dead && pawn.pather != null && pawn.pather.Moving)
                     {
@@ -581,7 +582,7 @@ namespace IsoRim
             // Head, hair and beard.
             string headName = story.headType != null ? (story.headType.defName ?? "") : "";
             look.headWide = Has(headName, "Narrow") ? 0.9f : (Has(headName, "Wide") ? 1.07f : 1f);
-            look.skin = story.SkinColor;
+            look.skin = Corpses.Skin(pawn, story.SkinColor);   // rotting: the game's rotten colour
             look.hairColor = story.HairColor;
             string hairKind = HairParts.Hair(story.hairDef);
             string beardKind = pawn.style != null ? HairParts.Beard(pawn.style.beardDef) : null;

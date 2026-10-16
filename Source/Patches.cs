@@ -1347,6 +1347,12 @@ namespace IsoRim
                         {
                             bedTop = Forms.HeightOf(gibbet);   // on the cage floor
                         }
+                        if (bedTop <= 0f)
+                        {
+                            // In a 3D carrier's hands, or a corpse on a shelf.
+                            Vector3 held = __0;
+                            bedTop = Carried.LiftOf(pawn, ref held) + Corpses.RestHeight(pawn);
+                        }
                         if (bedTop > 0f)
                         {
                             DrawHook.xform = View3D.LiftMatrix(bedTop);
@@ -1396,7 +1402,7 @@ namespace IsoRim
         public static bool DrawnAsModel(Pawn pawn)
         {
             IsoRimSettings st = IsoRimMod.Settings;
-            if (pawn == null || !View3D.Ready || !st.models3D || pawn.RaceProps == null || pawn.def == null)
+            if (pawn == null || !View3D.Ready || !st.models3D || pawn.RaceProps == null || pawn.def == null || !Corpses.ShownAsModel(pawn))
             {
                 return false;
             }

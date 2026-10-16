@@ -35,12 +35,12 @@ namespace IsoRim
         public static bool Draw(Pawn pawn, Vector3 drawLoc)
         {
             ModelEntry entry;
-            if (pawn.def == null || !ModelLibrary.TryGet(pawn.def, out entry) || !entry.def.animal || !entry.HasModel)
+            if (pawn.def == null || !ModelLibrary.TryGet(pawn.def, out entry) || !entry.def.animal || !entry.HasModel || !Corpses.ShownAsModel(pawn))
             {
                 return false;
             }
             ModelDef def = entry.def;
-            Model body = entry.Pick(pawn);
+            Model body = Corpses.Body(pawn, entry.Pick(pawn));
             if (body == null)
             {
                 return false;
@@ -50,7 +50,7 @@ namespace IsoRim
             bool dead = pawn.Dead;
             bool lying = dead || pawn.GetPosture() != PawnPosture.Standing;
             bool onSide = dead || pawn.Downed;
-            float lift = Carried.LiftOf(pawn, ref drawLoc);   // carried by a 3D pawn
+            float lift = Carried.LiftOf(pawn, ref drawLoc) + Corpses.RestHeight(pawn);   // carried by a 3D pawn, or a corpse on a shelf
             float flight = FlightOf(pawn, ref drawLoc);       // in the air (before the facing: taking off is not a step north)
 
             float yaw;
@@ -148,7 +148,7 @@ namespace IsoRim
                     Quaternion turn = Quaternion.AngleAxis(splay, Vector3.forward) * Quaternion.AngleAxis(swing, Vector3.right);
 
                     Matrix4x4 local = legPose * sized * Matrix4x4.Translate(hip) * Matrix4x4.Rotate(turn) * drop;
-                    DynamicModels.DrawLocal(entry.leg, position, yaw, local, Color.white, null);
+                    DynamicModels.DrawLocal(Corpses.Body(pawn, entry.leg), position, yaw, local, Color.white, null);
                 }
             }
 
