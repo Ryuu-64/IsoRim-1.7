@@ -14,7 +14,8 @@ namespace IsoRim
     // (how often, how many, size, colour, drift, fade) is the game's.
     //
     // Puffs are plain structs in the game's fleck lists, so the ones thrown here are known by
-    // their exact spawn position (kept until they have faded).
+    // their exact spawn position (kept until they have faded). Shots' muzzle flashes are stood up
+    // the same way (Raise, from Projectiles.ShotFlash).
     public static class Emitters
     {
         private struct Puff
@@ -79,6 +80,15 @@ namespace IsoRim
                 parent.Map.flecks.CreateFleck(data);
             }
             return false;
+        }
+
+        // A fleck of the game's, about to be created at spawn, drawn standing up at height cells
+        // (rising by rise cells a second) until it has faded. Called while the game ticks.
+        public static void Raise(Vector3 spawn, float height, float rise, FleckDef fleck)
+        {
+            Sweep();
+            int lifeTicks = Mathf.CeilToInt((fleck.solidTime + fleck.fadeInTime + fleck.fadeOutTime) * 60f) + 120;
+            puffs[Key(spawn)] = new Puff { height = height, rise = rise, until = Find.TickManager.TicksGame + lifeTicks };
         }
 
         // The game draws puffs on worker threads, so the puff being drawn is noted per thread and

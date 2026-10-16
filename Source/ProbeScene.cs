@@ -115,7 +115,13 @@ namespace IsoRim
     //   blueprint=<Def>,x,z[,<Stuff>|-[,rot]]  the player's blueprint to build it there
     //   tickuntil=bursting|intercept|burst,N  game ticks until some turret fires a burst / some shield stops a projectile /
     //                                some slow fleck emitter (toxic spewer) throws its puffs (at most N <= 900)
+    //   tickuntil=flash,N[,x,z]      game ticks until a shot's muzzle flash was made (by the shooter in that cell), at most N
+    //   muzzle=0|1                   shots leave from the muzzle (Projectiles.Muzzle, default 1): the flash standing there and the
+    //                                bullet drawn from there; 0: the game's flat flash and the bullet from the middle (before/after)
+    //   clearflashes=1               the shot flashes in the air removed, no tick (the same frame without them, for diffs)
     //   interact=x,z                 the nearest free colonist is ordered to activate the building (as its float menu option)
+    //   manfire=x,z,tx,tz            the turret in the cell (a mortar: loaded with an HE shell) manned by the nearest free
+    //                                colonist and ordered to fire at (tx,tz) (real jobs: run tickuntil=flash after it)
     //   turretcheck=1                logs every turret's verb state, aim override, gun rotation and which gun model it shows
     //   roofclip=0|1                 things under roofs clipped at the roof (RoofClip, default 1) or not (before/after shots)
     //   ui=1                         map overlays the screenshot mode hides (selection, temperature,
@@ -855,8 +861,9 @@ namespace IsoRim
                     string[] dageBody = a[3].Split(':');
                     float dage = F(dageBody[0]);
                     bool dchild = dage < 13f;
+                    // One holding a gun can fire it (attack=, tickuntil=flash).
                     Pawn dp = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDefOf.Colonist, Faction.OfPlayer, PawnGenerationContext.NonPlayer,
-                        fixedBiologicalAge: dage, fixedChronologicalAge: dage, developmentalStages: dchild ? DevelopmentalStage.Child : DevelopmentalStage.Adult));
+                        mustBeCapableOfViolence: a[4].Contains("Gun_"), fixedBiologicalAge: dage, fixedChronologicalAge: dage, developmentalStages: dchild ? DevelopmentalStage.Child : DevelopmentalStage.Adult));
                     dp.apparel.DestroyAll();
                     dp.equipment.DestroyAllEquipment();
                     if (!dchild)
@@ -1130,8 +1137,19 @@ namespace IsoRim
                 case "tickuntil":
                 {
                     // tickuntil=bursting,N: game ticks one at a time until some turret is firing a burst (at most N).
+                    // tickuntil=flash,N[,x,z]: until a shot's muzzle flash (by the shooter in that cell) was made in the last tick.
                     int limit = Mathf.Clamp(I(a[1]), 1, 900), done = 0;
-                    Func<bool> reached = a[0] == "burst"
+                    int flashesSeen = Projectiles.Flashes;
+                    IntVec3 flasher = a.Length > 3 ? new IntVec3(I(a[2]), 0, I(a[3])) : IntVec3.Invalid;
+                    Func<bool> reached = a[0] == "flash"
+                        ? (Func<bool>)(() =>
+                        {
+                            bool hit = Projectiles.Flashes != flashesSeen
+                                && (!flasher.IsValid || (Projectiles.LastFlasher != null && Projectiles.LastFlasher.Position == flasher));
+                            flashesSeen = Projectiles.Flashes;
+                            return hit;
+                        })
+                        : a[0] == "burst"
                         ? (Func<bool>)(() => map.listerThings.AllThings.Any(t => t.TryGetComp<CompThrownFleckEmitter>() is CompThrownFleckEmitter fe
                             && ((CompProperties_ThrownFleckEmitter)fe.props).emissionInterval >= 100 && fe.ticksSinceLastEmitted == 0))
                         : a[0] == "intercept"
@@ -1144,6 +1162,29 @@ namespace IsoRim
                         done++;
                     }
                     Log.Message("[IsoRim probe] tickuntil " + a[0] + ": " + done + " ticks");
+                    break;
+                }
+                case "manfire":
+                {
+                    // manfire=x,z,tx,tz: the turret in the cell (a mortar: loaded with a high-explosive shell) manned by the
+                    // nearest free colonist (a real ManTurret job) and ordered to fire at the cell (tx,tz), as the player would.
+                    Building_TurretGun mt = new IntVec3(I(a[0]), 0, I(a[1])).GetFirstBuilding(map) as Building_TurretGun;
+                    Pawn mp = mt != null ? map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed).OrderBy(p => p.Position.DistanceToSquared(mt.Position)).FirstOrDefault() : null;
+                    if (mt == null || mp == null)
+                    {
+                        Log.Warning("[IsoRim probe] manfire: no turret at " + a[0] + "," + a[1] + " or no colonist");
+                        return;
+                    }
+                    CompChangeableProjectile shells = mt.gun != null ? mt.gun.TryGetComp<CompChangeableProjectile>() : null;
+                    if (shells != null && !shells.Loaded)
+                    {
+                        shells.LoadShell(ThingDefOf.Shell_HighExplosive, 1);
+                    }
+                    Job man = JobMaker.MakeJob(JobDefOf.ManTurret, mt);
+                    man.playerForced = true;
+                    mp.jobs.StartJob(man, JobCondition.InterruptForced);
+                    mt.OrderAttack(new LocalTargetInfo(new IntVec3(I(a[2]), 0, I(a[3]))));
+                    Log.Message("[IsoRim probe] manfire: " + mp.LabelShort + " mans " + mt.def.defName + " (" + (mp.CurJob != null ? mp.CurJob.def.defName : "no job") + "), loaded " + (shells != null && shells.Loaded));
                     break;
                 }
                 case "interact":
@@ -1216,6 +1257,28 @@ namespace IsoRim
                 case "roofclip":
                     RoofClip.Enabled = a[0] == "1";
                     break;
+                case "muzzle":
+                    Projectiles.FromMuzzle = a[0] == "1";
+                    break;
+                case "clearflashes":
+                {
+                    // The shot flashes in the air removed, nothing else touched (no tick): the same frame without them.
+                    int removed = 0;
+                    foreach (FleckSystem fs in map.flecks.Systems)
+                    {
+                        System.Collections.IList live = Traverse.Create(fs).Field("dataGametime").GetValue() as System.Collections.IList;
+                        for (int i = live != null ? live.Count - 1 : -1; i >= 0; i--)
+                        {
+                            if (live[i] is FleckStatic fl && fl.def == FleckDefOf.ShotFlash)
+                            {
+                                live.RemoveAt(i);
+                                removed++;
+                            }
+                        }
+                    }
+                    Log.Message("[IsoRim probe] clearflashes: " + removed);
+                    break;
+                }
                 default:
                     if (CutKey(key, a) || MechKey(key, a, map) || EntityKey(key, a, map))
                     {

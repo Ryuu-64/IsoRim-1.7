@@ -382,6 +382,8 @@ namespace IsoRim
             // Bullets and shells fly from the muzzle to the height of their target, not along the ground (Projectiles).
             Patch("projectiles at muzzle height", AccessTools.DeclaredMethod(typeof(Projectile), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
                 prefix: nameof(ProjectileDrawAt_Prefix));
+            // A shot's flash at the muzzle, standing up, not flat in the middle of the shooter (Projectiles.ShotFlash).
+            Patch("muzzle flashes at the muzzle", AccessTools.DeclaredMethod(typeof(Verb), "TryCastNextBurstShot"), transpiler: nameof(ShotFlash_Transpiler));
 
             // The buttons in the bottom right corner of the map view.
             Patch("buttons for the 3D view and roofs", AccessTools.Method(typeof(PlaySettings), "DoPlaySettingsGlobalControls"),
@@ -2978,6 +2980,32 @@ namespace IsoRim
             {
                 Log.ErrorOnce("[IsoRim] Drawing the designator bracket failed: " + e, 93611164);
                 return true;
+            }
+        }
+
+        // The game's FleckMaker.Static(caster.Position, map, ShotFlash, muzzleFlashScale) becomes
+        // Projectiles.ShotFlash(..., this): the verb is passed on for its caster and target.
+        public static IEnumerable<CodeInstruction> ShotFlash_Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            MethodInfo from = AccessTools.Method(typeof(FleckMaker), nameof(FleckMaker.Static), new[] { typeof(IntVec3), typeof(Map), typeof(FleckDef), typeof(float) });
+            MethodInfo to = AccessTools.Method(typeof(Projectiles), nameof(Projectiles.ShotFlash));
+            int found = 0;
+            foreach (CodeInstruction ci in instructions)
+            {
+                if (ci.opcode == OpCodes.Call && from != null && to != null && ci.operand as MethodInfo == from)
+                {
+                    CodeInstruction verb = new CodeInstruction(OpCodes.Ldarg_0);
+                    verb.labels.AddRange(ci.labels);
+                    ci.labels.Clear();
+                    yield return verb;
+                    ci.operand = to;
+                    found++;
+                }
+                yield return ci;
+            }
+            if (found == 0)
+            {
+                ModLog.Warn("[IsoRim] The shot flash in Verb.TryCastNextBurstShot was not found; muzzle flashes are the game's.");
             }
         }
 
