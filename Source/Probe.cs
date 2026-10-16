@@ -119,6 +119,7 @@ namespace IsoRim
             LogLoaded();
             Sticky();
             BookCheckDue();
+            SettingsShotTick();
 
             if (applyFrame >= 0 && Time.frameCount >= applyFrame)
             {

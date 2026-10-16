@@ -675,12 +675,12 @@ namespace IsoRim
             {
                 if (View3D.LockedOn)
                 {
-                    row.Icon(R3DIcons.View3D, "IsoRim: 3D view (always on with " + View3D.LockedBy + ")");
+                    row.Icon(R3DIcons.View3D, "R3D_Msg_ViewButtonLocked".Translate(View3D.LockedBy));
                 }
                 else
                 {
                     bool view = View3D.Active;
-                    row.ToggleableIcon(ref view, R3DIcons.View3D, "IsoRim: 3D view (" + KeyLabel(R3DKeyDefOf.R3D_ToggleView) + ")", SoundDefOf.Mouseover_ButtonToggle);
+                    row.ToggleableIcon(ref view, R3DIcons.View3D, "R3D_Msg_ViewButton".Translate(KeyLabel(R3DKeyDefOf.R3D_ToggleView)), SoundDefOf.Mouseover_ButtonToggle);
                     if (view != View3D.Active)
                     {
                         View3D.Active = view;
@@ -689,7 +689,7 @@ namespace IsoRim
                 if (View3D.Active)
                 {
                     bool roofs = IsoRimMod.Settings.showRoofs;
-                    row.ToggleableIcon(ref roofs, R3DIcons.Roofs, "IsoRim: show roofs (" + KeyLabel(R3DKeyDefOf.R3D_ToggleRoofs) + ")", SoundDefOf.Mouseover_ButtonToggle);
+                    row.ToggleableIcon(ref roofs, R3DIcons.Roofs, "R3D_Msg_RoofsButton".Translate(KeyLabel(R3DKeyDefOf.R3D_ToggleRoofs)), SoundDefOf.Mouseover_ButtonToggle);
                     if (roofs != IsoRimMod.Settings.showRoofs)
                     {
                         Roofs.Set(roofs);
@@ -706,7 +706,7 @@ namespace IsoRim
         {
             if (key == null || key.MainKey == KeyCode.None)
             {
-                return "no key set";
+                return "R3D_Msg_NoKeySet".Translate();
             }
             return key.MainKeyLabel;
         }

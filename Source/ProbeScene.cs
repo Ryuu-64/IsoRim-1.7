@@ -521,6 +521,9 @@ namespace IsoRim
                     }
                     break;
                 }
+                case "settingswin":
+                    SettingsWin(a);
+                    break;
                 case "itemsheet":
                     SpriteSweep.PlaceSheet(map, I(a[0]), I(a[1]), I(a[2]), I(a[3]), I(a[4]));
                     break;

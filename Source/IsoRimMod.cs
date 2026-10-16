@@ -272,11 +272,11 @@ namespace IsoRim
             Rect body = new Rect(inRect.x, header.yMax + 36f, inRect.width, inRect.height - header.height - 36f);
             List<TabRecord> tabs = new List<TabRecord>
             {
-                new TabRecord("View and camera", delegate { tab = 0; }, tab == 0),
-                new TabRecord("See-through", delegate { tab = 4; }, tab == 4),
-                new TabRecord("Colour and light", delegate { tab = 1; }, tab == 1),
-                new TabRecord("Ground, water, roofs", delegate { tab = 2; }, tab == 2),
-                new TabRecord("What is 3D", delegate { tab = 3; }, tab == 3),
+                new TabRecord("R3D_Settings_TabView".Translate(), delegate { tab = 0; }, tab == 0),
+                new TabRecord("R3D_Settings_TabSeeThrough".Translate(), delegate { tab = 4; }, tab == 4),
+                new TabRecord("R3D_Settings_TabColour".Translate(), delegate { tab = 1; }, tab == 1),
+                new TabRecord("R3D_Settings_TabWorld".Translate(), delegate { tab = 2; }, tab == 2),
+                new TabRecord("R3D_Settings_TabObjects".Translate(), delegate { tab = 3; }, tab == 3),
             };
             Widgets.DrawMenuSection(body);
             TabDrawer.DrawTabs(body, tabs);
@@ -331,8 +331,8 @@ namespace IsoRim
             Text.Anchor = TextAnchor.MiddleLeft;
             Text.Font = GameFont.Small;
             GUI.color = Muted;
-            string status = (View3D.Active ? "3D view is on" : "3D view is off")
-                + "   ·   camera turns " + (st.snap45 ? "45°" : "90°") + " a step";
+            string status = (View3D.Active ? "R3D_Settings_ViewIsOn" : "R3D_Settings_ViewIsOff").Translate()
+                + "   ·   " + "R3D_Settings_TurnStep".Translate(st.snap45 ? "45°" : "90°");
             Widgets.Label(new Rect(rect.x + 16f, rect.y, rect.width - 300f, rect.height), status);
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
@@ -341,17 +341,17 @@ namespace IsoRim
             Rect toggle = new Rect(rect.xMax - 270f, rect.y + 11f, 150f, 30f);
             if (View3D.LockedOn)
             {
-                Widgets.ButtonText(toggle, "Turn 3D view off", true, false, false);
-                TooltipHandler.TipRegion(toggle, "Always on with " + View3D.LockedBy);
+                Widgets.ButtonText(toggle, "R3D_Settings_TurnViewOff".Translate(), true, false, false);
+                TooltipHandler.TipRegion(toggle, "R3D_Settings_AlwaysOnWith".Translate(View3D.LockedBy));
             }
-            else if (Widgets.ButtonText(toggle, View3D.Active ? "Turn 3D view off" : "Turn 3D view on"))
+            else if (Widgets.ButtonText(toggle, (View3D.Active ? "R3D_Settings_TurnViewOff" : "R3D_Settings_TurnViewOn").Translate()))
             {
                 View3D.Active = !View3D.Active;
             }
             Rect reset = new Rect(rect.xMax - 110f, rect.y + 11f, 100f, 30f);
-            if (Widgets.ButtonText(reset, "Reset all"))
+            if (Widgets.ButtonText(reset, "R3D_Settings_ResetAll".Translate()))
             {
-                Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation("Put every IsoRim option back to its default?", delegate
+                Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation("R3D_Settings_ResetAllConfirm".Translate(), delegate
                 {
                     bool roofs = st.showRoofs;
                     st.Reset();
@@ -432,7 +432,13 @@ namespace IsoRim
         // The free look drag button as words (IsoRimSettings.lookMode: 0 middle, 1 right).
         private static string DragButtonLabel(IsoRimSettings st)
         {
-            return st.lookMode == 1 ? "the right button" : "the middle button";
+            return (st.lookMode == 1 ? "R3D_Settings_RightButton" : "R3D_Settings_MiddleButton").Translate();
+        }
+
+        // A length in cells, as shown next to a slider ("2.5 cells").
+        private static string Cells(float value, string format)
+        {
+            return "R3D_Settings_Cells".Translate(value.ToString(format));
         }
 
         // Free look's own keys: "hold Ctrl and drag with the middle button" (without the hold key if it is unbound), or
@@ -441,11 +447,12 @@ namespace IsoRim
         {
             if (st.lookMode == 1)
             {
-                return "drag with the right button while nothing is selected";
+                return "R3D_Settings_LookKeysRight".Translate();
             }
             KeyBindingDef mod = R3DKeyDefOf.R3D_LookModifier;
-            string drag = "drag with " + DragButtonLabel(st);
-            return mod == null || mod.MainKey == KeyCode.None ? drag : "hold " + mod.MainKeyLabel + " and " + drag;
+            return mod == null || mod.MainKey == KeyCode.None
+                ? "R3D_Settings_LookKeysDrag".Translate(DragButtonLabel(st))
+                : "R3D_Settings_LookKeysHoldDrag".Translate(mod.MainKeyLabel, DragButtonLabel(st));
         }
 
         private static void KeyRow(Listing_Standard l, KeyBindingDef key, string what)
@@ -486,110 +493,112 @@ namespace IsoRim
         {
             if (l != null)
             {
-                Section(l, "Camera", "How the map is seen while the 3D view is on.");
-                Check(l, "Isometric view", ref st.isometric, "The camera turned 45 degrees and lowered, as in isometric games. Off: north is up.");
-                Check(l, "Turn in 45° steps", ref st.snap45, "Q and E turn the camera an eighth of a turn at a time. Off: a quarter turn. Either way the camera swings smoothly.");
-                Check(l, "Free look", ref st.freeLook, "Drag with the mouse to turn the camera all the way round and tilt it (20° to 89°). Q and E snap to the next step. The reset key (unbound at first) is in the game's keyboard options.");
+                Section(l, "R3D_Settings_Camera".Translate(), "R3D_Settings_CameraNote".Translate());
+                Check(l, "R3D_Settings_Isometric".Translate(), ref st.isometric, "R3D_Settings_IsometricTip".Translate());
+                Check(l, "R3D_Settings_Snap45".Translate(), ref st.snap45, "R3D_Settings_Snap45Tip".Translate());
+                Check(l, "R3D_Settings_FreeLook".Translate(), ref st.freeLook, "R3D_Settings_FreeLookTip".Translate());
                 if (st.freeLook)
                 {
                     // The drag button (a mouse button: the game's keyboard options can't take one). The hold key is there.
                     KeyBindingDef hold = R3DKeyDefOf.R3D_LookModifier;
-                    string holdLabel = hold == null || hold.MainKey == KeyCode.None ? "" : "Hold " + hold.MainKeyLabel + " and drag. ";
-                    if (l.RadioButton("Free look: middle button", st.lookMode != 1, 12f, holdLabel + "The hold key is in the game's keyboard options."))
+                    string middleTip = hold == null || hold.MainKey == KeyCode.None
+                        ? "R3D_Settings_LookMiddleTipNoKey".Translate()
+                        : "R3D_Settings_LookMiddleTip".Translate(hold.MainKeyLabel);
+                    if (l.RadioButton("R3D_Settings_LookMiddle".Translate(), st.lookMode != 1, 12f, middleTip))
                     {
                         st.lookMode = 0;
                     }
-                    if (l.RadioButton("Free look: right button", st.lookMode == 1, 12f, "Drag while nothing is selected."))
+                    if (l.RadioButton("R3D_Settings_LookRight".Translate(), st.lookMode == 1, 12f, "R3D_Settings_LookRightTip".Translate()))
                     {
                         st.lookMode = 1;
                     }
-                    st.lookSensitivity = Slider(l, "Free look speed", st.lookSensitivity, 0.05f, 1f, st.lookSensitivity.ToString("0.00") + "°/px");
-                    Check(l, "Invert up and down", ref st.invertY, "Dragging up tilts the camera toward top-down.");
+                    st.lookSensitivity = Slider(l, "R3D_Settings_LookSpeed".Translate(), st.lookSensitivity, 0.05f, 1f, "R3D_Settings_DegPerPixel".Translate(st.lookSensitivity.ToString("0.00")));
+                    Check(l, "R3D_Settings_InvertY".Translate(), ref st.invertY, "R3D_Settings_InvertYTip".Translate());
                 }
-                st.fpFov = Slider(l, "First person field of view", st.fpFov, 40f, 100f, st.fpFov.ToString("0") + "°",
-                    (R3DKeyDefOf.R3D_FirstPerson != null ? R3DKeyDefOf.R3D_FirstPerson.MainKeyLabel : "F5") + " with one person selected: the camera in their head. Drag with " + DragButtonLabel(st) + " to look round.");
-                st.fpEyeHeight = Slider(l, "First person eye height", st.fpEyeHeight, 0.5f, 2f, st.fpEyeHeight.ToString("0.00") + " cells");
-                Check(l, "Smooth edges (anti-aliasing)", ref st.antiAlias, "Softens the stair steps on the edges of walls and models (FXAA). The interface is not touched.");
+                st.fpFov = Slider(l, "R3D_Settings_FpFov".Translate(), st.fpFov, 40f, 100f, st.fpFov.ToString("0") + "°",
+                    "R3D_Settings_FpFovTip".Translate(R3DKeyDefOf.R3D_FirstPerson != null ? R3DKeyDefOf.R3D_FirstPerson.MainKeyLabel : "F5", DragButtonLabel(st)));
+                st.fpEyeHeight = Slider(l, "R3D_Settings_FpEyeHeight".Translate(), st.fpEyeHeight, 0.5f, 2f, Cells(st.fpEyeHeight, "0.00"));
+                Check(l, "R3D_Settings_AntiAlias".Translate(), ref st.antiAlias, "R3D_Settings_AntiAliasTip".Translate());
                 if (st.antiAlias)
                 {
-                    st.antiAliasStrength = Slider(l, "Edge smoothing", st.antiAliasStrength, 0.2f, 1f, (st.antiAliasStrength * 100f).ToString("0") + "%");
+                    st.antiAliasStrength = Slider(l, "R3D_Settings_AntiAliasStrength".Translate(), st.antiAliasStrength, 0.2f, 1f, (st.antiAliasStrength * 100f).ToString("0") + "%");
                 }
-                Check(l, "Perspective", ref st.perspective, "A real perspective camera: far things get smaller, as in Rim3D. Off: the flat (orthographic) view.");
+                Check(l, "R3D_Settings_Perspective".Translate(), ref st.perspective, "R3D_Settings_PerspectiveTip".Translate());
                 if (st.perspective)
                 {
-                    st.fov = Slider(l, "Field of view", st.fov, 15f, 90f, st.fov.ToString("0") + "°", "Wider shows more round the edges and makes depth stronger.");
-                    st.viewDistance = Slider(l, "View distance", st.viewDistance, 40f, 400f, st.viewDistance.ToString("0") + " cells",
-                        "How far past the middle of the screen the map is drawn when the camera is low. Further costs frame time.");
-                    Check(l, "Sky", ref st.sky, "A sky with the sun and moon behind the map, following the time of day and the weather.");
-                    Check(l, "Distance fog", ref st.distanceFog, "The far map fades into the horizon, so the edge of what is drawn never shows.");
+                    st.fov = Slider(l, "R3D_Settings_Fov".Translate(), st.fov, 15f, 90f, st.fov.ToString("0") + "°", "R3D_Settings_FovTip".Translate());
+                    st.viewDistance = Slider(l, "R3D_Settings_ViewDistance".Translate(), st.viewDistance, 40f, 400f, Cells(st.viewDistance, "0"),
+                        "R3D_Settings_ViewDistanceTip".Translate());
+                    Check(l, "R3D_Settings_Sky".Translate(), ref st.sky, "R3D_Settings_SkyTip".Translate());
+                    Check(l, "R3D_Settings_DistanceFog".Translate(), ref st.distanceFog, "R3D_Settings_DistanceFogTip".Translate());
                     if (st.distanceFog)
                     {
-                        st.fogStart = Slider(l, "Fog starts", st.fogStart, 0f, 0.95f, (st.fogStart * 100f).ToString("0") + "%", "Where between the middle of the screen and the view distance the fog begins.");
-                        st.fogStrength = Slider(l, "Fog strength", st.fogStrength, 0.2f, 1f, (st.fogStrength * 100f).ToString("0") + "%", "100% is solid at the view distance and hides the edge.");
+                        st.fogStart = Slider(l, "R3D_Settings_FogStart".Translate(), st.fogStart, 0f, 0.95f, (st.fogStart * 100f).ToString("0") + "%", "R3D_Settings_FogStartTip".Translate());
+                        st.fogStrength = Slider(l, "R3D_Settings_FogStrength".Translate(), st.fogStrength, 0.2f, 1f, (st.fogStrength * 100f).ToString("0") + "%", "R3D_Settings_FogStrengthTip".Translate());
                     }
-                    st.labelFade = Slider(l, "Far labels fade from", st.labelFade, 1f, 4f, st.labelFade >= 4f ? "never" : "×" + st.labelFade.ToString("0.0"),
-                        "Labels (stack counts, quality, names) fade out past this many times the distance to the middle of the screen. Your colonists keep their names.");
+                    st.labelFade = Slider(l, "R3D_Settings_LabelFade".Translate(), st.labelFade, 1f, 4f, st.labelFade >= 4f ? "R3D_Settings_Never".Translate().ToString() : "×" + st.labelFade.ToString("0.0"),
+                        "R3D_Settings_LabelFadeTip".Translate());
                 }
                 if (st.isometric)
                 {
-                    st.isoPitch = Slider(l, "Isometric camera angle", st.isoPitch, View3D.MinPitch, View3D.MaxPitch, st.isoPitch.ToString("0") + "°",
-                        "35 is the true isometric angle.");
+                    st.isoPitch = Slider(l, "R3D_Settings_IsoPitch".Translate(), st.isoPitch, View3D.MinPitch, View3D.MaxPitch, st.isoPitch.ToString("0") + "°",
+                        "R3D_Settings_IsoPitchTip".Translate());
                 }
                 else
                 {
-                    st.pitch = Slider(l, "Camera angle", st.pitch, View3D.MinPitch, View3D.MaxPitch, st.pitch.ToString("0") + "°", "90 looks straight down.");
+                    st.pitch = Slider(l, "R3D_Settings_Pitch".Translate(), st.pitch, View3D.MinPitch, View3D.MaxPitch, st.pitch.ToString("0") + "°", "R3D_Settings_PitchTip".Translate());
                 }
                 if (View3D.LockedWallHeight > 0f)
                 {
                     // Fixed by an addon (ProjectZ): greyed out, with who fixed it.
                     GUI.color = Muted;
-                    Slider(l, "Wall height", View3D.LockedWallHeight, 0.5f, 4f, View3D.LockedWallHeight.ToString("0.00") + " cells");
+                    Slider(l, "R3D_Settings_WallHeight".Translate(), View3D.LockedWallHeight, 0.5f, 4f, Cells(View3D.LockedWallHeight, "0.00"));
                     GUI.color = Color.white;
-                    Note(l, "Fixed by " + View3D.LockedBy + ".");
+                    Note(l, "R3D_Settings_FixedBy".Translate(View3D.LockedBy));
                 }
                 else
                 {
-                    st.wallHeight = Slider(l, "Wall height", st.wallHeight, 0.5f, 4f, st.wallHeight.ToString("0.0") + " cells");
+                    st.wallHeight = Slider(l, "R3D_Settings_WallHeight".Translate(), st.wallHeight, 0.5f, 4f, Cells(st.wallHeight, "0.0"));
                 }
 
             }
             if (r != null)
             {
-                Section(r, "Keys", "Change them under Options > Keyboard configuration > IsoRim.");
-                KeyRow(r, R3DKeyDefOf.R3D_ToggleView, "3D view on and off");
-                KeyRow(r, R3DKeyDefOf.R3D_Isometric, "isometric or straight-on");
-                KeyRow(r, R3DKeyDefOf.R3D_TurnLeft, "turn the camera left");
-                KeyRow(r, R3DKeyDefOf.R3D_TurnRight, "turn the camera right");
-                KeyRow(r, R3DKeyDefOf.R3D_TiltDown, "lower the camera");
-                KeyRow(r, R3DKeyDefOf.R3D_TiltUp, "raise the camera");
-                KeyRow(r, R3DKeyDefOf.R3D_ToggleRoofs, "roofs on and off");
+                Section(r, "R3D_Settings_Keys".Translate(), "R3D_Settings_KeysNote".Translate());
+                KeyRow(r, R3DKeyDefOf.R3D_ToggleView, "R3D_Settings_KeyToggleView".Translate());
+                KeyRow(r, R3DKeyDefOf.R3D_Isometric, "R3D_Settings_KeyIsometric".Translate());
+                KeyRow(r, R3DKeyDefOf.R3D_TurnLeft, "R3D_Settings_KeyTurnLeft".Translate());
+                KeyRow(r, R3DKeyDefOf.R3D_TurnRight, "R3D_Settings_KeyTurnRight".Translate());
+                KeyRow(r, R3DKeyDefOf.R3D_TiltDown, "R3D_Settings_KeyTiltDown".Translate());
+                KeyRow(r, R3DKeyDefOf.R3D_TiltUp, "R3D_Settings_KeyTiltUp".Translate());
+                KeyRow(r, R3DKeyDefOf.R3D_ToggleRoofs, "R3D_Settings_KeyToggleRoofs".Translate());
                 if (st.freeLook)
                 {
-                    Note(r, "Free look: " + LookKeysLabel(st) + ".");
+                    Note(r, "R3D_Settings_FreeLookKeys".Translate(LookKeysLabel(st)));
                 }
-                Note(r,"The 3D view and the roofs also have buttons in the bottom right corner of the screen, next to the game's own.");
+                Note(r, "R3D_Settings_CornerButtonsNote".Translate());
 
                 if (st.perspective && st.sky)
                 {
-                    Section(r, "Night sky", "The sky turns with the hour round a pole set by the map's latitude.");
-                    Check(r, "Stars", ref st.stars, "Thousands of stars that twinkle, more of them near the horizon's haze. Hidden by rain, snow and fog.");
-                    Check(r, "Milky Way", ref st.milkyWay, "A band of the galaxy across the sky, with dark dust lanes and a bright core.");
-                    Check(r, "Planets (realistic)", ref st.planets, "Three steady points of light that wander along the sky from day to day.");
-                    Check(r, "Gas giant with rings (sci-fi)", ref st.gasGiant, "A big ringed planet high in the sky, lit by the sun so it shows phases. Faint by day.");
+                    Section(r, "R3D_Settings_NightSky".Translate(), "R3D_Settings_NightSkyNote".Translate());
+                    Check(r, "R3D_Settings_Stars".Translate(), ref st.stars, "R3D_Settings_StarsTip".Translate());
+                    Check(r, "R3D_Settings_MilkyWay".Translate(), ref st.milkyWay, "R3D_Settings_MilkyWayTip".Translate());
+                    Check(r, "R3D_Settings_Planets".Translate(), ref st.planets, "R3D_Settings_PlanetsTip".Translate());
+                    Check(r, "R3D_Settings_GasGiant".Translate(), ref st.gasGiant, "R3D_Settings_GasGiantTip".Translate());
                     if (st.gasGiant)
                     {
-                        st.gasGiantSize = Slider(r, "Gas giant size", st.gasGiantSize, 0.4f, 2.5f, "×" + st.gasGiantSize.ToString("0.0"));
+                        st.gasGiantSize = Slider(r, "R3D_Settings_GasGiantSize".Translate(), st.gasGiantSize, 0.4f, 2.5f, "×" + st.gasGiantSize.ToString("0.0"));
                     }
-                    Check(r, "Sun, moon and gas giant low in the sky", ref st.lowSky, "Drawn about a third as high, so the map camera (which cannot look up) sees them. The light and shadows do not change. Off: where they really are, seen in first person.");
-                    Check(r, "Moon phases", ref st.moonPhases, "The moon goes from new to full and back over a quadrum (15 days). Off: always full.");
-                    st.starBrightness = Slider(r, "Night sky brightness", st.starBrightness, 0.2f, 2f, (st.starBrightness * 100f).ToString("0") + "%", "Stars, Milky Way and planets.");
+                    Check(r, "R3D_Settings_LowSky".Translate(), ref st.lowSky, "R3D_Settings_LowSkyTip".Translate());
+                    Check(r, "R3D_Settings_MoonPhases".Translate(), ref st.moonPhases, "R3D_Settings_MoonPhasesTip".Translate());
+                    st.starBrightness = Slider(r, "R3D_Settings_StarBrightness".Translate(), st.starBrightness, 0.2f, 2f, (st.starBrightness * 100f).ToString("0") + "%", "R3D_Settings_StarBrightnessTip".Translate());
                 }
 
-                Section(r, "Advanced");
-                st.feetOffset = Slider(r, "Where upright sprites stand", st.feetOffset, 0f, 0.5f, st.feetOffset.ToString("0.00"),
-                    "Only for people and animals still drawn as flat sprites.");
-                st.squash = Slider(r, "Layer flattening", st.squash, 0.002f, 0.004f, st.squash.ToString("0.0000"),
-                    "How tightly the game's flat drawing layers are pressed together. Leave it unless things flicker.");
+                Section(r, "R3D_Settings_Advanced".Translate());
+                st.feetOffset = Slider(r, "R3D_Settings_FeetOffset".Translate(), st.feetOffset, 0f, 0.5f, st.feetOffset.ToString("0.00"),
+                    "R3D_Settings_FeetOffsetTip".Translate());
+                st.squash = Slider(r, "R3D_Settings_Squash".Translate(), st.squash, 0.002f, 0.004f, st.squash.ToString("0.0000"),
+                    "R3D_Settings_SquashTip".Translate());
             }
         }
 
@@ -597,35 +606,35 @@ namespace IsoRim
         {
             if (l != null)
             {
-                Section(l, "Walls", "Walls are lowered so you can see and click what is behind them. Natural rock never is.");
-                Check(l, "Lower walls near the pointer", ref st.cutHover);
+                Section(l, "R3D_Settings_Walls".Translate(), "R3D_Settings_WallsNote".Translate());
+                Check(l, "R3D_Settings_CutHover".Translate(), ref st.cutHover);
                 if (st.cutHover)
                 {
-                    st.dissolveRadius = Slider(l, "Reach round the pointer", st.dissolveRadius, 1.5f, 8f, st.dissolveRadius.ToString("0.0") + " cells");
-                    Check(l, "Only walls in front of the pointer", ref st.cutFrontOnly, "Only the walls between the camera and the pointer are lowered; the ones behind it stay up.");
+                    st.dissolveRadius = Slider(l, "R3D_Settings_DissolveRadius".Translate(), st.dissolveRadius, 1.5f, 8f, Cells(st.dissolveRadius, "0.0"));
+                    Check(l, "R3D_Settings_CutFrontOnly".Translate(), ref st.cutFrontOnly, "R3D_Settings_CutFrontOnlyTip".Translate());
                 }
-                Check(l, "Lower walls near colonists", ref st.cutNearColonists, "Walls between the camera and each colonist are lowered wherever they go. Costs a little more as they move about.");
+                Check(l, "R3D_Settings_CutNearColonists".Translate(), ref st.cutNearColonists, "R3D_Settings_CutNearColonistsTip".Translate());
                 if (st.cutNearColonists)
                 {
-                    st.colonistRadius = Slider(l, "Reach round each colonist", st.colonistRadius, 1f, 5f, st.colonistRadius.ToString("0.0") + " cells");
+                    st.colonistRadius = Slider(l, "R3D_Settings_ColonistRadius".Translate(), st.colonistRadius, 1f, 5f, Cells(st.colonistRadius, "0.0"));
                 }
-                Check(l, "Lower walls in front of every room", ref st.cutRooms, "Walls between the camera and a roofed room are always drawn lowered.");
-                Check(l, "  ...and rock in front of rooms dug into mountains", ref st.cutRock, "Up to three cells of rock between the camera and a room are lowered; the rest of the mountain stays whole.");
-                st.cutHeight = Slider(l, "Height left of a lowered wall", st.cutHeight, 0.05f, 0.9f, (st.cutHeight * 100f).ToString("0") + "%");
+                Check(l, "R3D_Settings_CutRooms".Translate(), ref st.cutRooms, "R3D_Settings_CutRoomsTip".Translate());
+                Check(l, "R3D_Settings_CutRock".Translate(), ref st.cutRock, "R3D_Settings_CutRockTip".Translate());
+                st.cutHeight = Slider(l, "R3D_Settings_CutHeight".Translate(), st.cutHeight, 0.05f, 0.9f, (st.cutHeight * 100f).ToString("0") + "%");
             }
             if (r != null)
             {
-                Section(r, "Trees", "Trees drop their leaves while something you want to see is under them.");
-                Check(r, "Thin out trees near the pointer", ref st.treesNearPointer);
-                Check(r, "Thin out trees near colonists", ref st.treesNearColonists);
+                Section(r, "R3D_Settings_Trees".Translate(), "R3D_Settings_TreesNote".Translate());
+                Check(r, "R3D_Settings_TreesNearPointer".Translate(), ref st.treesNearPointer);
+                Check(r, "R3D_Settings_TreesNearColonists".Translate(), ref st.treesNearColonists);
                 if (st.treesNearPointer || st.treesNearColonists)
                 {
-                    st.treeRadius = Slider(r, "Reach", st.treeRadius, 1f, 6f, st.treeRadius.ToString("0.0") + " cells");
+                    st.treeRadius = Slider(r, "R3D_Settings_TreeRadius".Translate(), st.treeRadius, 1f, 6f, Cells(st.treeRadius, "0.0"));
                 }
 
-                Section(r, "Roofs", "Only while roofs are shown.");
-                Check(r, "Lift the roof of the room under the pointer", ref st.roofHover);
-                Check(r, "Lift the roofs of rooms with colonists in them", ref st.roofOverColonists);
+                Section(r, "R3D_Settings_Roofs".Translate(), "R3D_Settings_SeeThroughRoofsNote".Translate());
+                Check(r, "R3D_Settings_RoofHover".Translate(), ref st.roofHover);
+                Check(r, "R3D_Settings_RoofOverColonists".Translate(), ref st.roofOverColonists);
             }
         }
 
@@ -633,8 +642,8 @@ namespace IsoRim
         {
             if (l != null)
             {
-                Section(l, "Colour look", "A colour grade over the 3D view. The interface is not affected.");
-                Check(l, "Colour grade on", ref st.grade);
+                Section(l, "R3D_Settings_ColourLook".Translate(), "R3D_Settings_ColourLookNote".Translate());
+                Check(l, "R3D_Settings_Grade".Translate(), ref st.grade);
                 if (st.grade)
                 {
                     foreach (LookPreset p in Looks.Presets)
@@ -650,13 +659,13 @@ namespace IsoRim
                     Grade.Table table = st.lutFile.NullOrEmpty() ? null : Grade.TableFor(st.lutFile);
                     Grade.Table own = table == null && !look.lutFile.NullOrEmpty() ? Grade.TableFor(look.lutFile) : null;
                     Rect b = l.GetRect(30f);
-                    if (Widgets.ButtonText(b, "Look: " + (table != null ? st.lutFile + " (LUT)" : look.label)))
+                    if (Widgets.ButtonText(b, "R3D_Settings_LookButton".Translate(table != null ? st.lutFile + " (LUT)" : LookLabel(look))))
                     {
                         List<FloatMenuOption> options = new List<FloatMenuOption>();
                         foreach (LookPreset p in Looks.Presets)
                         {
                             LookPreset chosen = p;
-                            options.Add(new FloatMenuOption(p.label, delegate
+                            options.Add(new FloatMenuOption(LookLabel(p), delegate
                             {
                                 st.lookName = chosen.name;
                                 st.lutFile = "";
@@ -676,13 +685,13 @@ namespace IsoRim
                     }
                     if (table != null)
                     {
-                        Note(l, "A lookup table from the mod's LUTs folder. Your own 1024 x 32 strips can go there too.");
+                        Note(l, "R3D_Settings_LutNote".Translate());
                         Preview(l, c => Grade.ApplyFile(table, st.lookStrength, c));
-                        st.lookStrength = Slider(l, "Strength", st.lookStrength, 0f, 1f, (st.lookStrength * 100f).ToString("0") + "%");
+                        st.lookStrength = Slider(l, "R3D_Settings_Strength".Translate(), st.lookStrength, 0f, 1f, (st.lookStrength * 100f).ToString("0") + "%");
                     }
                     else
                     {
-                        Note(l, look.description);
+                        Note(l, LookDescription(look));
                         LookPreset current = Looks.Current();
                         if (own != null)
                         {
@@ -694,30 +703,30 @@ namespace IsoRim
                         }
                         if (look.name == Looks.CustomName)
                         {
-                            st.saturation = Slider(l, "Colour kept", st.saturation, 0.5f, 1f, (st.saturation * 100f).ToString("0") + "%");
-                            st.brightness = Slider(l, "Brightness", st.brightness, 0.6f, 1f, (st.brightness * 100f).ToString("0") + "%");
+                            st.saturation = Slider(l, "R3D_Settings_ColourKept".Translate(), st.saturation, 0.5f, 1f, (st.saturation * 100f).ToString("0") + "%");
+                            st.brightness = Slider(l, "R3D_Settings_Brightness".Translate(), st.brightness, 0.6f, 1f, (st.brightness * 100f).ToString("0") + "%");
                         }
                         else
                         {
-                            st.lookStrength = Slider(l, "Strength", st.lookStrength, 0f, 1f, (st.lookStrength * 100f).ToString("0") + "%");
+                            st.lookStrength = Slider(l, "R3D_Settings_Strength".Translate(), st.lookStrength, 0f, 1f, (st.lookStrength * 100f).ToString("0") + "%");
                         }
                     }
                 }
             }
             if (r != null)
             {
-                Section(r, "Shadows");
-                Check(r, "Soft shadows under everything", ref st.groundShadows);
-                Check(r, "Trees cast sun shadows", ref st.treeShadows);
+                Section(r, "R3D_Settings_Shadows".Translate());
+                Check(r, "R3D_Settings_GroundShadows".Translate(), ref st.groundShadows);
+                Check(r, "R3D_Settings_TreeShadows".Translate(), ref st.treeShadows);
                 if (st.treeShadows)
                 {
-                    st.treeShadowLength = Slider(r, "Tree shadow length", st.treeShadowLength, 0.05f, 0.5f, st.treeShadowLength.ToString("0.00"));
+                    st.treeShadowLength = Slider(r, "R3D_Settings_TreeShadowLength".Translate(), st.treeShadowLength, 0.05f, 0.5f, st.treeShadowLength.ToString("0.00"));
                 }
 
-                Section(r, "Light");
-                Check(r, "Night and indoor darkness on raised things", ref st.lightingFix);
-                Check(r, "Unexplored areas are a solid lid", ref st.fogLid);
-                Check(r, "Sun moves through the day", ref st.sunMoves, "The sun rises in the east, stands in the south at noon and sets in the west, and its light on walls, roofs and furniture moves on a few times a day. Off: it stays at its mid-morning place. Turning the camera never changes the light.");
+                Section(r, "R3D_Settings_Light".Translate());
+                Check(r, "R3D_Settings_LightingFix".Translate(), ref st.lightingFix);
+                Check(r, "R3D_Settings_FogLid".Translate(), ref st.fogLid);
+                Check(r, "R3D_Settings_SunMoves".Translate(), ref st.sunMoves, "R3D_Settings_SunMovesTip".Translate());
             }
         }
 
@@ -725,34 +734,34 @@ namespace IsoRim
         {
             if (l != null)
             {
-                Section(l, "Ground", "Only the picture changes, and only while the 3D view is on.");
-                Check(l, "Natural ground in the mod's style", ref st.groundStyle);
+                Section(l, "R3D_Settings_Ground".Translate(), "R3D_Settings_GroundNote".Translate());
+                Check(l, "R3D_Settings_GroundStyle".Translate(), ref st.groundStyle);
                 if (st.groundStyle)
                 {
-                    Check(l, "Soil drawn as soft grass", ref st.grassSoil, "Rich soil gets a darker, lusher grass so farmland still stands out.");
+                    Check(l, "R3D_Settings_GrassSoil".Translate(), ref st.grassSoil, "R3D_Settings_GrassSoilTip".Translate());
                 }
-                Check(l, "Built floors in the mod's style", ref st.floorStyle);
+                Check(l, "R3D_Settings_FloorStyle".Translate(), ref st.floorStyle);
 
-                Section(l, "Water");
-                Check(l, "Stylised water", ref st.waterStyle, "Faceted bands of colour from the shore to the deep, foam along the shores, streaks on rivers and sparkles.");
+                Section(l, "R3D_Settings_Water".Translate());
+                Check(l, "R3D_Settings_WaterStyle".Translate(), ref st.waterStyle, "R3D_Settings_WaterStyleTip".Translate());
             }
             if (r != null)
             {
-                Section(r, "Roofs", "Built roofs as slate lids over your rooms, and rock roofs over caves.");
+                Section(r, "R3D_Settings_Roofs".Translate(), "R3D_Settings_RoofsNote".Translate());
                 bool roofs = st.showRoofs;
-                Check(r, "Show roofs", ref roofs, "All roofs or none: switch them off again to see inside.");
+                Check(r, "R3D_Settings_ShowRoofs".Translate(), ref roofs, "R3D_Settings_ShowRoofsTip".Translate());
                 if (roofs != st.showRoofs)
                 {
                     Roofs.Set(roofs);
                 }
                 Rect rb = r.GetRect(28f);
-                if (Widgets.ButtonText(rb, "Roof colour: " + SectionLayer_IsoRimRoofs.StyleNames[Mathf.Clamp(st.roofStyle, 0, 3)]))
+                if (Widgets.ButtonText(rb, "R3D_Settings_RoofColour".Translate(RoofStyleLabel(Mathf.Clamp(st.roofStyle, 0, 3)))))
                 {
                     List<FloatMenuOption> options = new List<FloatMenuOption>();
                     for (int i = 0; i < SectionLayer_IsoRimRoofs.StyleNames.Length; i++)
                     {
                         int chosen = i;
-                        options.Add(new FloatMenuOption(SectionLayer_IsoRimRoofs.StyleNames[i], delegate
+                        options.Add(new FloatMenuOption(RoofStyleLabel(i), delegate
                         {
                             st.roofStyle = chosen;
                             Roofs.Rebuild();
@@ -760,7 +769,7 @@ namespace IsoRim
                     }
                     Find.WindowStack.Add(new FloatMenu(options));
                 }
-                Note(r, "Built roofs rise from every edge to a ridge, like hipped roofs. There is a button for them in the bottom right corner of the screen, and a key you can set.");
+                Note(r, "R3D_Settings_RoofShapeNote".Translate());
             }
         }
 
@@ -768,45 +777,67 @@ namespace IsoRim
         {
             if (l != null)
             {
-                Section(l, "Buildings and nature", "Switch one off if it misbehaves.");
-                Check(l, "Walls and rock as solid blocks", ref st.walls3D);
-                Check(l, "Walls use the mod's textures", ref st.texturedWalls);
-                Check(l, "Rock has broken, sloping edges", ref st.ruggedRock);
-                Check(l, "Doors", ref st.doors3D);
-                Check(l, "Hand-made models", ref st.models3D, "Furniture, machines, wrecks, people, animals and armour.");
-                Check(l, "Trees", ref st.trees3D);
-                Check(l, "Grass, flowers and crops", ref st.smallPlants3D, "Thousands of these on a big map cost memory; switch off if it drags.");
-                Check(l, "Everything else, from its sprite", ref st.autoExtrude);
-                Check(l, "Items get a little thickness", ref st.thickItems);
+                Section(l, "R3D_Settings_BuildingsNature".Translate(), "R3D_Settings_BuildingsNatureNote".Translate());
+                Check(l, "R3D_Settings_Walls3D".Translate(), ref st.walls3D);
+                Check(l, "R3D_Settings_TexturedWalls".Translate(), ref st.texturedWalls);
+                Check(l, "R3D_Settings_RuggedRock".Translate(), ref st.ruggedRock);
+                Check(l, "R3D_Settings_Doors3D".Translate(), ref st.doors3D);
+                Check(l, "R3D_Settings_Models3D".Translate(), ref st.models3D, "R3D_Settings_Models3DTip".Translate());
+                Check(l, "R3D_Settings_Trees3D".Translate(), ref st.trees3D);
+                Check(l, "R3D_Settings_SmallPlants3D".Translate(), ref st.smallPlants3D, "R3D_Settings_SmallPlants3DTip".Translate());
+                Check(l, "R3D_Settings_AutoExtrude".Translate(), ref st.autoExtrude);
+                Check(l, "R3D_Settings_ThickItems".Translate(), ref st.thickItems);
                 if (st.thickItems)
                 {
-                    st.itemThickness = Slider(l, "  How thick items are", st.itemThickness, 0f, 1f,
-                        st.itemThickness <= 0.02f ? "flat" : (st.itemThickness * 100f).ToString("0") + "%",
-                        "Thins out items, weapons and clothes on the ground. All the way down lays them flat.");
+                    st.itemThickness = Slider(l, "R3D_Settings_ItemThickness".Translate(), st.itemThickness, 0f, 1f,
+                        st.itemThickness <= 0.02f ? "R3D_Settings_Flat".Translate().ToString() : (st.itemThickness * 100f).ToString("0") + "%",
+                        "R3D_Settings_ItemThicknessTip".Translate());
                 }
-                Check(l, "Items and weapons use the game's art", ref st.itemsFromArt,
-                    "Items, weapons and clothing are made solid from their own game sprites, so they look exactly like RimWorld. Off: the mod's hand-made item models.");
-                Check(l, "3D raw materials", ref st.rawModels, "Steel, wood, blocks, cloth, leather and other resources as 3D models, by stack size.");
-                Check(l, "Other plants stand upright", ref st.uprightPlants);
-                Check(l, "Map edge cut through the earth", ref st.mapEdge3D, "The edge of the map shows layers of soil and rock, like a diorama.");
+                Check(l, "R3D_Settings_ItemsFromArt".Translate(), ref st.itemsFromArt,
+                    "R3D_Settings_ItemsFromArtTip".Translate());
+                Check(l, "R3D_Settings_RawModels".Translate(), ref st.rawModels, "R3D_Settings_RawModelsTip".Translate());
+                Check(l, "R3D_Settings_UprightPlants".Translate(), ref st.uprightPlants);
+                Check(l, "R3D_Settings_MapEdge3D".Translate(), ref st.mapEdge3D, "R3D_Settings_MapEdge3DTip".Translate());
             }
             if (r != null)
             {
-                Section(r, "Creatures and effects");
-                Check(r, "Colonists and other people", ref st.pawns3D);
-                Check(r, "Animals", ref st.animals3D);
-                Check(r, "Mechanoids", ref st.mechs3D);
-                Check(r, "Weapons in hand", ref st.heldWeapons3D);
-                Check(r, "Work animations with tools", ref st.workAnimations, "Axes, pickaxes, hammers, scythes, hoes and brooms while colonists work.");
-                Check(r, "Blueprints show the finished build", ref st.ghosts3D, "Blueprints, frames and the placement preview as see-through 3D models.");
-                Check(r, "Damage marks on buildings", ref st.damage3D);
-                Check(r, "Flames, smoke, steam and sparkles", ref st.effects3D);
-                Check(r, "Sprites stand upright", ref st.uprightPawns, "For people and animals without a model.");
+                Section(r, "R3D_Settings_CreaturesEffects".Translate());
+                Check(r, "R3D_Settings_Pawns3D".Translate(), ref st.pawns3D);
+                Check(r, "R3D_Settings_Animals3D".Translate(), ref st.animals3D);
+                Check(r, "R3D_Settings_Mechs3D".Translate(), ref st.mechs3D);
+                Check(r, "R3D_Settings_HeldWeapons3D".Translate(), ref st.heldWeapons3D);
+                Check(r, "R3D_Settings_WorkAnimations".Translate(), ref st.workAnimations, "R3D_Settings_WorkAnimationsTip".Translate());
+                Check(r, "R3D_Settings_Ghosts3D".Translate(), ref st.ghosts3D, "R3D_Settings_Ghosts3DTip".Translate());
+                Check(r, "R3D_Settings_Damage3D".Translate(), ref st.damage3D);
+                Check(r, "R3D_Settings_Effects3D".Translate(), ref st.effects3D);
+                Check(r, "R3D_Settings_UprightPawns".Translate(), ref st.uprightPawns, "R3D_Settings_UprightPawnsTip".Translate());
 
-                Section(r, "Model style");
-                Check(r, "Textures on models", ref st.texturedModels);
-                Check(r, "Dark outlines on models", ref st.outlines);
+                Section(r, "R3D_Settings_ModelStyle".Translate());
+                Check(r, "R3D_Settings_TexturedModels".Translate(), ref st.texturedModels);
+                Check(r, "R3D_Settings_Outlines".Translate(), ref st.outlines);
             }
+        }
+
+        // A colour look's name and description in the game's language (R3D_Settings_Look_<name>, ..._Desc);
+        // the English ones in Looks.cs if there is no key.
+        private static string LookLabel(LookPreset p)
+        {
+            string key = "R3D_Settings_Look_" + p.name;
+            return key.CanTranslate() ? key.Translate().ToString() : p.label;
+        }
+
+        private static string LookDescription(LookPreset p)
+        {
+            string key = "R3D_Settings_Look_" + p.name + "_Desc";
+            return key.CanTranslate() ? key.Translate().ToString() : p.description;
+        }
+
+        // A roof style's name in the game's language (R3D_Settings_Roof_<StyleName>).
+        private static string RoofStyleLabel(int style)
+        {
+            string name = SectionLayer_IsoRimRoofs.StyleNames[style];
+            string key = "R3D_Settings_Roof_" + name;
+            return key.CanTranslate() ? key.Translate().ToString() : name;
         }
 
         // Two rows of colour chips: as they are, and under the look.
@@ -821,7 +852,7 @@ namespace IsoRim
                 Widgets.DrawBoxSolid(top, Palette[i]);
                 Widgets.DrawBoxSolid(bottom, grade(Palette[i]));
             }
-            TooltipHandler.TipRegion(r, "Top: colours as they are. Bottom: under this look.");
+            TooltipHandler.TipRegion(r, "R3D_Settings_PreviewTip".Translate());
             l.Gap(2f);
         }
     }

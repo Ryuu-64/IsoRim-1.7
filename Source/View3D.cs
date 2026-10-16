@@ -328,12 +328,12 @@ namespace IsoRim
             {
                 if (LockedOn)
                 {
-                    Messages.Message("IsoRim: 3D view is always on with " + LockedBy, MessageTypeDefOf.SilentInput, false);
+                    Messages.Message("R3D_Msg_AlwaysOnWith".Translate(LockedBy), MessageTypeDefOf.SilentInput, false);
                 }
                 else
                 {
                     Active = !Active;
-                    Messages.Message(Active ? "IsoRim: 3D view on" : "IsoRim: 3D view off", MessageTypeDefOf.SilentInput, false);
+                    Messages.Message((Active ? "R3D_Msg_ViewOn" : "R3D_Msg_ViewOff").Translate(), MessageTypeDefOf.SilentInput, false);
                 }
             }
 
@@ -344,7 +344,7 @@ namespace IsoRim
                 IsoRimSettings st = IsoRimMod.Settings;
                 st.isometric = !Active || !st.isometric;
                 Active = true;
-                Messages.Message(st.isometric ? "IsoRim: isometric view" : "IsoRim: straight-on view", MessageTypeDefOf.SilentInput, false);
+                Messages.Message((st.isometric ? "R3D_Msg_Isometric" : "R3D_Msg_StraightOn").Translate(), MessageTypeDefOf.SilentInput, false);
             }
 
             if (!typing && R3DKeyDefOf.R3D_FirstPerson != null && R3DKeyDefOf.R3D_FirstPerson.JustPressed)
@@ -554,7 +554,7 @@ namespace IsoRim
             {
                 st.pitch = 55f;
             }
-            Messages.Message("IsoRim: camera reset", MessageTypeDefOf.SilentInput, false);
+            Messages.Message("R3D_Msg_CameraReset".Translate(), MessageTypeDefOf.SilentInput, false);
         }
 
         // One step left (-1) or right (+1) from an eighth-turn count. With quarter snaps an odd

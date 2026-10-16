@@ -68,7 +68,7 @@ namespace IsoRim
         {
             if (pawn != null)
             {
-                Leave("IsoRim: first person off");
+                Leave("R3D_Msg_FirstPersonOff".Translate());
                 return;
             }
             Pawn chosen = null;
@@ -78,7 +78,7 @@ namespace IsoRim
             }
             if (chosen == null || !chosen.Spawned || chosen.Map != Find.CurrentMap || chosen.RaceProps == null || !chosen.RaceProps.Humanlike)
             {
-                Messages.Message("IsoRim: select one person for first person", MessageTypeDefOf.RejectInput, false);
+                Messages.Message("R3D_Msg_SelectOnePerson".Translate(), MessageTypeDefOf.RejectInput, false);
                 return;
             }
             View3D.Active = true;
@@ -86,7 +86,7 @@ namespace IsoRim
             headingSet = false;
             lookYaw = 0f;
             lookPitch = 8f;
-            Messages.Message("IsoRim: first person with " + chosen.LabelShort, MessageTypeDefOf.SilentInput, false);
+            Messages.Message("R3D_Msg_FirstPersonWith".Translate(chosen.LabelShort), MessageTypeDefOf.SilentInput, false);
         }
 
         public static void Leave(string message)
@@ -118,7 +118,7 @@ namespace IsoRim
             }
             if (!View3D.Active || pawn.Destroyed || !pawn.Spawned || pawn.Map != Find.CurrentMap || pawn.Dead)
             {
-                Leave("IsoRim: first person off");
+                Leave("R3D_Msg_FirstPersonOff".Translate());
                 return;
             }
             Vector3 p = pawn.DrawPos;
