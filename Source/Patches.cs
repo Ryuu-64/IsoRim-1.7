@@ -310,7 +310,10 @@ namespace IsoRim
                 prefix: nameof(ThingDrawAt_Prefix));
             Patch("3D models of buildings drawn every frame", AccessTools.DeclaredMethod(typeof(CompEmptyStateGraphic), "PostDraw"),
                 prefix: nameof(EmptyStatePostDraw_Prefix));
+            // The game's flat fire and darklight sprites are left out where the model has its own flame (FlameStandsIn).
             Patch("3D models of buildings drawn every frame", AccessTools.DeclaredMethod(typeof(CompFireOverlay), "PostDraw"),
+                prefix: nameof(FireOverlayPostDraw_Prefix), finalizer: nameof(FireOverlayPostDraw_Finalizer));
+            Patch("3D models of buildings drawn every frame", AccessTools.DeclaredMethod(typeof(CompDarklightOverlay), "PostDraw"),
                 prefix: nameof(FireOverlayPostDraw_Prefix), finalizer: nameof(FireOverlayPostDraw_Finalizer));
             // A bookcase draws its books and bookends itself after its body; with the model, the
             // books are baked onto its shelves (Bookcases), rebuilt when one goes in or out.

@@ -4816,6 +4816,7 @@
     <thingDef>DarktorchFungus</thingDef>
     <model>Models/fungus_darktorch.obj</model>
     <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.86</surfaceHeight>
   </IsoRim.ModelDef>
 
   <!-- The bonsai grows from the soil (0.205), not from the rim (plants rest on the pot's surfaceHeight). -->
@@ -7359,4 +7360,435 @@
     <scatter>0.16</scatter>
     <groundShadow>false</groundShadow>
   </IsoRim.ModelDef>
+
+  <!-- Coverage buildings batch 3 (2026-10-15, user-approved; round 3 = own 3D flames): Barricade, Brazier,
+       DarklightBrazier, Darktorch, Snowman. Models\buildings_b3.mtl (b3_* fixed colours, flame_dark / flame_dark_core
+       blue flames). Exact thingDef entries, no match words. -->
+
+  <!-- Barricade: linked like Fence. Post in every cell, the arm (built toward north, to the cell edge) once toward each
+       neighbour ModelBaker.Links joins (other barricades, doors, walls, "Fence" defNames). Stuff coloured / paintable. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_Barricade</defName>
+    <thingDef>Barricade</thingDef>
+    <models>
+      <li>Models/barricade_post.obj</li>
+      <li>Models/barricade_arm.obj</li>
+    </models>
+    <builtFor>(1, 1)</builtFor>
+    <linked>true</linked>
+  </IsoRim.ModelDef>
+
+  <!-- Braziers and Darktorch: RealtimeOnly (body layer) with their own 3D flame (flame* faces: left out while out of
+       fuel; the game's flat fire sprite is dropped by FlameStandsIn, the darklight sprite needs the
+       CompDarklightOverlay.PostDraw prefix). surfaceHeight = top of the logs / torch head, not the flame tip. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_Brazier</defName>
+    <thingDef>Brazier</thingDef>
+    <model>Models/brazier.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.52</surfaceHeight>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_DarklightBrazier</defName>
+    <thingDef>DarklightBrazier</thingDef>
+    <model>Models/darklight_brazier.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.52</surfaceHeight>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_Darktorch</defName>
+    <thingDef>Darktorch</thingDef>
+    <model>Models/darktorch.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.86</surfaceHeight>
+  </IsoRim.ModelDef>
+
+  <!-- Snowman: Graphic_Random A-D, list order = sprite order (both pick by thingIDNumber % n). -->
+  <IsoRim.ModelDef>
+    <defName>R3D_Snowman</defName>
+    <thingDef>Snowman</thingDef>
+    <models>
+      <li>Models/snowman_a.obj</li>
+      <li>Models/snowman_b.obj</li>
+      <li>Models/snowman_c.obj</li>
+      <li>Models/snowman_d.obj</li>
+    </models>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <!-- EXISTING ENTRY, change in place (not a new one): R3D_DarktorchFungus (near "Burnbong, Pyre, Effigy ..." block).
+       Models/fungus_darktorch.obj is replaced by the staged copy (same body + blue flame); add surfaceHeight so the top
+       stays at the torch head (0.86) instead of the flame tip (1.10):
+  <IsoRim.ModelDef>
+    <defName>R3D_DarktorchFungus</defName>
+    <thingDef>DarktorchFungus</thingDef>
+    <model>Models/fungus_darktorch.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.86</surfaceHeight>
+  </IsoRim.ModelDef>
+  -->
+
+  <!-- Plant batch plants_ody (2026-10-15): Odyssey plants that fell to the herb stand-in or a flat card (make_plants_ody.py,
+       OBJs + plants_ody.mtl go in Models\). Budget: grass-likes stay in the grass budget (yellow grass = grass_1..4 geometry,
+       4 faces; yellow tall grass / night grass = tall_grass_1..3 geometry, 5 faces; reeds 12 faces, budget raised in round 4);
+       other small plants <= 34 faces. Archean canopy is leaf_archean* (dropped while leafless, as vanilla's ArcheanTree_Leafless sprite; no keepLeaves),
+       twig_archean shows only while bare. Snagroot has no leaves. Wild twins of existing crops reuse the crop's model 1:1.
+       Plant_Brambles_Leafless has its own bare-twig model (round 4); Plant_Tinctoria / Plant_Fibercorn share their wild twins' models. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_YellowGrass</defName>
+    <thingDef>Plant_YellowGrass</thingDef>
+    <models>
+      <li>Models/plant_yellowgrass_a.obj</li>
+      <li>Models/plant_yellowgrass_b.obj</li>
+      <li>Models/plant_yellowgrass_c.obj</li>
+      <li>Models/plant_yellowgrass_d.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.18</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.50</scatter>
+    <groundShadow>false</groundShadow>
+    <outline>0.00</outline>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_YellowTallGrass</defName>
+    <thingDef>Plant_YellowTallGrass</thingDef>
+    <models>
+      <li>Models/plant_yellowtallgrass_a.obj</li>
+      <li>Models/plant_yellowtallgrass_b.obj</li>
+      <li>Models/plant_yellowtallgrass_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.18</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.50</scatter>
+    <groundShadow>false</groundShadow>
+    <outline>0.00</outline>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Nightgrass</defName>
+    <thingDef>Plant_Nightgrass</thingDef>
+    <models>
+      <li>Models/plant_nightgrass_a.obj</li>
+      <li>Models/plant_nightgrass_b.obj</li>
+      <li>Models/plant_nightgrass_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.18</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.50</scatter>
+    <groundShadow>false</groundShadow>
+    <outline>0.00</outline>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Reeds</defName>
+    <thingDef>Plant_Reeds</thingDef>
+    <models>
+      <li>Models/plant_reeds_a.obj</li>
+      <li>Models/plant_reeds_b.obj</li>
+      <li>Models/plant_reeds_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.18</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.30</scatter>
+    <groundShadow>false</groundShadow>
+    <outline>0.00</outline>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Bulrush</defName>
+    <thingDef>Plant_Bulrush</thingDef>
+    <models>
+      <li>Models/plant_bulrush_a.obj</li>
+      <li>Models/plant_bulrush_b.obj</li>
+      <li>Models/plant_bulrush_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.30</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Lotus</defName>
+    <thingDef>Plant_Lotus</thingDef>
+    <models>
+      <li>Models/plant_lotus_a.obj</li>
+      <li>Models/plant_lotus_b.obj</li>
+      <li>Models/plant_lotus_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.30</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_LilyPad</defName>
+    <thingDef>Plant_LilyPad</thingDef>
+    <models>
+      <li>Models/plant_lilypad_a.obj</li>
+      <li>Models/plant_lilypad_b.obj</li>
+      <li>Models/plant_lilypad_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.10</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Thornvine</defName>
+    <thingDef>Plant_Thornvine</thingDef>
+    <models>
+      <li>Models/plant_thornvine_a.obj</li>
+      <li>Models/plant_thornvine_b.obj</li>
+      <li>Models/plant_thornvine_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.10</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Fireweed</defName>
+    <thingDef>Plant_Fireweed</thingDef>
+    <models>
+      <li>Models/plant_fireweed_a.obj</li>
+      <li>Models/plant_fireweed_b.obj</li>
+      <li>Models/plant_fireweed_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.10</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_MagmaCactus</defName>
+    <thingDef>Plant_MagmaCactus</thingDef>
+    <models>
+      <li>Models/plant_magmacactus_a.obj</li>
+      <li>Models/plant_magmacactus_b.obj</li>
+      <li>Models/plant_magmacactus_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.10</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_NightRafflesia</defName>
+    <thingDef>Plant_NightRafflesia</thingDef>
+    <models>
+      <li>Models/plant_nightrafflesia_a.obj</li>
+      <li>Models/plant_nightrafflesia_b.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Bush_Leafless</defName>
+    <thingDef>Plant_Bush_Leafless</thingDef>
+    <models>
+      <li>Models/plant_bush_leafless_a.obj</li>
+      <li>Models/plant_bush_leafless_b.obj</li>
+      <li>Models/plant_bush_leafless_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.18</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.50</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Berry_Leafless</defName>
+    <thingDef>Plant_Berry_Leafless</thingDef>
+    <models>
+      <li>Models/plant_berry_leafless_a.obj</li>
+      <li>Models/plant_berry_leafless_b.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.18</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.50</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Brambles_Leafless</defName>
+    <thingDef>Plant_Brambles_Leafless</thingDef>
+    <models>
+      <li>Models/plant_brambles_leafless_a.obj</li>
+      <li>Models/plant_brambles_leafless_b.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.18</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.50</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Tinctoria_Wild</defName>
+    <thingDef>Plant_Tinctoria_Wild</thingDef>
+    <models>
+      <li>Models/plant_tinctoria_a.obj</li>
+      <li>Models/plant_tinctoria_b.obj</li>
+      <li>Models/plant_tinctoria_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.16</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Fibercorn_Wild</defName>
+    <thingDef>Plant_Fibercorn_Wild</thingDef>
+    <models>
+      <li>Models/plant_fibercorn_a.obj</li>
+      <li>Models/plant_fibercorn_b.obj</li>
+      <li>Models/plant_fibercorn_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.16</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <!-- The sown crops share the wild twins' sprites (user approved, round 4). -->
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Tinctoria</defName>
+    <thingDef>Plant_Tinctoria</thingDef>
+    <models>
+      <li>Models/plant_tinctoria_a.obj</li>
+      <li>Models/plant_tinctoria_b.obj</li>
+      <li>Models/plant_tinctoria_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.16</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Fibercorn</defName>
+    <thingDef>Plant_Fibercorn</thingDef>
+    <models>
+      <li>Models/plant_fibercorn_a.obj</li>
+      <li>Models/plant_fibercorn_b.obj</li>
+      <li>Models/plant_fibercorn_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.16</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_TreeSnagroot</defName>
+    <thingDef>Plant_TreeSnagroot</thingDef>
+    <models>
+      <li>Models/tree_snagroot_a.obj</li>
+      <li>Models/tree_snagroot_b.obj</li>
+      <li>Models/tree_snagroot_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.12</scaleJitter>
+    <growthScale>true</growthScale>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_TreeArchean</defName>
+    <thingDef>Plant_TreeArchean</thingDef>
+    <model>Models/tree_archean_a.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.12</scaleJitter>
+    <growthScale>true</growthScale>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+  <!-- 1:1 reuse: wild twins of crops / trees that already have models (same sprites, inherited graphicData) -->
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Cotton_Wild</defName>
+    <thingDef>Plant_Cotton_Wild</thingDef>
+    <model>Models/cotton.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.16</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Psychoid_Wild</defName>
+    <thingDef>Plant_Psychoid_Wild</thingDef>
+    <model>Models/psychoid.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.16</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Smokeleaf_Wild</defName>
+    <thingDef>Plant_Smokeleaf_Wild</thingDef>
+    <model>Models/smokeleaf.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.16</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Strawberry_Wild</defName>
+    <thingDef>Plant_Strawberry_Wild</thingDef>
+    <models>
+      <li>Models/strawberry_1.obj</li>
+      <li>Models/strawberry_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.10</scaleJitter>
+    <growthScale>true</growthScale>
+    <scatter>0.16</scatter>
+    <groundShadow>false</groundShadow>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_TreeCocoa_Wild</defName>
+    <thingDef>Plant_TreeCocoa_Wild</thingDef>
+    <model>Models/tree_cocoa.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.12</scaleJitter>
+    <growthScale>true</growthScale>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
 </Defs>
