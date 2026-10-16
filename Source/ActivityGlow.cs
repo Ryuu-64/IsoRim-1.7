@@ -9,7 +9,8 @@ namespace IsoRim
     // Glowing marks that follow a thing's activity (the obelisks' runes): the entry's activityGlowModel, drawn every frame
     // over the baked body with its glowing faces unlit (ObjLoader.Glowing), as the game's Graphic_ActivityMask lights its
     // mask in colorTwo with alpha = CompActivity.ActivityLevel. With a = the activity level (0..1):
-    //   below MinLevel the part is not drawn (vanilla's mask is invisible at 0);
+    //   below MinLevel the part is not drawn (vanilla's mask is invisible at 0); a thing with no CompActivity (the
+    //     labyrinth obelisk, whose runes vanilla always shows) is drawn at FixedLevel;
     //   colour = lerp(0.6 x the part's own colour, colorTwo (else glowColor), a^1.2) x (1 + 0.6 a), so it warms from a dim
     //     ember to full red and brightens;
     //   pulse: x (1 + 0.18 a sin(2 pi ticks / period)), the period shortening from 240 to 60 ticks as a rises (a slow
@@ -53,10 +54,13 @@ namespace IsoRim
             return t.def.drawerType != DrawerType.RealtimeOnly || SectionLayer_IsoRimBodies.StandsIn(t);
         }
 
+        // Things with no CompActivity (the labyrinth's obelisk) glow steadily at this level: vanilla always shows their runes.
+        public const float FixedLevel = 0.6f;
+
         public static float Level(Thing t)
         {
             CompActivity a = (t as ThingWithComps)?.GetComp<CompActivity>();
-            return a != null ? Mathf.Clamp01(a.ActivityLevel) : 0f;
+            return a != null ? Mathf.Clamp01(a.ActivityLevel) : FixedLevel;
         }
 
         // The colour the part is drawn in at this activity, before the flicker.
@@ -117,7 +121,8 @@ namespace IsoRim
             ModelDef def = entry.def;
             int ticks = Find.TickManager.TicksGame;
             int id = t.thingIDNumber;
-            Color c = ColourAt(entry, t.def, a, ticks, id);
+            bool steady = (t as ThingWithComps)?.GetComp<CompActivity>() == null;   // FixedLevel: no pulse
+            Color c = steady ? ColourAt(entry, t.def, a, 0, 0) : ColourAt(entry, t.def, a, ticks, id);
             if (a > 0.8f && Hashing.Unit(id, ticks / 5, 31) < 0.15f * (a - 0.8f) / 0.2f)
             {
                 c *= 0.45f;

@@ -8043,7 +8043,8 @@
        thingDef entries, no match words. Entries marked NEEDS CODE n must ship with that change (code\isorim_b7.patch,
        code\code_plan.txt). New fields: pulseParts, activityGlowModel (+ the existing glowMaterials). -->
 
-  <!-- Pits (no code). The rim stands above the ground; the hole is a black floor inside a dark rock wall. -->
+  <!-- Pits, sunk into the ground (sinkHole = radius of the opening, SinkHoles.cs): the ground cells the opening touches are
+       cut out, a low sandy apron covers the cut, the shaft goes 2-2.6 cells down to a black floor. Open shapes: no outline. -->
   <IsoRim.ModelDef>
     <defName>R3D_PitGate</defName>
     <thingDef>PitGate</thingDef>
@@ -8051,6 +8052,8 @@
     <surfaceHeight>0.00</surfaceHeight>
     <builtFor>(8, 8)</builtFor>
     <groundShadow>false</groundShadow>
+    <sinkHole>3.3</sinkHole>
+    <outline>0</outline>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -8061,6 +8064,8 @@
     <builtFor>(3, 3)</builtFor>
     <randomRotation>true</randomRotation>
     <groundShadow>false</groundShadow>
+    <sinkHole>1.0</sinkHole>
+    <outline>0</outline>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -8153,7 +8158,8 @@
   </IsoRim.ModelDef>
 
   <!-- Obelisks. NEEDS CODE 4 for the runes: they are only in the glow part (hidden below activity 0.1, then glowing up to
-       colorTwo with pulse, flicker and flecks). The labyrinth obelisk has no CompActivity: plain model, no glow part. -->
+       colorTwo with pulse, flicker and flecks). The labyrinth obelisk has no CompActivity: its runes glow steadily at
+       ActivityGlow.FixedLevel (vanilla always shows them). -->
   <IsoRim.ModelDef>
     <defName>R3D_WarpedObelisk_Abductor</defName>
     <thingDef>WarpedObelisk_Abductor</thingDef>
@@ -8170,6 +8176,8 @@
     <model>Models/obelisk_warped.obj</model>
     <surfaceHeight>0.00</surfaceHeight>
     <builtFor>(3, 3)</builtFor>
+    <activityGlowModel>Models/obelisk_warped_runes.obj</activityGlowModel>
+    <glowMaterials><li>b7_rune</li></glowMaterials>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>

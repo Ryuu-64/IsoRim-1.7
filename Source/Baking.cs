@@ -1844,15 +1844,20 @@ namespace IsoRim
         public static bool Bake(SectionLayer layer, Thing thing, ModelEntry entry, float baseHeight)
         {
             int mark = RoofClip.Mark(layer);
+            Floor = entry.def.sinkHole > 0f ? float.NegativeInfinity : 0f;   // a sunk hole reaches below the ground (SinkHoles)
             try
             {
                 return BakeModel(layer, thing, entry, baseHeight);
             }
             finally
             {
+                Floor = 0f;
                 RoofClip.Tag(layer, mark, thing.TrueCenter().ToIntVec3());   // whatever was written (nothing if it failed)
             }
         }
+
+        // The lowest height a baked model's corners are written at: the ground, except below a sunk hole (Bake).
+        private static float Floor;
 
         private static bool BakeModel(SectionLayer layer, Thing thing, ModelEntry entry, float baseHeight)
         {
@@ -1884,7 +1889,9 @@ namespace IsoRim
             int id = thing.thingIDNumber;
             if (def.randomRotation)
             {
-                yaw += Hashing.Unit(id, 7, 1) * 360f;
+                float spin = Hashing.Unit(id, 7, 1) * 360f;
+                // a sunk hole's apron covers its square cut only when turned by quarter turns
+                yaw += def.sinkHole > 0f ? Mathf.Floor(spin / 90f) * 90f : spin;
             }
             if (def.scaleJitter > 0f)
             {
@@ -2251,7 +2258,7 @@ namespace IsoRim
                     Vector3 inside = tm != null ? m.positions[k] - hull * Inset : m.positions[k];
                     Vector3 p = turn * (Vector3.Scale(lay * inside + layLift, scale) + offset);
                     pm.tris.Add(pm.verts.Count);
-                    pm.verts.Add(new Vector3(center.x + p.x, baseY + Mathf.Max(0f, p.y) / squash, center.z + p.z));
+                    pm.verts.Add(new Vector3(center.x + p.x, baseY + Mathf.Max(Floor, p.y) / squash, center.z + p.z));
                     pm.colors.Add(R3DMaterials.Shaded(c, 1f));
                     pm.uvs.Add(default);
                     if (tagged)
@@ -2264,7 +2271,7 @@ namespace IsoRim
                     {
                         Vector3 h = turn * (Vector3.Scale(lay * (m.positions[k] + hull) + layLift, scale) + offset);
                         outline.tris.Add(outline.verts.Count);
-                        outline.verts.Add(new Vector3(center.x + h.x, baseY + Mathf.Max(0f, h.y) / squash, center.z + h.z));
+                        outline.verts.Add(new Vector3(center.x + h.x, baseY + Mathf.Max(Floor, h.y) / squash, center.z + h.z));
                         outline.colors.Add(R3DMaterials.Shaded(c, OutlineShade));
                         outline.uvs.Add(default);
                         if (tagged)
@@ -2279,7 +2286,7 @@ namespace IsoRim
                         Vector3 q = turn * (Vector3.Scale(lay * (m.positions[k] + m.normals[i] * FaceLift) + layLift, scale) + offset);
                         Vector2 uv = m.uvs[k];
                         tm.tris.Add(tm.verts.Count);
-                        tm.verts.Add(new Vector3(center.x + q.x, baseY + Mathf.Max(0f, q.y) / squash, center.z + q.z));
+                        tm.verts.Add(new Vector3(center.x + q.x, baseY + Mathf.Max(Floor, q.y) / squash, center.z + q.z));
                         tm.colors.Add(White);
                         tm.uvs.Add(new Vector3(uv.x, uv.y, 0f));
                         if (tagged)

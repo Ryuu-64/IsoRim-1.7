@@ -159,6 +159,13 @@ namespace IsoRim
             Patch("redrawing walls and trees as they change", FindMethod(typeof(Thing), "SpawnSetup"), postfix: nameof(SpawnSetup_Postfix));
             Patch("redrawing walls and trees as they go", FindMethod(typeof(Thing), "DeSpawn"), prefix: nameof(DeSpawn_Prefix));
 
+            // Sunk holes (pits, SinkHoles.cs): the layers the game paints on the ground leave out the cells a hole cuts.
+            Patch("ground cut under sunk holes", FindMethod(typeof(SectionLayer_Terrain), "Regenerate"), postfix: nameof(SinkCut_Postfix));
+            Patch("ground cut under sunk holes", FindMethod(typeof(SectionLayer_TerrainEdges), "Regenerate"), postfix: nameof(SinkCut_Postfix));
+            Patch("ground cut under sunk holes", FindMethod(typeof(SectionLayer_TerrainScatter), "Regenerate"), postfix: nameof(SinkCut_Postfix));
+            Patch("ground cut under sunk holes", FindMethod(typeof(SectionLayer_Snow), "Regenerate"), postfix: nameof(SinkCutColours_Postfix));
+            Patch("ground cut under sunk holes", FindMethod(typeof(SectionLayer_Sand), "Regenerate"), postfix: nameof(SinkCutColours_Postfix));
+
             // The preview of what is being placed, under the pointer.
             Type ghostDrawer = AccessTools.TypeByName("Verse.GhostDrawer");
             MethodInfo ghostThing = ghostDrawer != null ? FindMethod(ghostDrawer, "DrawGhostThing") : null;
@@ -1670,6 +1677,30 @@ namespace IsoRim
             NoteShapeChange(__instance, __instance != null ? __instance.MapHeld : null);
         }
 
+        public static void SinkCut_Postfix(SectionLayer __instance)
+        {
+            try
+            {
+                SinkHoles.CutGround(__instance, false);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Cutting the ground under a sunk hole failed: " + e, 93611391);
+            }
+        }
+
+        public static void SinkCutColours_Postfix(SectionLayer __instance)
+        {
+            try
+            {
+                SinkHoles.CutGround(__instance, true);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Cutting the ground under a sunk hole failed: " + e, 93611391);
+            }
+        }
+
         private static void NoteShapeChange(Thing t, Map map)
         {
             if (t == null || map == null || t.def == null || !View3D.Active || Current.ProgramState != ProgramState.Playing)
@@ -1681,6 +1712,7 @@ namespace IsoRim
                 if (t.def.category == ThingCategory.Building)
                 {
                     IsoCellMap.Dirty(map, t.OccupiedRect());   // the fog lid lies on what stands there
+                    SinkHoles.NoteChange(t, map);               // a pit: the ground under and round it
                     if (t is Building_Door && IsoRimMod.Settings.cutRooms && ShaderCut.On)
                     {
                         IsoCellMap.Dirty(map, CellRect.CenteredOn(t.Position, WallBoxes.RockReach + 1));   // (shader cut-away)

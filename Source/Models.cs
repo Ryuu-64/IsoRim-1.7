@@ -68,6 +68,11 @@ namespace IsoRim
         public bool fullVariant = false;    // the second model is used once the thing holds something (graves)
         public string emptyModel;           // used instead while the game draws the thing as empty (CompEmptyStateGraphic: an opened mech capsule)
         public bool groundShadow = true;    // soft shading on the ground under it
+        public float sinkHole = 0f;         // > 0: a hole sunk into the ground (pits), this the radius (cells, model space) of
+                                            // its opening: the model may reach below the ground, the ground cells the opening
+                                            // touches are cut out of the map mesh and the ground round it hides what lies under
+                                            // it (SinkHoles.cs). The model must cover the cut cells outside the opening (an
+                                            // apron); a random turn is kept to quarter turns
         public float outline = 1f;          // how bold the dark outline is; 0 for none
         public float outlineMinSize = 0f;   // separate pieces smaller than this (cells, largest side), and flat sheets,
                                             // get no outline (a chess table's pieces and board), so small detail does not turn black
