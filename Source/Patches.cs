@@ -1173,6 +1173,12 @@ namespace IsoRim
                 bool item = __0.def.category == ThingCategory.Item;
                 float resting = item ? Forms.BaseUnder(__0, true) : 0f;
 
+                // A wall fixture without a model: its sprite stands on the wall face (WallMount).
+                if (form.form != Form3D.Model && !item && WallMount.Is(__0.def) && WallMount.PrintCard(__instance, __0))
+                {
+                    return false;
+                }
+
                 switch (form.form)
                 {
                     case Form3D.Model:
@@ -2524,6 +2530,8 @@ namespace IsoRim
             public float wasHeight;
             public bool wasAnchored;
             public Vector3 wasAnchor;
+            public bool wasPivoted;
+            public Vector3 wasPivot;
         }
 
         // Wraps the game's per-frame drawing of one thing. __0 is the drawing phase; only the
@@ -2555,6 +2563,26 @@ namespace IsoRim
             // Speech bubbles and icons over people's heads stand up and float above them.
             if (mote != null && (mote.def.altitudeLayer == AltitudeLayer.MetaOverlays || mote.def.altitudeLayer == AltitudeLayer.MoteOverhead))
             {
+                Pawn speaker = BubbleOwner(mote);
+                if (speaker != null)
+                {
+                    // A speech, thought or mood bubble (and the fleeing or alert sign thrown off someone): one card over
+                    // the person, laid out round them as the game shows it from above.
+                    BeginBillboard(ref __state, BubbleCardHeight(speaker), false, Vector3.zero);
+                    if (__state.changed)
+                    {
+                        DrawHook.hasPivot = true;
+                        DrawHook.billboardPivot = mote.link1.LastDrawPos;
+                        Pawn spoken = mote is MoteBubble mb ? mb.arrowTarget : null;
+                        DrawHook.hasPointerAt = spoken != null && spoken.Spawned;
+                        if (DrawHook.hasPointerAt)
+                        {
+                            Vector3 at = spoken.DrawPos;
+                            DrawHook.pointerAt = new Vector3(at.x, Interaction.PickHeight(spoken) * 0.5f, at.z);
+                        }
+                    }
+                    return;
+                }
                 BeginBillboard(ref __state, OverheadHeight, false, Vector3.zero);
                 return;
             }
@@ -2596,6 +2624,8 @@ namespace IsoRim
             state.wasHeight = DrawHook.billboardHeight;
             state.wasAnchored = DrawHook.hasAnchor;
             state.wasAnchor = DrawHook.billboardAnchor;
+            state.wasPivoted = DrawHook.hasPivot;
+            state.wasPivot = DrawHook.billboardPivot;
             if (anchored)
             {
                 height += 0.05f * Mathf.Sin(Time.realtimeSinceStartup * 2.4f + anchor.x * 1.3f + anchor.z * 0.7f);
@@ -2604,7 +2634,35 @@ namespace IsoRim
             DrawHook.billboardHeight = height;
             DrawHook.hasAnchor = anchored;
             DrawHook.billboardAnchor = anchor;
+            DrawHook.hasPivot = false;
+            DrawHook.hasPointerAt = false;
             DrawHook.active = true;
+        }
+
+        // The person a bubble mote belongs to: MoteBubble (speech, thought, mood, forced job) and the signs thrown
+        // off someone (MoteThrownAttached: fleeing, attacking, alerts), attached to a spawned pawn. Null otherwise.
+        private static Pawn BubbleOwner(Mote mote)
+        {
+            if (!(mote is MoteBubble) && !(mote is MoteThrown))   // MoteThrownAttached is internal; a thrown mote counts only while attached (below)
+            {
+                return null;
+            }
+            if (!mote.link1.Linked || !mote.link1.Target.HasThing)
+            {
+                return null;
+            }
+            Pawn p = mote.link1.Target.Thing as Pawn;
+            return p != null && p.Spawned ? p : null;
+        }
+
+        // How high the bubble card's hinge (the person's middle in the game's layout) stands: the game puts a
+        // bubble 0.75 cells up and right of the person, so it sits beside and just over the head; lying down, low.
+        private const float BubbleBelowTop = 0.6f;
+
+        private static float BubbleCardHeight(Pawn p)
+        {
+            float top = p.GetPosture() == PawnPosture.Standing ? Interaction.PickHeight(p) : 0.45f;
+            return Mathf.Max(0f, top - BubbleBelowTop);
         }
 
 
@@ -2752,6 +2810,8 @@ namespace IsoRim
                 DrawHook.billboardHeight = __state.wasHeight;
                 DrawHook.hasAnchor = __state.wasAnchored;
                 DrawHook.billboardAnchor = __state.wasAnchor;
+                DrawHook.hasPivot = __state.wasPivoted;
+                DrawHook.billboardPivot = __state.wasPivot;
             }
         }
 
@@ -2858,6 +2918,12 @@ namespace IsoRim
             // the 3D node with the rest of what is drawn over it each frame, as other bars do.
             MethodInfo bandBar = AccessTools.DeclaredMethod(typeof(CompBandNode), "PostDraw");
             if (bandBar != null && TryRedirect(bandBar, transpiler))
+            {
+                count++;
+            }
+            // A bubble's icon and arrow are drawn straight to Unity: through DrawHook they stand up with the bubble.
+            MethodInfo bubble = AccessTools.DeclaredMethod(typeof(MoteBubble), "DrawAt", new[] { typeof(Vector3), typeof(bool) });
+            if (bubble != null && TryRedirect(bubble, Hook(nameof(MoteBubble_Transpiler))))
             {
                 count++;
             }
@@ -3036,6 +3102,27 @@ namespace IsoRim
                     if (IsRedirectable(callee))
                     {
                         ci.operand = DrawHook.ReplacementFor(callee);
+                    }
+                }
+                yield return ci;
+            }
+        }
+
+        // MoteBubble.DrawAt: the icon goes through DrawHook like the bubble itself; the arrow toward the
+        // person spoken to through DrawHook.DrawPointer, which turns it to point at them on screen.
+        public static IEnumerable<CodeInstruction> MoteBubble_Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            MethodInfo pointer = AccessTools.Method(typeof(DrawHook), nameof(DrawHook.DrawPointer));
+            foreach (CodeInstruction ci in instructions)
+            {
+                if (ci.opcode == OpCodes.Call)
+                {
+                    MethodInfo callee = ci.operand as MethodInfo;
+                    if (IsRedirectable(callee))
+                    {
+                        ParameterInfo[] ps = callee.GetParameters();
+                        bool arrow = ps.Length == 5 && ps[1].ParameterType == typeof(Vector3) && ps[2].ParameterType == typeof(Quaternion);
+                        ci.operand = arrow ? pointer : DrawHook.ReplacementFor(callee);
                     }
                 }
                 yield return ci;

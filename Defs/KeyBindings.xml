@@ -63,10 +63,17 @@
 
   <KeyBindingDef>
     <defName>R3D_LookModifier</defName>
-    <label>free look: hold with the middle mouse button</label>
+    <label>free look: hold key</label>
     <category>IsoRim</category>
     <defaultKeyCodeA>LeftControl</defaultKeyCodeA>
     <defaultKeyCodeB>RightControl</defaultKeyCodeB>
+  </KeyBindingDef>
+
+  <KeyBindingDef>
+    <defName>R3D_LookButton</defName>
+    <label>free look: drag button</label>
+    <category>IsoRim</category>
+    <defaultKeyCodeA>Mouse2</defaultKeyCodeA>
   </KeyBindingDef>
 
   <KeyBindingDef>

@@ -120,6 +120,8 @@ namespace IsoRim
     //                                bullet drawn from there; 0: the game's flat flash and the bullet from the middle (before/after)
     //   clearflashes=1               the shot flashes in the air removed, no tick (the same frame without them, for diffs)
     //   interact=x,z                 the nearest free colonist is ordered to activate the building (as its float menu option)
+    //   social=x,z,chat|mood|thought the colonist there chats with the nearest other colonist, gains a mood bubble or a thought bubble
+    //   lookcheck=1                  logs the free look key bindings (bound keys, labels) and whether they read as held
     //   manfire=x,z,tx,tz            the turret in the cell (a mortar: loaded with an HE shell) manned by the nearest free
     //                                colonist and ordered to fire at (tx,tz) (real jobs: run tickuntil=flash after it)
     //   turretcheck=1                logs every turret's verb state, aim override, gun rotation and which gun model it shows
@@ -1203,6 +1205,48 @@ namespace IsoRim
                     }
                     ic.OrderForceTarget(ip);   // as the float menu option does: the colonist walks over and activates it
                     Log.Message("[IsoRim probe] interact: " + ip.LabelShort + " at " + ip.Position + " activates " + ib.def.defName + " (" + (ip.CurJob != null ? ip.CurJob.def.defName : "no job") + ")");
+                    break;
+                }
+                case "lookcheck":
+                {
+                    // lookcheck=1: the free look key bindings as loaded (defaults, labels) and whether they read as held now.
+                    foreach (KeyBindingDef kd in new[] { R3DKeyDefOf.R3D_LookButton, R3DKeyDefOf.R3D_LookModifier })
+                    {
+                        Log.Message("[IsoRim probe] lookcheck " + (kd == null ? "missing" : kd.defName + " '" + kd.LabelCap + "' A=" + KeyPrefs.KeyPrefsData.GetBoundKeyCode(kd, KeyPrefs.BindingSlot.A)
+                            + " B=" + KeyPrefs.KeyPrefsData.GetBoundKeyCode(kd, KeyPrefs.BindingSlot.B) + " held " + View3D.BindingHeld(kd, false)));
+                    }
+                    Log.Message("[IsoRim probe] lookcheck LookHeld " + View3D.LookHeld() + " lookMode " + IsoRimMod.Settings.lookMode);
+                    break;
+                }
+                case "social":
+                {
+                    // social=x,z,chat|mood|thought: the colonist in that cell chats with the nearest other colonist
+                    // (Pawn_InteractionsTracker.TryInteractWith, as the interaction worker does), gains a bad memory
+                    // with a mood bubble, or shows a thought bubble (the disoriented icon, as HediffComp_Disorientation).
+                    IntVec3 sc = new IntVec3(I(a[0]), 0, I(a[1]));
+                    Pawn sp = sc.GetFirstPawn(map);
+                    string kind = a.Length > 2 ? a[2] : "chat";
+                    if (sp == null)
+                    {
+                        Log.Warning("[IsoRim probe] social: nobody at " + sc);
+                        return;
+                    }
+                    bool ok = false;
+                    if (kind == "chat")
+                    {
+                        Pawn other = map.mapPawns.FreeColonistsSpawned.Where(p => p != sp).OrderBy(p => p.Position.DistanceToSquared(sc)).FirstOrDefault();
+                        ok = other != null && sp.interactions.TryInteractWith(other, InteractionDefOf.Chitchat);
+                    }
+                    else if (kind == "mood" && sp.needs != null && sp.needs.mood != null)
+                    {
+                        sp.needs.mood.thoughts.memories.TryGainMemory(ThoughtDefOf.AteRawFood);
+                        ok = true;
+                    }
+                    else if (kind == "thought")
+                    {
+                        ok = MoteMaker.MakeThoughtBubble(sp, "Things/Mote/Disoriented") != null;
+                    }
+                    Log.Message("[IsoRim probe] social " + kind + " by " + sp.LabelShort + " at " + sc + ": " + (ok ? "done" : "failed"));
                     break;
                 }
                 case "turretcheck":

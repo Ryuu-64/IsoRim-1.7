@@ -58,8 +58,8 @@ namespace IsoRim
                                             // white while unpainted and the paint colour once painted, on the Metal swatch
         public string fallback;             // "SmallPlants": every plant that is not a tree and has no other entry
 
-        public bool wallMounted = false;    // fixed to the wall the thing faces (wall lamps)
-        public float mountHeight = 0.5f;    // how far up that wall, as a fraction of the wall's height
+        public bool wallMounted = false;    // fixed to the wall the thing faces (the game's wall attachments always are, see WallMount)
+        public float mountHeight = -1f;     // how far up that wall, as a fraction of its height; -1: WallMount's rule (top over a colonist's head)
         public bool alongRun = false;       // turned a quarter turn where its row runs north-south (sandbags)
         public bool fullVariant = false;    // the second model is used once the thing holds something (graves)
         public string emptyModel;           // used instead while the game draws the thing as empty (CompEmptyStateGraphic: an opened mech capsule)

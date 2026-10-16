@@ -18,7 +18,8 @@
          <layFlat>true</layFlat>              built as held; tipped on its side on the ground
          <scatter>0.5</scatter>               move each one off the middle of its cell
          <spriteTint>true</spriteTint>        colour 'stuff' parts from the thing's own sprite
-         <wallMounted>true</wallMounted> <mountHeight>0.5</mountHeight>   fixed to the wall it faces
+         <wallMounted>true</wallMounted>     fixed to the wall it faces (the game's wall attachments always are);
+                                              <mountHeight>0.5</mountHeight> sets how far up as a fraction of the wall
          <alongRun>true</alongRun>            turned to follow the row of the same thing it is in
          <fullVariant>true</fullVariant>      the second model is used once the thing holds something
          <groundShadow>false</groundShadow>   no soft shadow on the ground under it
@@ -195,7 +196,6 @@
     <model>Models/wall_torch.obj</model>
     <surfaceHeight>0.00</surfaceHeight>
     <wallMounted>true</wallMounted>
-    <mountHeight>0.48</mountHeight>
     <groundShadow>false</groundShadow>
   </IsoRim.ModelDef>
 
@@ -205,7 +205,6 @@
     <model>Models/wall_lamp.obj</model>
     <surfaceHeight>0.00</surfaceHeight>
     <wallMounted>true</wallMounted>
-    <mountHeight>0.52</mountHeight>
     <groundShadow>false</groundShadow>
   </IsoRim.ModelDef>
 

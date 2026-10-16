@@ -241,6 +241,10 @@ namespace IsoRim
             {
                 return 0f;
             }
+            if (t.Spawned && t.def.category == ThingCategory.Building && WallMount.Is(t.def))
+            {
+                return WallMount.TopOf(t);   // up on its wall
+            }
             ThingForm f = Forms.For(t.def);
             if (t is Plant && f.form == Form3D.Model && f.model != null && f.model.HasModel)
             {

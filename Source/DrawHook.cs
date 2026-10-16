@@ -31,6 +31,13 @@ namespace IsoRim
         public static bool hasAnchor;
         public static Vector3 billboardAnchor;
 
+        // With a pivot, everything drawn is stood up as one card hinged on the pivot (the person a speech
+        // bubble belongs to): each mesh keeps its offset from the pivot as the game lays it out seen from
+        // above (east = right, north = up), so a bubble, its icon and its arrow sit round the person on
+        // screen as in the game, at billboardHeight over the pivot.
+        public static bool hasPivot;
+        public static Vector3 billboardPivot;
+
         // How far flat overlays (field edges, drag highlights, placement sprites) are kept off
         // the ground: the game spaces its drawing layers far apart in height, which the 3D view
         // would otherwise show as overlays floating in the air.
@@ -49,8 +56,12 @@ namespace IsoRim
                 return xform * matrix;
             }
             Vector3 p = matrix.GetColumn(3);
+            if (hasPivot)
+            {
+                p = new Vector3(billboardPivot.x, p.y, billboardPivot.z);
+            }
             Matrix4x4 local = Matrix4x4.Translate(-p) * matrix;
-            if (hasAnchor)
+            if (hasAnchor && !hasPivot)
             {
                 Vector3 right = Quaternion.Euler(0f, View3D.Yaw, 0f) * Vector3.right;
                 float along = Vector3.Dot(new Vector3(p.x - billboardAnchor.x, 0f, p.z - billboardAnchor.z), right);
@@ -146,6 +157,54 @@ namespace IsoRim
             {
                 Graphics.DrawMesh(mesh, position, rotation, material, layer, camera, submeshIndex, properties);
             }
+        }
+
+        // MoteBubble's arrow toward the person spoken to: the game puts it PointerOut cells from the bubble,
+        // turned toward them on the ground. On a card it is turned (and moved round the bubble) to point
+        // where they are on screen: pointerAt (x, z on the map; y their middle, in cells over the ground).
+        private const float PointerOut = 0.6f;
+        public static bool hasPointerAt;
+        public static Vector3 pointerAt;
+
+        public static void DrawPointer(Mesh mesh, Vector3 position, Quaternion rotation, Material material, int layer)
+        {
+            if (active && billboard && hasPivot && hasPointerAt)
+            {
+                Vector3 d = rotation * Vector3.forward;
+                Vector3 bubble = position - d * PointerOut;   // on the card: its offset from the pivot as laid out by the game
+                float yaw = View3D.Yaw * Mathf.Deg2Rad;
+                float pitch = View3D.Pitch * Mathf.Deg2Rad;
+                float dx = pointerAt.x - billboardPivot.x, dz = pointerAt.z - billboardPivot.z;
+                float across = dx * Mathf.Cos(yaw) - dz * Mathf.Sin(yaw);
+                float up = (dx * Mathf.Sin(yaw) + dz * Mathf.Cos(yaw)) * Mathf.Sin(pitch) + (pointerAt.y - billboardHeight) * Mathf.Cos(pitch);
+                Vector3 onCard = new Vector3(across - (bubble.x - billboardPivot.x), 0f, up - (bubble.z - billboardPivot.z));
+                if (onCard.sqrMagnitude > 1e-6f)
+                {
+                    onCard.Normalize();
+                    position = bubble + onCard * PointerOut;
+                    rotation = Quaternion.LookRotation(onCard, Vector3.up);
+                }
+            }
+            DrawMesh(mesh, position, rotation, material, layer);
+        }
+
+        // Graphic_Mote.DrawMote, for a mote in its own colour (no property block): speech bubbles while fully shown.
+        public static void DrawMesh(Mesh mesh, Matrix4x4 matrix, Material material, int layer, Camera camera, int submeshIndex)
+        {
+            if (skip)
+            {
+                return;
+            }
+            if (active)
+            {
+                matrix = Transform(matrix);
+            }
+            if (floor)
+            {
+                matrix = floorMatrix * matrix;
+            }
+
+            Graphics.DrawMesh(mesh, matrix, material, layer, camera, submeshIndex);
         }
 
         // Graphic_RandomRotated (weapons and other items lying at an angle): a relic in a reliquary.

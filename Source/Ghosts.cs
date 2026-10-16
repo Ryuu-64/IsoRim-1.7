@@ -168,9 +168,16 @@ namespace IsoRim
                     yaw += 90f;
                 }
                 Vector3 fit = entry.Fit(def) * entry.def.scale;
+                float lift = 0f;
+                if (WallMount.Is(def))
+                {
+                    // On the wall it will hang on, where it will hang (WallMount).
+                    float wall = WallMount.Wall(Find.CurrentMap, center, rot, ref at, ref yaw);
+                    lift = WallMount.ModelLift(entry.def, wall, m.maxY * fit.y);
+                }
                 Quaternion turn = Quaternion.AngleAxis(yaw, Vector3.up);
                 Vector3 offset = turn * Vector3.Scale(entry.def.offset, Vector3.one);
-                Matrix4x4 matrix = Matrix4x4.Translate(new Vector3(at.x + offset.x, offset.y / s, at.z + offset.z))
+                Matrix4x4 matrix = Matrix4x4.Translate(new Vector3(at.x + offset.x, (offset.y + lift) / s, at.z + offset.z))
                     * Matrix4x4.Scale(new Vector3(1f, 1f / s, 1f))
                     * Matrix4x4.Rotate(turn)
                     * Matrix4x4.Scale(fit);

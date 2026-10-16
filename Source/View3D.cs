@@ -428,14 +428,15 @@ namespace IsoRim
         }
 
         // Whether the mouse buttons and keys for free look are held now (see IsoRimSettings.lookMode):
-        // 0 = look modifier (Ctrl) + middle button; 1 = right button while nothing is selected and no building is being placed.
+        // 0 = the look button (middle by default) with the look modifier (Ctrl by default; none if unbound), both key
+        // bindings in the game's keyboard options; 1 = right button while nothing is selected and no building is being placed.
         public static bool LookHeld()
         {
             IsoRimSettings st = IsoRimMod.Settings;
             if (FirstPerson.On && Active)
             {
-                // Nothing to drag the map for in first person: the middle button alone looks round.
-                return Input.GetMouseButton(2);
+                // Nothing to drag the map for in first person: the look button alone looks round.
+                return BindingHeld(R3DKeyDefOf.R3D_LookButton, true);
             }
             if (!st.freeLook || !Active)
             {
@@ -448,8 +449,37 @@ namespace IsoRim
                     && (Find.Selector == null || Find.Selector.NumSelected == 0);
             }
             // The modifier is a key binding of its own (Ctrl by default: Alt is the game's cell inspector).
-            KeyBindingDef mod = R3DKeyDefOf.R3D_LookModifier;
-            return Input.GetMouseButton(2) && mod != null && mod.IsDown;
+            return BindingHeld(R3DKeyDefOf.R3D_LookButton, false) && BindingHeld(R3DKeyDefOf.R3D_LookModifier, true);
+        }
+
+        // Whether a key binding is held now. Mouse buttons count too (the game's KeyBindingDef.IsDown only reads keys
+        // on 1.7). A binding with no key at all counts as held when unboundHeld.
+        public static bool BindingHeld(KeyBindingDef def, bool unboundHeld)
+        {
+            if (def == null || KeyPrefs.KeyPrefsData == null)
+            {
+                return false;
+            }
+            KeyCode a = KeyPrefs.KeyPrefsData.GetBoundKeyCode(def, KeyPrefs.BindingSlot.A);
+            KeyCode b = KeyPrefs.KeyPrefsData.GetBoundKeyCode(def, KeyPrefs.BindingSlot.B);
+            if (a == KeyCode.None && b == KeyCode.None)
+            {
+                return unboundHeld;
+            }
+            if (Find.WindowStack != null && Find.WindowStack.AnySearchWidgetFocused)
+            {
+                return false;
+            }
+            return KeyHeld(a) || KeyHeld(b);
+        }
+
+        private static bool KeyHeld(KeyCode k)
+        {
+            if (k >= KeyCode.Mouse0 && k <= KeyCode.Mouse6)
+            {
+                return Input.GetMouseButton(k - KeyCode.Mouse0);
+            }
+            return k != KeyCode.None && Input.GetKey(k);
         }
 
         // Dragging turns the camera round (left and right) and tilts it (up and down). A drag only

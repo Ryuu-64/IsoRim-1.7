@@ -1741,35 +1741,12 @@ namespace IsoRim
             return b != null && (b.def == def || WallBoxes.BlockHeightAt(map, c) > 0f) ? 1 : 0;
         }
 
-        // Puts a wall fitting on the face of its wall, part of the way up. The models are built
+        // Puts a wall fitting on the face of its wall at the height WallMount gives it. The models are built
         // in the cell in front of the wall, facing it.
-        private static void Mount(Thing t, ModelDef def, ref Vector3 center, ref float yaw, ref float baseHeight)
+        private static void Mount(Thing t, ModelDef def, Model m, float fitY, ref Vector3 center, ref float yaw, ref float baseHeight)
         {
-            Map map = t.Map;
-            if (map == null)
-            {
-                return;
-            }
-            IntVec3 c = t.Position;
-            IntVec3 ahead = t.Rotation.FacingCell;
-            center = new Vector3(c.x + 0.5f, center.y, c.z + 0.5f);
-            float wall = WallBoxes.BlockHeightAt(map, c + ahead);
-            if (wall <= 0f)
-            {
-                wall = WallBoxes.BlockHeightAt(map, c);
-                if (wall > 0f)
-                {
-                    // The fitting sits in the wall's own cell and faces out of it: the same
-                    // thing as standing one cell out and facing back.
-                    center += ahead.ToVector3();
-                    yaw += 180f;
-                }
-                else
-                {
-                    wall = View3D.WallHeight;
-                }
-            }
-            baseHeight = wall * Mathf.Clamp01(def.mountHeight);
+            float wall = WallMount.Wall(t.Map, t.Position, t.Rotation, ref center, ref yaw);
+            baseHeight = WallMount.ModelLift(def, wall, m.maxY * fitY);
         }
 
         // Every model baked into a layer is tagged to be clipped under the roof of the cell it stands in (RoofClip).
@@ -1844,9 +1821,11 @@ namespace IsoRim
             {
                 yaw += 90f;
             }
-            if (def.wallMounted)
+            bool mounted = WallMount.Is(thing.def);
+            Vector3 fit = entry.Fit(thing.def) * scale;
+            if (mounted)
             {
-                Mount(thing, def, ref center, ref yaw, ref baseHeight);
+                Mount(thing, def, m, fit.y, ref center, ref yaw, ref baseHeight);
             }
             Quaternion turn = Quaternion.AngleAxis(yaw, Vector3.up);
             Quaternion lay = def.layFlat ? Quaternion.AngleAxis(90f, Vector3.right) : Quaternion.identity;
@@ -1858,7 +1837,6 @@ namespace IsoRim
                 center.z += (Hashing.Unit(id, 17, 4) - 0.5f) * def.scatter;
             }
 
-            Vector3 fit = entry.Fit(thing.def) * scale;
             if (def.overArt && thing.MultipleItemsPerCellDrawn())
             {
                 fit *= 0.8f;   // as the game draws several items in one cell (a shelf) at 0.8 size
@@ -1884,7 +1862,7 @@ namespace IsoRim
                     Log.ErrorOnce("[IsoRim] Drawing a tree's shadow failed: " + e, 93611060);
                 }
             }
-            if (st.groundShadows && def.groundShadow && !def.wallMounted && baseHeight <= 0.001f && (plant == null || isTree) && Ghost.a <= 0f && DamageMarks <= 0)
+            if (st.groundShadows && def.groundShadow && !mounted && baseHeight <= 0.001f && (plant == null || isTree) && Ghost.a <= 0f && DamageMarks <= 0)
             {
                 try
                 {
