@@ -351,6 +351,10 @@ namespace IsoRim
             Patch("3D bobbing parts", AccessTools.DeclaredMethod(typeof(Building_GravEngine), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
                 prefix: nameof(GravEngineDrawAt_Prefix));
 
+            // Statues (Statues.cs): the 3D base stands in for the flat base sprite, the subject stands on it as a 3D figure.
+            Patch("3D statues", AccessTools.DeclaredMethod(typeof(CompStatue), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
+                prefix: nameof(StatueDrawAt_Prefix));
+
             // Shield bubbles: a dome over the circle instead of a flat ring on the ground (ShieldDomes).
             Patch("shield domes", AccessTools.DeclaredMethod(typeof(CompProjectileInterceptor), "PostDraw"), transpiler: nameof(ShieldDraw_Transpiler));
 
@@ -1377,6 +1381,10 @@ namespace IsoRim
                 pivot.z -= spriteHeight * st.feetOffset;
                 Vector3 feet = __0 - View3D.GroundForward * (spriteHeight * st.feetOffset);
                 DrawHook.xform = Matrix4x4.Translate(new Vector3(feet.x - pivot.x, 0f, feet.z - pivot.z)) * View3D.UprightMatrix(pivot);
+                if (Statues.ground > 0f)
+                {
+                    DrawHook.xform = View3D.LiftMatrix(Statues.ground) * DrawHook.xform;   // a statue's subject, on its 3D base
+                }
                 DrawHook.active = true;
                 pawnUpright = true;
                 uprightPawn = pawn;
@@ -2373,6 +2381,11 @@ namespace IsoRim
         public static bool GravEngineDrawAt_Prefix(Building_GravEngine __instance, Vector3 drawLoc, bool flip)
         {
             return Bobbers.GravEngineDrawAt_Prefix(__instance, drawLoc, flip);
+        }
+
+        public static bool StatueDrawAt_Prefix(CompStatue __instance, Vector3 __0)
+        {
+            return Statues.DrawAt_Prefix(__instance, __0);
         }
 
         public static bool MoteDrawAt_Prefix(Mote __instance)

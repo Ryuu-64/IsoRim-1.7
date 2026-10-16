@@ -121,6 +121,7 @@ namespace IsoRim
 
             // Ready-made meshes of this look, by facing, body or head, and alive or dead.
             public readonly Dictionary<int, List<DynamicModels.Part>> meshes = new Dictionary<int, List<DynamicModels.Part>>();
+            public Color statueTint;   // the colour the statue meshes (keys 4 and 6) were carved in
 
             public bool SameAs(Look o)
             {
@@ -151,11 +152,24 @@ namespace IsoRim
         private static readonly List<Color> mergeTints = new List<Color>();
 
         // The body (head = false) or the head of a figure as ready-made meshes.
-        private static List<DynamicModels.Part> Merged(Look look, bool headPart, bool dead, int turned)
+        private static List<DynamicModels.Part> Merged(Look look, bool headPart, bool dead, int turned, Color? mono = null)
         {
             // The meshes carry no shading (the shader lights them), so one set serves every light and turn.
-            int key = (headPart ? 2 : 0) + (dead ? 1 : 0);
+            // A statue's subject (mono: the statue colour) has its own set, made again when the statue is repainted.
+            int key = (headPart ? 2 : 0) + (dead ? 1 : 0) + (mono.HasValue ? 4 : 0);
             List<DynamicModels.Part> parts;
+            if (mono.HasValue && look.statueTint != mono.Value)
+            {
+                for (int k = 4; k < 8; k++)
+                {
+                    if (look.meshes.TryGetValue(k, out parts))
+                    {
+                        DynamicModels.Destroy(parts);
+                        look.meshes.Remove(k);
+                    }
+                }
+                look.statueTint = mono.Value;
+            }
             if (look.meshes.TryGetValue(key, out parts))
             {
                 return parts;
@@ -227,7 +241,7 @@ namespace IsoRim
                     AddPart(pads, bodyPlace * Matrix4x4.Scale(new Vector3(look.shoulders, 1f, 1.05f)), look.coat != null ? look.coatColor : look.upperColor);
                 }
             }
-            parts = DynamicModels.BuildMerged(mergeModels, mergeLocals, mergeTints, turned);
+            parts = DynamicModels.BuildMerged(mergeModels, mergeLocals, mergeTints, turned, mono);
             look.meshes[key] = parts;
             return parts;
         }
@@ -295,6 +309,20 @@ namespace IsoRim
             if (look == null || look.upper == null || look.lower == null)
             {
                 return false;
+            }
+
+            Color? stone = Statues.Colour(pawn);
+            if (stone.HasValue)
+            {
+                // A statue's subject (Statues.cs): standing still on the statue's base, facing south, carved in its colour.
+                const float South = 180f;
+                Vector3 onBase = new Vector3(drawLoc.x, Statues.ground, drawLoc.z);
+                Matrix4x4 scaled = Matrix4x4.Scale(new Vector3(look.size, look.size, look.size));
+                DynamicModels.DrawParts(Merged(look, false, false, 4, stone), onBase, South, scaled);
+                DynamicModels.DrawParts(Merged(look, true, false, 4, stone), onBase, South, scaled);
+                handHeight = 0.46f * look.size + Statues.ground;
+                facing = South;
+                return true;   // standing stays false: nothing held, no weapon
             }
 
             bool dead = pawn.Dead;

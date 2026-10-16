@@ -182,7 +182,8 @@ namespace IsoRim
         // mesh is lit per pixel by the shader (glowing parts go into a separate unlit mesh), so it
         // does not depend on the light or on which way the whole is turned (turned is unused).
         // Textures are left off.
-        public static List<Part> BuildMerged(List<Model> models, List<Matrix4x4> locals, List<Color> tints, int turned)
+        // mono (a statue's subject): every colour carved in that one colour (Statues.Carved), nothing glowing.
+        public static List<Part> BuildMerged(List<Model> models, List<Matrix4x4> locals, List<Color> tints, int turned, Color? mono = null)
         {
             List<Part> parts = new List<Part>();
             Material solidMat = R3DMaterials.Solid;
@@ -206,13 +207,17 @@ namespace IsoRim
                     {
                         int mi = m.material != null ? m.material[i] : 0;
                         ModelMaterial mm = m.materials != null ? m.materials[mi] : null;
-                        Lists into = mm != null && mm.glow ? glowing : solid;
+                        Lists into = mm != null && mm.glow && !mono.HasValue ? glowing : solid;
                         for (int v = i; v < i + 3; v++)
                         {
                             Color c = m.colors[v];
                             if (m.tinted[v])
                             {
                                 c *= tint;
+                            }
+                            if (mono.HasValue)
+                            {
+                                c = Statues.Carved(c, mono.Value);
                             }
                             into.Add(local.MultiplyPoint3x4(m.positions[v]), R3DMaterials.Shaded(c, 1f), Vector2.zero);
                             if (m.hull != null && (m.noOutline == null || !m.noOutline[v]))

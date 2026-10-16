@@ -1998,11 +1998,6 @@
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
-    <defName>R3D_NoMatch_ScrapCubeSculpture</defName>
-    <thingDef>ScrapCubeSculpture</thingDef>   <!-- a sculpture like the other cube sculptures, not scrap: automatic shape -->
-  </IsoRim.ModelDef>
-
-  <IsoRim.ModelDef>
     <defName>R3D_Match_194_wreck_car</defName>
     <match>
       <li>RustedCar</li>
@@ -7213,5 +7208,69 @@
     <bodyCentre>1.135</bodyCentre>
     <bodyHalfWidth>0.613</bodyHalfWidth>
     <bodyHalfLength>1.279</bodyHalfLength>
+  </IsoRim.ModelDef>
+  <!-- Coverage buildings batch 2 (2026-10-15): Anomaly cube sculptures and void sculpture, one model per vanilla
+       Graphic_Random sprite in sprite order (A, B, C ...: Graphic_Random and <models> both pick by thingIDNumber % n),
+       stuffless fixed colours (buildings_b2.mtl). ScrapCubeSculpture's exact entry also keeps it off the "Scrap" junk
+       match (it replaces R3D_NoMatch_ScrapCubeSculpture). The Statue's model is its base slab only (stuff colour): its
+       subject stands on it as a 3D figure in the statue colour (Statues.cs). Generator: tools/make_buildings_b2.py. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_Statue</defName>
+    <thingDef>Statue</thingDef>
+    <model>Models/statue_base.obj</model>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_DirtCubeSculpture</defName>
+    <thingDef>DirtCubeSculpture</thingDef>
+    <models>
+      <li>Models/cube_sculpture_dirt_a.obj</li>
+      <li>Models/cube_sculpture_dirt_b.obj</li>
+      <li>Models/cube_sculpture_dirt_c.obj</li>
+    </models>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_StoneCubeSculpture</defName>
+    <thingDef>StoneCubeSculpture</thingDef>
+    <models>
+      <li>Models/cube_sculpture_stone_a.obj</li>
+      <li>Models/cube_sculpture_stone_b.obj</li>
+      <li>Models/cube_sculpture_stone_c.obj</li>
+    </models>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_SandCubeSculpture</defName>
+    <thingDef>SandCubeSculpture</thingDef>
+    <models>
+      <li>Models/cube_sculpture_sand_a.obj</li>
+      <li>Models/cube_sculpture_sand_b.obj</li>
+      <li>Models/cube_sculpture_sand_c.obj</li>
+    </models>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_ScrapCubeSculpture</defName>
+    <thingDef>ScrapCubeSculpture</thingDef>
+    <models>
+      <li>Models/cube_sculpture_scrap_a.obj</li>
+      <li>Models/cube_sculpture_scrap_b.obj</li>
+      <li>Models/cube_sculpture_scrap_c.obj</li>
+    </models>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+  <IsoRim.ModelDef>
+    <defName>R3D_VoidSculpture</defName>
+    <thingDef>VoidSculpture</thingDef>
+    <models>
+      <li>Models/void_sculpture_a.obj</li>
+      <li>Models/void_sculpture_b.obj</li>
+      <li>Models/void_sculpture_c.obj</li>
+      <li>Models/void_sculpture_d.obj</li>
+      <li>Models/void_sculpture_e.obj</li>
+      <li>Models/void_sculpture_f.obj</li>
+    </models>
+    <builtFor>(1, 1)</builtFor>
   </IsoRim.ModelDef>
 </Defs>
