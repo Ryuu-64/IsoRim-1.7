@@ -230,7 +230,8 @@ void main()
                 base = mix(base, vec3(0.85, 0.45, 0.3), spot * 0.8);
                 float lit = max(dot(n, L), 0.0);
                 float limb = 0.55 + 0.45 * max(dot(n, -r), 0.0);
-                pCol = base * (lit * 1.1 + 0.025) * limb;
+                float rim = pow(1.0 - max(dot(n, -r), 0.0), 3.0);
+                pCol = base * (lit * 1.1 + 0.06) * limb + vec3(0.25, 0.35, 0.5) * rim * 0.25;
             }
 
             // The rings: a disc in the planet's equator, with a gap, shadowed by the planet.
@@ -253,8 +254,8 @@ void main()
                     float cc = dot(qv, qv) - R * R;
                     float shade = (bb < 0.0 && bb * bb - cc > 0.0) ? 0.08 : 1.0;
                     float rl = (0.3 + 0.7 * abs(dot(pole, L))) * shade * smoothstep(-0.25, 0.1, L.y + 0.3);
-                    rCol = vec3(0.86, 0.8, 0.7) * (rl + 0.02);
-                    rCover = dens * 0.85;
+                    rCol = vec3(0.86, 0.8, 0.7) * (rl + 0.06);
+                    rCover = dens * (0.3 + 0.55 * clamp(rl * 2.0, 0.0, 1.0));
                     if (tR > tP)
                     {
                         // Behind the planet.
