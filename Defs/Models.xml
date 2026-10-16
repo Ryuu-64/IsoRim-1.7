@@ -7181,17 +7181,17 @@
     <animal>true</animal>
     <legModel>Models/animal_alphathrumbo_leg.obj</legModel>
     <legs>
-      <li>(-0.420, 0.620, 0.450)</li>
-      <li>(0.420, 0.620, 0.450)</li>
-      <li>(-0.420, 0.620, -0.750)</li>
-      <li>(0.420, 0.620, -0.750)</li>
+      <li>(-0.354, 1.298, 0.648)</li>
+      <li>(0.354, 1.298, 0.648)</li>
+      <li>(-0.354, 1.298, -0.713)</li>
+      <li>(0.354, 1.298, -0.713)</li>
     </legs>
-    <legLength>0.620</legLength>
+    <legLength>1.298</legLength>
     <legSwing>26</legSwing>
-    <stride>2.20</stride>
-    <bodyCentre>2.139</bodyCentre>
-    <bodyHalfWidth>0.807</bodyHalfWidth>
-    <bodyHalfLength>1.662</bodyHalfLength>
+    <stride>3.11</stride>
+    <bodyCentre>1.350</bodyCentre>
+    <bodyHalfWidth>0.756</bodyHalfWidth>
+    <bodyHalfLength>1.340</bodyHalfLength>
   </IsoRim.ModelDef>
   <IsoRim.ModelDef>
     <defName>R3D_Animal_Larva</defName>
