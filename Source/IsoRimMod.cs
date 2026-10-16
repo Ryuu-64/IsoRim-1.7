@@ -55,6 +55,9 @@ namespace IsoRim
         public bool perspective = false; // perspective camera (Rim3D-like) instead of orthographic
         public float fov = 40f;          // perspective: vertical field of view, degrees
         public float viewDistance = 160f; // perspective: how far past the screen centre the map is drawn, cells
+        public bool thingLabels = true;  // labels on things lying on the map (stack counts, quality)
+        public float weatherSize = 1f;   // how big rain and snow look on screen
+        public float minZoom = 4f;       // how close the camera can zoom in (the game stops at 11)
         public float labelFade = 1.4f;   // perspective: labels fade out past this many times the distance to the screen centre (4 = never)
         public float fpFov = 70f;        // first person: vertical field of view, degrees
         public float fpEyeHeight = 0.95f; // first person: eye height, cells (a full wall is wallHeight)
@@ -147,6 +150,9 @@ namespace IsoRim
             Scribe_Values.Look(ref perspective, "perspective", false);
             Scribe_Values.Look(ref fov, "fov", 40f);
             Scribe_Values.Look(ref viewDistance, "viewDistance", 160f);
+            Scribe_Values.Look(ref thingLabels, "thingLabels", true);
+            Scribe_Values.Look(ref minZoom, "minZoom", 4f);
+            Scribe_Values.Look(ref weatherSize, "weatherSize", 1f);
             Scribe_Values.Look(ref labelFade, "labelFade", 1.4f);
             Scribe_Values.Look(ref fpFov, "fpFov", 70f);
             Scribe_Values.Look(ref sky, "sky", true);
@@ -518,6 +524,9 @@ namespace IsoRim
                 st.fpFov = Slider(l, "R3D_Settings_FpFov".Translate(), st.fpFov, 40f, 100f, st.fpFov.ToString("0") + "°",
                     "R3D_Settings_FpFovTip".Translate(R3DKeyDefOf.R3D_FirstPerson != null ? R3DKeyDefOf.R3D_FirstPerson.MainKeyLabel : "F5", DragButtonLabel(st)));
                 st.fpEyeHeight = Slider(l, "R3D_Settings_FpEyeHeight".Translate(), st.fpEyeHeight, 0.5f, 2f, Cells(st.fpEyeHeight, "0.00"));
+                st.minZoom = Slider(l, "R3D_Settings_MinZoom".Translate(), st.minZoom, 2f, 11f, st.minZoom.ToString("0.0"), "R3D_Settings_MinZoomTip".Translate());
+                st.weatherSize = Slider(l, "R3D_Settings_WeatherSize".Translate(), st.weatherSize, 0.25f, 3f, "×" + st.weatherSize.ToString("0.00"), "R3D_Settings_WeatherSizeTip".Translate());
+                Check(l, "R3D_Settings_ThingLabels".Translate(), ref st.thingLabels, "R3D_Settings_ThingLabelsTip".Translate());
                 Check(l, "R3D_Settings_AntiAlias".Translate(), ref st.antiAlias, "R3D_Settings_AntiAliasTip".Translate());
                 if (st.antiAlias)
                 {

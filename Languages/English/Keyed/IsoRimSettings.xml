@@ -34,7 +34,7 @@
   <R3D_Settings_Snap45>Turn in 45° steps</R3D_Settings_Snap45>
   <R3D_Settings_Snap45Tip>Q and E turn the camera an eighth of a turn at a time. Off: a quarter turn. Either way the camera swings smoothly.</R3D_Settings_Snap45Tip>
   <R3D_Settings_FreeLook>Free look</R3D_Settings_FreeLook>
-  <R3D_Settings_FreeLookTip>Drag with the mouse to turn the camera all the way round and tilt it (20° to 89°). Q and E snap to the next step. The reset key (unbound at first) is in the game's keyboard options.</R3D_Settings_FreeLookTip>
+  <R3D_Settings_FreeLookTip>Drag with the mouse to turn the camera all the way round and tilt it (5° to 89°). Q and E snap to the next step. The reset key (unbound at first) is in the game's keyboard options.</R3D_Settings_FreeLookTip>
   <R3D_Settings_LookMiddle>Free look: middle button</R3D_Settings_LookMiddle>
   <R3D_Settings_LookMiddleTip>Hold {0} and drag. The hold key is in the game's keyboard options.</R3D_Settings_LookMiddleTip>
   <R3D_Settings_LookMiddleTipNoKey>The hold key is in the game's keyboard options.</R3D_Settings_LookMiddleTipNoKey>
@@ -46,6 +46,12 @@
   <R3D_Settings_FpFov>First person field of view</R3D_Settings_FpFov>
   <R3D_Settings_FpFovTip>{0} with one person selected: the camera in their head. Drag with {1} to look round.</R3D_Settings_FpFovTip>
   <R3D_Settings_FpEyeHeight>First person eye height</R3D_Settings_FpEyeHeight>
+  <R3D_Settings_MinZoom>Closest zoom</R3D_Settings_MinZoom>
+  <R3D_Settings_MinZoomTip>How close the mouse wheel can bring the camera. The game's own limit is 11.</R3D_Settings_MinZoomTip>
+  <R3D_Settings_WeatherSize>Rain and snow size</R3D_Settings_WeatherSize>
+  <R3D_Settings_WeatherSizeTip>How big the drops and flakes look on screen. They no longer grow as the camera zooms in.</R3D_Settings_WeatherSizeTip>
+  <R3D_Settings_ThingLabels>Item labels</R3D_Settings_ThingLabels>
+  <R3D_Settings_ThingLabelsTip>Labels on things lying on the map (stack counts, quality). Names over people are not affected.</R3D_Settings_ThingLabelsTip>
   <R3D_Settings_AntiAlias>Smooth edges (anti-aliasing)</R3D_Settings_AntiAlias>
   <R3D_Settings_AntiAliasTip>Softens the stair steps on the edges of walls and models (FXAA). The interface is not touched.</R3D_Settings_AntiAliasTip>
   <R3D_Settings_AntiAliasStrength>Edge smoothing</R3D_Settings_AntiAliasStrength>

@@ -20,7 +20,7 @@ namespace IsoRim
         // Free look (IsoRimSettings.freeLook) opens up the range of camera angles.
         public static float MinPitch
         {
-            get { return IsoRimMod.Settings.freeLook ? 20f : 30f; }
+            get { return IsoRimMod.Settings.freeLook ? 5f : 30f; }
         }
         public static float MaxPitch
         {
@@ -1201,6 +1201,40 @@ namespace IsoRim
             float cy = Mathf.Cos(yaw);
             float sy = Mathf.Sin(yaw);
             return new Vector2(move.x * cy + y * sy, -move.x * sy + y * cy);
+        }
+
+        // A screen-filling quad (Weather.Curtain's mesh, 1 by 1 on the XZ plane) stood up facing the camera,
+        // just in front of it. Drawn space, so it is lined up for the squashed view matrix.
+        public static Matrix4x4 CurtainMatrix()
+        {
+            float depth, height;
+            if (persp)
+            {
+                depth = Mathf.Max(1f, camDist * 0.15f);
+                height = 2f * depth * tanHalf;
+            }
+            else
+            {
+                depth = 2f;
+                height = 2f * orthoSize;
+            }
+            Vector3 at = eye + fwd * depth;
+            return Matrix4x4.Translate(new Vector3(at.x, at.y / Squash, at.z))
+                * Matrix4x4.Scale(new Vector3(1f, 1f / Squash, 1f))
+                * Matrix4x4.Rotate(Quaternion.Euler(Pitch - 90f, Yaw, 0f))
+                * Matrix4x4.Scale(new Vector3(height * aspect, 1f, height));
+        }
+
+        // The camera this frame, in true space: the eye, where it looks, its right and up, and how far the
+        // eye is from the focus point on the ground (perspective).
+        public static Vector3 Eye { get { return eye; } }
+        public static float CamDistance { get { return camDist; } }
+        public static float OrthoSize { get { return orthoSize; } }
+
+        // The screen's width over its height.
+        public static float Aspect
+        {
+            get { return aspect; }
         }
 
         // Raises something by a real height, in cells, without tilting it.

@@ -82,6 +82,27 @@ namespace IsoRim
                 typeof(Dictionary<string, string>), typeof(GameFont), typeof(bool), typeof(bool) }),
                 prefix: nameof(DrawPawnLabel_Prefix));
 
+            // Rain, snow and fog: stood up in front of the camera instead of lying on the ground (Weather).
+            Patch("weather", AccessTools.Method(typeof(SkyOverlay), "DrawWorldOverlay", new[] { typeof(Map), typeof(Material), typeof(float), typeof(int) }),
+                prefix: nameof(DrawWorldOverlay_Prefix));
+            Patch("weather", AccessTools.Method(typeof(SkyOverlay), "DrawScreenOverlay", new[] { typeof(Material), typeof(float), typeof(int), typeof(Camera) }),
+                prefix: nameof(DrawScreenOverlay_Prefix));
+            // The short overloads too: the JIT can inline the long ones into them, past the hooks above.
+            Patch("weather", AccessTools.Method(typeof(SkyOverlay), "DrawWorldOverlay", new[] { typeof(Map), typeof(Material), typeof(int) }),
+                prefix: nameof(DrawWorldOverlayShort_Prefix));
+            Patch("weather", AccessTools.Method(typeof(SkyOverlay), "DrawScreenOverlay", new[] { typeof(Material), typeof(int), typeof(Camera) }),
+                prefix: nameof(DrawScreenOverlayShort_Prefix));
+            // Rain and snow fall in 3D (Falling): each weather overlay's own DrawOverlay is replaced.
+            HashSet<MethodInfo> overlayDraws = new HashSet<MethodInfo>();
+            foreach (Type t in GenTypes.AllSubclassesNonAbstract(typeof(SkyOverlay)))
+            {
+                MethodInfo m = AccessTools.Method(t, "DrawOverlay", new[] { typeof(Map) });
+                if (m != null && !m.IsAbstract && overlayDraws.Add(m))
+                {
+                    Patch("weather", m, prefix: nameof(SkyOverlayDraw_Prefix));
+                }
+            }
+
             Patch("mouse position", AccessTools.Method(typeof(Verse.UI), "UIToMapPosition", new[] { typeof(Vector2) }),
                 prefix: nameof(UIToMapPosition_Prefix));
 
@@ -851,6 +872,7 @@ namespace IsoRim
         {
             try
             {
+                ZoomLimit(__instance);
                 if (!View3D.Ready || View3D.ControlsLocked)
                 {
                     dragging = false;
@@ -891,6 +913,24 @@ namespace IsoRim
                 dragging = false;
                 Log.ErrorOnce("[IsoRim] Dragging the map failed: " + e, 93611018);
             }
+        }
+
+        // The game will not zoom in past 11; in the 3D view the mod lets the camera come closer (minZoom).
+        // The game's own limit comes back when the 3D view is off.
+        private static float gameMinZoom = -1f;
+
+        private static void ZoomLimit(CameraDriver driver)
+        {
+            CameraMapConfig config = driver.config;
+            if (config == null)
+            {
+                return;
+            }
+            if (gameMinZoom < 0f)
+            {
+                gameMinZoom = config.sizeRange.min;
+            }
+            config.sizeRange.min = View3D.Ready ? Mathf.Clamp(IsoRimMod.Settings.minZoom, 2f, gameMinZoom) : gameMinZoom;
         }
 
         private static void StopGameDrag(CameraDriver driver)
@@ -1198,6 +1238,10 @@ namespace IsoRim
         // is drawn with GUI.color as the game leaves it, so that is faded too.
         public static bool DrawThingLabel_Prefix(Thing __0, ref Color __2)
         {
+            if (!IsoRimMod.Settings.thingLabels)
+            {
+                return false;
+            }
             if (!View3D.Ready || __0 == null)
             {
                 return true;
@@ -1245,6 +1289,31 @@ namespace IsoRim
             }
             __2 *= a;
             return true;
+        }
+
+        public static bool DrawWorldOverlay_Prefix(Map __0, Material __1, int __3)
+        {
+            return Weather.DrawWorldOverlay_Prefix(__0, __1, __3);
+        }
+
+        public static bool DrawScreenOverlay_Prefix(Material __0, int __2)
+        {
+            return Weather.DrawScreenOverlay_Prefix(__0, __2);
+        }
+
+        public static bool DrawWorldOverlayShort_Prefix(Map __0, Material __1, int __2)
+        {
+            return Weather.DrawWorldOverlay_Prefix(__0, __1, __2);
+        }
+
+        public static bool DrawScreenOverlayShort_Prefix(Material __0, int __1)
+        {
+            return Weather.DrawScreenOverlay_Prefix(__0, __1);
+        }
+
+        public static bool SkyOverlayDraw_Prefix(SkyOverlay __instance, Map __0)
+        {
+            return Falling.DrawOverlay_Prefix(__instance, __0);
         }
 
         // The game assumes the camera looks straight down when it turns a mouse position into a map cell.

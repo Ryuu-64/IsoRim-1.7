@@ -34,7 +34,7 @@
   <R3D_Settings_Snap45>每次转 45°</R3D_Settings_Snap45>
   <R3D_Settings_Snap45Tip>Q 和 E 每次将镜头转八分之一圈。关闭：每次四分之一圈。两种方式镜头都会平滑转动。</R3D_Settings_Snap45Tip>
   <R3D_Settings_FreeLook>自由视角</R3D_Settings_FreeLook>
-  <R3D_Settings_FreeLookTip>用鼠标拖动可将镜头任意旋转和俯仰（20° 至 89°）。Q 和 E 转到下一档。重置键（默认未设置）在游戏的按键设置中。</R3D_Settings_FreeLookTip>
+  <R3D_Settings_FreeLookTip>用鼠标拖动可将镜头任意旋转和俯仰（5° 至 89°）。Q 和 E 转到下一档。重置键（默认未设置）在游戏的按键设置中。</R3D_Settings_FreeLookTip>
   <R3D_Settings_LookMiddle>自由视角：鼠标中键</R3D_Settings_LookMiddle>
   <R3D_Settings_LookMiddleTip>按住 {0} 并拖动。按住键可在游戏的按键设置中修改。</R3D_Settings_LookMiddleTip>
   <R3D_Settings_LookMiddleTipNoKey>按住键可在游戏的按键设置中修改。</R3D_Settings_LookMiddleTipNoKey>
