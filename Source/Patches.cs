@@ -824,7 +824,7 @@ namespace IsoRim
         {
             try
             {
-                if (!View3D.Ready)
+                if (!View3D.Ready || View3D.ControlsLocked)
                 {
                     dragging = false;
                     return;

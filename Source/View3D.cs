@@ -86,6 +86,38 @@ namespace IsoRim
             get { return Active && haveFrame; }
         }
 
+        // While a gravship cutscene runs, the game takes the camera from the player (Game.PlayerHasControl) unless its
+        // free-cam config is set; IsoRim's own view keys and drags are locked with it (ShipFlight: the turn, tilt and 3D
+        // view stay as they were when it started).
+        public static bool ControlsLocked
+        {
+            get
+            {
+                return WorldComponent_GravshipController.CutsceneInProgress && Find.CameraDriver != null && !Find.CameraDriver.config.gravshipFreeCam;
+            }
+        }
+
+        // The camera this frame (true space: height in cells): where the eye is and which way it looks.
+        public static Vector3 EyePosition
+        {
+            get { return eye; }
+        }
+
+        public static Vector3 Forward
+        {
+            get { return fwd; }
+        }
+
+        public static Vector3 Right
+        {
+            get { return right; }
+        }
+
+        public static Vector3 Up
+        {
+            get { return up; }
+        }
+
         // How steeply the camera looks down, in degrees: 90 is straight down.
         public static float Pitch
         {
@@ -325,6 +357,11 @@ namespace IsoRim
         {
             // Keys are ignored while a text box has focus, so typing a 0 does not flip the view.
             bool typing = GUIUtility.keyboardControl != 0;
+            if (ControlsLocked)
+            {
+                lookDragging = false;   // a gravship cutscene: no turn, tilt, look, first person, 3D or isometric switch
+                return;
+            }
 
             if (!typing && R3DKeyDefOf.R3D_ToggleView != null && R3DKeyDefOf.R3D_ToggleView.JustPressed)
             {
