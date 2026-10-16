@@ -133,6 +133,10 @@ namespace IsoRim
                 Patch("skipping sprite work for 3D pawns", preRender, prefix: nameof(PreRender_Prefix));
             }
 
+            // A drafted pawn standing idle keeps the way it last faced instead of the game turning it south (DraftFacing).
+            Patch("drafted pawns keep their facing", AccessTools.Method(typeof(Pawn_RotationTracker), nameof(Pawn_RotationTracker.UpdateRotation)),
+                prefix: nameof(DraftFacingUpdate_Prefix), postfix: nameof(DraftFacingUpdate_Postfix));
+
             // The facing a standing pawn's sprite is drawn with, turned with the camera (View3D.SeenFacing): every
             // layer of the sprite (body, head, apparel, hair, carried weapon, overlays) takes it from here.
             MethodInfo preRenderResults = FindMethod(typeof(PawnRenderer), "ParallelGetPreRenderResults");
@@ -2516,6 +2520,38 @@ namespace IsoRim
             {
                 DrawHook.skip = false;
             }
+        }
+
+        // ---------------------------------------------------------------- drafted pawns keep their facing
+
+        // The game turns a drafted pawn that stands idle (not moving, not aiming, no job facing) south, toward the
+        // player of the top-down view. With the camera free to turn that south means nothing, so in 3D such a pawn keeps
+        // the way it last faced (where it walked or last aimed). Moving, aiming and jobs that face something are as before.
+        public static void DraftFacingUpdate_Prefix(Pawn_RotationTracker __instance, Pawn ___pawn, out Rot4 __state)
+        {
+            __state = ___pawn != null ? ___pawn.Rotation : Rot4.Invalid;
+        }
+
+        public static void DraftFacingUpdate_Postfix(Pawn ___pawn, Rot4 __state)
+        {
+            Pawn p = ___pawn;
+            if (!View3D.Active || !__state.IsValid || p == null || p.Destroyed || !p.Drafted || p.Rotation == __state || p.Rotation != Rot4.South)
+            {
+                return;
+            }
+            if (p.kindDef.useFixedRotation || p.jobs == null || p.jobs.HandlingFacing || p.pather == null || p.pather.Moving)
+            {
+                return;
+            }
+            if (p.stances != null && p.stances.curStance is Stance_Busy busy && busy.focusTarg.IsValid)
+            {
+                return;
+            }
+            if (p.jobs.curJob != null && p.jobs.curDriver != null && p.CurJob.GetTarget(p.jobs.curDriver.rotateToFace).IsValid)
+            {
+                return;
+            }
+            p.Rotation = __state;
         }
 
         // ---------------------------------------------------------------- raised things
