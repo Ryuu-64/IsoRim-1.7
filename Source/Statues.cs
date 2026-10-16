@@ -35,7 +35,7 @@ namespace IsoRim
         // so skin, hair and clothes still read as parts (the game greys the sprite and multiplies it by the colour).
         internal static Color Carved(Color c, Color stone)
         {
-            float k = Mathf.Lerp(0.72f, 1.12f, Mathf.Clamp01(c.r * 0.299f + c.g * 0.587f + c.b * 0.114f));
+            float k = Mathf.Lerp(0.88f, 1.10f, Mathf.Clamp01(c.r * 0.299f + c.g * 0.587f + c.b * 0.114f));
             return new Color(stone.r * k, stone.g * k, stone.b * k, 1f);
         }
 

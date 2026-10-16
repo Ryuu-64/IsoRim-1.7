@@ -8,9 +8,10 @@ namespace IsoRim
     // How the game draws a pawn's body as it rots (PawnRenderer.CurRotDrawMode: a corpse's rot stage, or the
     // rot stage of a mutant drawn with corpse graphics, such as a shambler), for every pawn drawn as a 3D model
     // (people, animals, mechs, entities):
-    //   - dried to bones (Dessicated), the game draws its skeleton sprite: the pawn keeps that sprite then
-    //     (ShownAsModel false), drawn the way any lying sprite is (flat on the ground, on the gibbet cage's
-    //     floor, or in the carrier's hands);
+    //   - dried to bones (Dessicated), the game draws its skeleton sprite (Bodies/Dessicated, the Skull head):
+    //     a person's figure becomes a 3D skeleton (People: Bones, the parts no garment covers; apparel and
+    //     headgear stay, as the game draws them); every other pawn keeps the sprite then (ShownAsModel false),
+    //     drawn the way any lying sprite is (flat on the ground, on the gibbet cage's floor, or in the carrier's hands);
     //   - rotting, the game lays its rotten colour (PawnRenderUtility.GetRottenColor) over the skin and over an
     //     animal's whole body; hair and the clothes worn take it themselves (HairColor, Apparel.DrawColor).
     public static class Corpses
@@ -24,10 +25,17 @@ namespace IsoRim
             return r != null ? r.CurRotDrawMode : RotDrawMode.Fresh;
         }
 
-        // False while the game draws the pawn as bones: it is not drawn as its model then.
+        // False while the game draws the pawn as bones and it has no 3D skeleton (all but people): it is not
+        // drawn as its model then.
         public static bool ShownAsModel(Pawn pawn)
         {
-            return RotOf(pawn) != RotDrawMode.Dessicated;
+            return !Bones(pawn) || People.FigureRace(pawn);
+        }
+
+        // True while the game draws the pawn as bones.
+        public static bool Bones(Pawn pawn)
+        {
+            return RotOf(pawn) == RotDrawMode.Dessicated;
         }
 
         // How high a corpse lying on the map rests: on top of the shelf it is stored on (as the items there); 0 otherwise.

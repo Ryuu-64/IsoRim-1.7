@@ -84,6 +84,9 @@ namespace IsoRim
             public Model plating;
             public bool ownHair;      // hair made for the ghoul head: not widened again, fixed colour
             public Color faceTint = Color.white;
+            public Model skull;       // dried to bones: replaces head and face (Bones)
+            public bool upperBones;   // upper / lower is the skeleton's part: not body-scaled, own colours
+            public bool lowerBones;
             // Packs, belts and waist tools (WornGear), each with its place (figure space, before bodyScale) and colour;
             // rigid ones keep their own size (only their place takes bodyScale).
             public readonly List<Model> gear = new List<Model>();
@@ -132,6 +135,7 @@ namespace IsoRim
                     && coatColor == o.coatColor && hatColor == o.hatColor && ownHead == o.ownHead && ownFace == o.ownFace && eyeLeft == o.eyeLeft
                     && eyeRight == o.eyeRight && scars == o.scars && skinOverlay == o.skinOverlay && barbs == o.barbs && plating == o.plating
                     && ownHair == o.ownHair && faceTint == o.faceTint && SameGear(o)
+                    && skull == o.skull && upperBones == o.upperBones && lowerBones == o.lowerBones
                     && mouthWear == o.mouthWear && eyeWear == o.eyeWear && neckWear == o.neckWear
                     && mouthColor == o.mouthColor && eyeColor == o.eyeColor && neckColor == o.neckColor
                     && mid == o.mid && shirtWear == o.shirtWear && midColor == o.midColor && shirtWearColor == o.shirtWearColor;
@@ -185,6 +189,10 @@ namespace IsoRim
                 {
                     // No head at all, as the game draws it: the covering (look.hat) takes its place.
                 }
+                else if (look.skull != null)
+                {
+                    AddPart(look.skull, Matrix4x4.identity, Color.white);   // one size, as the game's Skull head
+                }
                 else if (look.ownHead != null)
                 {
                     AddPart(look.ownHead, Matrix4x4.identity, Color.white);   // its skin colour is in the model
@@ -221,8 +229,8 @@ namespace IsoRim
             else
             {
                 Matrix4x4 bodyPlace = Matrix4x4.Scale(look.bodyScale);
-                AddPart(look.lower, bodyPlace, look.lowerColor);
-                AddPart(look.upper, bodyPlace, look.upperColor);
+                AddPart(look.lower, look.lowerBones ? Matrix4x4.identity : bodyPlace, look.lowerBones ? Color.white : look.lowerColor);
+                AddPart(look.upper, look.upperBones ? Matrix4x4.identity : bodyPlace, look.upperBones ? Color.white : look.upperColor);
                 AddPart(look.shirtWear, bodyPlace, look.shirtWearColor);
                 AddPart(look.mid, bodyPlace, look.midColor);
                 AddPart(look.skinOverlay, bodyPlace, Color.white);
@@ -659,7 +667,51 @@ namespace IsoRim
             }
             look.faceHidden = (skip & RenderSkipFlagDefOf.Eyes) != 0;
             Anomaly(pawn, look, build, headName);
+            if (Corpses.Bones(pawn))
+            {
+                Bones(look, build);
+            }
             return look;
+        }
+
+        // Dried to bones, as the game draws it (PawnRenderNode_Body: the body type's bodyDessicatedGraphicPath,
+        // Male for Male/Fat/Hulk and Thin for Female/Thin; PawnRenderNode_Head: the Skull head; hair, beard,
+        // tattoos and the face left out, every worn garment and headgear still drawn): the skeleton's upper and
+        // lower parts where no garment covers that part of the body (Models/skeleton_<male|thin>_<upper|lower>.obj,
+        // one size, not body-scaled), the skull (Models/person_skull.obj) for the head. Children take the thin one
+        // at their size. Clothing keeps its own shape over the bones.
+        private static void Bones(Look look, string build)
+        {
+            Model skull = Part("person_skull");
+            string bones = build == "male" || build == "fat" || build == "hulk" ? "male" : "thin";
+            Model upper = look.upperWorn ? null : Part("skeleton_" + bones + "_upper");
+            Model lower = look.lowerWorn ? null : Part("skeleton_" + bones + "_lower");
+            if (skull == null || (!look.upperWorn && upper == null) || (!look.lowerWorn && lower == null))
+            {
+                return;   // models missing: the person as they were
+            }
+            if (upper != null)
+            {
+                look.upper = upper;
+                look.upperBones = true;
+            }
+            if (lower != null)
+            {
+                look.lower = lower;
+                look.lowerBones = true;
+            }
+            look.skull = skull;
+            look.ownHead = null;
+            look.ownFace = null;
+            look.eyeLeft = null;
+            look.eyeRight = null;
+            look.scars = null;
+            look.skinOverlay = null;
+            look.hair = null;
+            look.hairTop = null;
+            look.ownHair = false;
+            look.beard = null;
+            look.faceHidden = true;
         }
 
         // The game's own choice of what to leave out of a person's head (PawnRenderTree.AdjustParms: each worn
