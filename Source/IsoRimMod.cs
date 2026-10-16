@@ -23,7 +23,8 @@ namespace IsoRim
 
         public bool uprightPawns = true;
         public bool uprightPlants = true;
-        public float plantCardSize = 1f;   // plants drawn from their sprite (cards), other than trees: how big
+        public float plantCardSize = 1f;
+        public bool fullPawnDraw = false;  // people never drawn from the game's cached image in 3D (on by itself with Facial Animation)   // plants drawn from their sprite (cards), other than trees: how big
         public bool walls3D = true;
         public bool texturedWalls = true;
         public bool autoExtrude = true;
@@ -119,6 +120,7 @@ namespace IsoRim
             Scribe_Values.Look(ref uprightPawns, "uprightPawns", true);
             Scribe_Values.Look(ref uprightPlants, "uprightPlants", true);
             Scribe_Values.Look(ref plantCardSize, "plantCardSize", 1f);
+            Scribe_Values.Look(ref fullPawnDraw, "fullPawnDraw", false);
             Scribe_Values.Look(ref walls3D, "walls3D", true);
             Scribe_Values.Look(ref texturedWalls, "texturedWalls", true);
             Scribe_Values.Look(ref autoExtrude, "autoExtrude", true);
@@ -827,6 +829,10 @@ namespace IsoRim
                 Check(r, "R3D_Settings_Damage3D".Translate(), ref st.damage3D);
                 Check(r, "R3D_Settings_Effects3D".Translate(), ref st.effects3D);
                 Check(r, "R3D_Settings_UprightPawns".Translate(), ref st.uprightPawns, "R3D_Settings_UprightPawnsTip".Translate());
+                if (st.uprightPawns)
+                {
+                    Check(r, "R3D_Settings_FullPawnDraw".Translate(), ref st.fullPawnDraw, "R3D_Settings_FullPawnDrawTip".Translate());
+                }
 
                 Section(r, "R3D_Settings_ModelStyle".Translate());
                 Check(r, "R3D_Settings_TexturedModels".Translate(), ref st.texturedModels);

@@ -171,6 +171,12 @@ namespace IsoRim
             {
                 missed.Add("upright pawn sprites facing the camera (PawnRenderer.ParallelGetPreRenderResults)");
             }
+            // People drawn in full rather than from the game's cached pawn image (option, or with Facial Animation):
+            // the cached image skips the render tree, so animated faces stood still.
+            if (preRenderResults != null && Array.Exists(preRenderResults.GetParameters(), p => p.Name == "disableCache" && p.ParameterType == typeof(bool)))
+            {
+                Patch("sprites drawn in full", preRenderResults, prefix: nameof(PreRenderCache_Prefix));
+            }
             Patch("upright pawn sprites facing the camera", AccessTools.Method(typeof(PawnRenderUtility), nameof(PawnRenderUtility.CalculateCarriedDrawPos)),
                 prefix: nameof(CarriedDrawPos_Prefix), postfix: nameof(CarriedDrawPos_Postfix));
 
@@ -1976,6 +1982,28 @@ namespace IsoRim
         public static bool DrawSilhouettes_Prefix()
         {
             return !View3D.Ready;
+        }
+
+        // Above a zoom the game draws a person from a cached image of it (GlobalTextureAtlasManager) instead of its
+        // render tree, which then neither runs nor asks for new materials: Facial Animation's faces stop moving, and
+        // in the 3D view the zoom says little about how close a person is seen. Drawn in full while the 3D view is
+        // on, if the option is set or Facial Animation is active.
+        private static bool? facialAnimation;
+
+        public static void PreRenderCache_Prefix(ref bool disableCache)
+        {
+            if (disableCache || !View3D.Ready)
+            {
+                return;
+            }
+            if (!facialAnimation.HasValue)
+            {
+                facialAnimation = ModsConfig.IsActive("Nals.FacialAnimation");
+            }
+            if (IsoRimMod.Settings.fullPawnDraw || facialAnimation.Value)
+            {
+                disableCache = true;
+            }
         }
 
         // The game chooses a standing pawn's sprites by its facing on the map (pawn.Rotation), assuming north is up

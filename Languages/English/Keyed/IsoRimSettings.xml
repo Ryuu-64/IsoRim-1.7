@@ -246,6 +246,8 @@
   <R3D_Settings_Effects3D>Flames, smoke, steam and sparkles</R3D_Settings_Effects3D>
   <R3D_Settings_UprightPawns>Sprites stand upright</R3D_Settings_UprightPawns>
   <R3D_Settings_UprightPawnsTip>For people and animals without a model.</R3D_Settings_UprightPawnsTip>
+  <R3D_Settings_FullPawnDraw>  Always draw sprites in full</R3D_Settings_FullPawnDraw>
+  <R3D_Settings_FullPawnDrawTip>Zoomed out, the game draws people from a cached image, which keeps animations (such as Facial Animation's faces, which turn this on by themselves) from moving. Costs some speed with many people.</R3D_Settings_FullPawnDrawTip>
   <R3D_Settings_ModelStyle>Model style</R3D_Settings_ModelStyle>
   <R3D_Settings_TexturedModels>Textures on models</R3D_Settings_TexturedModels>
   <R3D_Settings_Outlines>Dark outlines on models</R3D_Settings_Outlines>
