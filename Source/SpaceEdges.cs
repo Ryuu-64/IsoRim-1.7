@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
@@ -16,20 +17,21 @@ namespace IsoRim
     // In 2D the game (SectionLayer_TerrainEdges, space maps only) paints two things: a border on the platform's
     // own top cells along the rim (OShape/UShape/Corner/Flat), which stays as it is, and the "loop" strip, the
     // platform's machinery side seen from above, laid flat on the void south of every south rim. In 3D that strip
-    // lay flat on the ground and read as a sheet hanging off the rim. Instead, every side of such a cell that
-    // faces the void gets an upright face hanging from the rim, with the game's own loop textures on it:
-    //   - which texture: the game's rule, turned to each side: the run carries on to the left/right while the cell
-    //     beside it on that side is solid (not void), so a run gets LoopLeft/LoopRight ends, a lone cell LoopSingle,
-    //     the inside Loop picked by the outside cell's hash (south sides pick exactly the game's piece);
-    //   - texture and colour: the game's own material for that piece (SpaceEdgeGraphicData.GetMaterial: the
-    //     terrain's override colour or colour), so modded edge sets come along;
-    //   - depth: the texture's own height over its width in cells (the game draws it that tall, 2 cells for the
-    //     Odyssey sets), the top row at the rim.
-    // Faces are drawn before the ground (queue 1999 with depth, as the game's own edge shader), so a platform's
-    // own floor and anything nearer hides the sides behind it: all four sides are built once and nothing is
-    // redrawn when the camera turns. Lit like the walls (sun curve), the light of the cell from the overlay.
-    // Which cells, which sides, the solid test and the map gate are the game's (ShouldDrawRockEdges /
-    // ShouldDrawLoop / Regenerate). With the 3D view off nothing changes.
+    // is removed and the rim is built from a kit of 3D pieces (Models\space_edge_<style>_<piece>.obj) hanging
+    // under the cell's own rim:
+    //   - per side facing the void: a full straight piece when the run goes on past both ends (the cells to the
+    //     left and right of that side are solid), picked by the outside cell's hash; otherwise a half piece on
+    //     each half whose neighbour is solid (a lone tip gets none there: its corners close it);
+    //   - per quadrant: an outer corner when both of its sides face the void, an inner corner when both are solid
+    //     and the diagonal cell is void;
+    //   - styles: MechanoidPlatform -> mech, OrbitalPlatform -> orbital, any other edge terrain -> asteroid, whose
+    //     stuff_sedge_* faces take the terrain's edge colour (overrideColor, else its colour) like the game's art.
+    // The pieces are built facing north / the north-east quadrant and turned a quarter clockwise per step.
+    // Drawn before the ground (queue 1999 with depth, as the game's own edge shader), so a platform's own floor
+    // and anything nearer hides the sides behind it: all four sides are built once and nothing is redrawn when the
+    // camera turns. Lit like the models (sun by face direction), the light of the cell from the overlay; no outline.
+    // Which cells, the void test and the map gate are the game's (ShouldDrawRockEdges / Regenerate). With the 3D
+    // view off nothing changes.
     [StaticConstructorOnStartup]
     public static class SpaceEdges
     {
@@ -38,8 +40,25 @@ namespace IsoRim
 
         public const int Queue = 1999;   // the game's TerrainEdge queue: before the ground (2000), which then covers the far sides
 
+        public const int Mech = 0;
+        public const int Orbital = 1;
+        public const int Asteroid = 2;
+        private static readonly string[] StyleNames = { "mech", "orbital", "asteroid" };
+        private static readonly int[] StraightCount = { 4, 4, 3 };
+
         private static HashSet<Material> loopMaterials;
-        private static readonly Dictionary<long, Material> faceMaterials = new Dictionary<long, Material>();
+        private static Material litMaterial;
+        private static bool kitTried;
+        private static Kit[] kits;
+
+        // One style's pieces.
+        public class Kit
+        {
+            public Model[] straights;
+            public Model half;
+            public Model outer;
+            public Model inner;
+        }
 
         static SpaceEdges()
         {
@@ -141,59 +160,105 @@ namespace IsoRim
             return set;
         }
 
-        // The lit material for one of the game's loop materials: its texture and colour on IsoRim's textured
-        // wall material, drawn in the game's edge queue.
-        public static Material FaceMaterial(Material vanilla)
+        public static int StyleOf(TerrainDef t)
         {
-            if (vanilla == null || vanilla.mainTexture == null)
+            if (t.defName == "MechanoidPlatform")
             {
-                return null;
+                return Mech;
             }
-            Color32 c = vanilla.color;
-            long key = ((long)vanilla.mainTexture.GetInstanceID() << 32) ^ (uint)(c.r | c.g << 8 | c.b << 16);
-            Material m;
-            if (faceMaterials.TryGetValue(key, out m))
-            {
-                return m;
-            }
-            m = R3DMaterials.Make(R3DMaterials.SolidTexDef, "IsoRim_SpaceEdge", Queue, R3DMaterials.LightWall);
-            if (m != null)
-            {
-                m.mainTexture = vanilla.mainTexture;   // the game's texture as it is (its wrap and filter untouched)
-                m.color = new Color(vanilla.color.r, vanilla.color.g, vanilla.color.b, 1f);
-                IsoGlow.Use(m, IsoGlow.None);   // lit by the overlay: the far sides it covers must stay unmarked
-            }
-            faceMaterials[key] = m;
-            return m;
+            return t.defName == "OrbitalPlatform" ? Orbital : Asteroid;
         }
 
-        // The piece the game would draw for a side of cell c facing d: whether the solid run goes on past the
-        // cell to the left and right of that side (as seen from outside) decides the end pieces.
-        public static EdgeType PieceFor(bool left, bool right)
+        // The pieces of a style, loaded on first use; null if any of its files is missing.
+        public static Kit KitOf(int style)
         {
-            if (left && right)
+            if (!kitTried)
             {
-                return EdgeType.Loop;
+                kitTried = true;
+                kits = new Kit[StyleNames.Length];
+                string dir = IsoRimMod.RootDir != null ? Path.Combine(IsoRimMod.RootDir, "Models") : null;
+                for (int i = 0; dir != null && i < StyleNames.Length; i++)
+                {
+                    string pre = Path.Combine(dir, "space_edge_" + StyleNames[i] + "_");
+                    Kit k = new Kit();
+                    k.straights = new Model[StraightCount[i]];
+                    bool all = true;
+                    for (int v = 0; v < k.straights.Length; v++)
+                    {
+                        k.straights[v] = ModelLibrary.LoadFile(pre + "straight_" + (char)('a' + v) + ".obj");
+                        all &= k.straights[v] != null;
+                    }
+                    k.half = ModelLibrary.LoadFile(pre + "half.obj");
+                    k.outer = ModelLibrary.LoadFile(pre + "outer.obj");
+                    k.inner = ModelLibrary.LoadFile(pre + "inner.obj");
+                    if (all && k.half != null && k.outer != null && k.inner != null)
+                    {
+                        kits[i] = k;
+                    }
+                    else
+                    {
+                        ModLog.Warn("[IsoRim] Space-edge pieces of the " + StyleNames[i] + " set are missing: those platform sides are not drawn.");
+                    }
+                }
             }
-            if (right)
+            return kits != null && style >= 0 && style < kits.Length ? kits[style] : null;
+        }
+
+        // The plain material lit like the models (sun by face direction), drawn in the game's edge queue. Lit by the
+        // overlay, not by an own-cell mark: the far sides the ground covers must stay unmarked.
+        public static Material LitMaterial
+        {
+            get
             {
-                return EdgeType.LoopLeft;    // the run starts here, on its left end
+                if (litMaterial == null)
+                {
+                    litMaterial = R3DMaterials.Make(R3DMaterials.SolidDef, "IsoRim_SpaceEdge", Queue, R3DMaterials.LightModel);
+                    IsoGlow.Use(litMaterial, IsoGlow.None);
+                }
+                return litMaterial;
             }
-            if (left)
+        }
+
+        // Writes one piece turned k quarter turns clockwise seen from above ((x, z) -> (z, -x)), its origin at
+        // (x, z) and its top at the rim. Its own vertex write: the pieces hang below the ground, which the model
+        // baker would clamp away (it keeps y >= 0).
+        public static bool Write(LayerSubMesh sm, Model m, int k, float x, float z, float top, float squash, Color tint)
+        {
+            int n = m.positions.Length;
+            if (sm.verts.Count + n > MeshWriter.MaxVerts)
             {
-                return EdgeType.LoopRight;
+                return false;
             }
-            return EdgeType.LoopSingle;
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 p = m.positions[i];
+                float px = p.x;
+                float pz = p.z;
+                for (int r = 0; r < (k & 3); r++)
+                {
+                    float t = px;
+                    px = pz;
+                    pz = -t;
+                }
+                Color c = m.colors[i];
+                if (m.tinted[i])
+                {
+                    c *= tint;
+                }
+                sm.tris.Add(sm.verts.Count);
+                sm.verts.Add(new Vector3(x + px, top + p.y / squash, z + pz));
+                sm.colors.Add(R3DMaterials.Shaded(c, 1f));
+                sm.uvs.Add(default);
+            }
+            return true;
         }
     }
 
-    // The upright sides of space-edge terrain (see SpaceEdges).
+    // The 3D sides of space-edge terrain (see SpaceEdges).
     public class SectionLayer_IsoRimSpaceEdges : SectionLayer
     {
-        private const float MinDepth = 0.5f;
-        private const float MaxDepth = 3f;
-
         private static readonly IntVec3[] Sides = { IntVec3.North, IntVec3.East, IntVec3.South, IntVec3.West };
+        private static readonly bool[] voids = new bool[4];
 
         public SectionLayer_IsoRimSpaceEdges(Section section) : base(section)
         {
@@ -225,46 +290,74 @@ namespace IsoRim
                 float squash = View3D.Squash;
                 float top = -0.002f / squash;
                 bool clippers = map.DrawMapClippers;
+                Material mat = SpaceEdges.LitMaterial;
+                LayerSubMesh sm = mat != null ? MeshWriter.Sub(this, mat) : null;
                 foreach (IntVec3 c in r)
                 {
+                    if (sm == null)
+                    {
+                        break;
+                    }
                     TerrainDef t = grid.BaseTerrainAt(c);
-                    TerrainDef.SpaceEdgeGraphicData data = t != null ? t.spaceEdgeGraphicData : null;
-                    if (data == null)
+                    if (t == null || t.spaceEdgeGraphicData == null)
                     {
                         continue;
                     }
+                    bool any = false;
                     for (int s = 0; s < 4; s++)
                     {
-                        IntVec3 d = Sides[s];
-                        IntVec3 o = c + d;
-                        bool outside = !o.InBounds(map) || o.z >= h;
-                        // The game's ShouldDrawRockEdges: a void neighbour, or past the edge of a map without edge sheets.
-                        if (outside ? clippers : !Void(grid, o))
+                        voids[s] = VoidAt(map, grid, c + Sides[s], h, clippers);
+                        any |= voids[s];
+                    }
+                    if (!any)
+                    {
+                        continue;
+                    }
+                    SpaceEdges.Kit kit = SpaceEdges.KitOf(SpaceEdges.StyleOf(t));
+                    if (kit == null)
+                    {
+                        continue;
+                    }
+                    Color tint = t.spaceEdgeGraphicData.overrideColor ?? t.color;
+                    tint.a = 1f;
+                    float cx = c.x + 0.5f;
+                    float cz = c.z + 0.5f;
+                    for (int s = 0; s < 4; s++)
+                    {
+                        if (!voids[s])
                         {
                             continue;
                         }
-                        IntVec3 left = new IntVec3(d.z, 0, -d.x);   // to the left as seen from outside, looking at the side
-                        bool goesLeft = Solid(map, grid, c + left, h);
-                        bool goesRight = Solid(map, grid, c - left, h);
-                        EdgeType piece = SpaceEdges.PieceFor(goesLeft, goesRight);
-                        Material vanilla = data.GetMaterial(t, piece, o.GetHashCode());
-                        Material mat = SpaceEdges.FaceMaterial(vanilla);
-                        LayerSubMesh sm = mat != null ? MeshWriter.Sub(this, mat) : null;
-                        if (sm == null)
+                        int left = (s + 3) & 3;
+                        int right = (s + 1) & 3;
+                        if (!voids[left] && !voids[right])
                         {
+                            int hash = (c + Sides[s]).GetHashCode();
+                            int v = (hash == int.MinValue ? 0 : Math.Abs(hash)) % kit.straights.Length;
+                            SpaceEdges.Write(sm, kit.straights[v], s, cx, cz, top, squash, tint);
                             continue;
                         }
-                        Texture tex = vanilla.mainTexture;
-                        float depth = Mathf.Clamp(tex.width > 0 ? (float)tex.height / tex.width : 2f, MinDepth, MaxDepth);
-                        float bottom = top - depth / squash;
-                        Vector3 mid = new Vector3(c.x + 0.5f + d.x * 0.5f, 0f, c.z + 0.5f + d.z * 0.5f);
-                        Vector3 half = new Vector3(left.x * 0.5f, 0f, left.z * 0.5f);
-                        Vector3 pl = mid + half;
-                        Vector3 pr = mid - half;
-                        // One winding: the material does not cull. u runs left to right seen from outside, v = 1 at the rim.
-                        MeshWriter.TexturedQuad(sm,
-                            new Vector3(pl.x, bottom, pl.z), new Vector3(pl.x, top, pl.z), new Vector3(pr.x, top, pr.z), new Vector3(pr.x, bottom, pr.z),
-                            new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(1f, 0f), new Color32(255, 255, 255, 255));
+                        for (int j = 0; j < 2; j++)
+                        {
+                            int e = j == 0 ? left : right;
+                            if (!voids[e])
+                            {
+                                IntVec3 d = Sides[e];
+                                SpaceEdges.Write(sm, kit.half, s, cx + 0.25f * d.x, cz + 0.25f * d.z, top, squash, tint);
+                            }
+                        }
+                    }
+                    for (int q = 0; q < 4; q++)
+                    {
+                        int b = (q + 1) & 3;
+                        if (voids[q] && voids[b])
+                        {
+                            SpaceEdges.Write(sm, kit.outer, q, cx, cz, top, squash, tint);
+                        }
+                        else if (!voids[q] && !voids[b] && VoidAt(map, grid, c + Sides[q] + Sides[b], h, clippers))
+                        {
+                            SpaceEdges.Write(sm, kit.inner, q, cx, cz, top, squash, tint);
+                        }
                     }
                 }
             }
@@ -275,17 +368,16 @@ namespace IsoRim
             FinalizeMesh(MeshParts.All);
         }
 
-        // The game's void test (dontRender: space).
-        private static bool Void(TerrainGrid grid, IntVec3 c)
+        // The game's ShouldDrawRockEdges: a void neighbour (dontRender: space), or past the edge of a map without
+        // edge sheets. Rows above the ground rows (stacked floors) count as outside the map.
+        private static bool VoidAt(Map map, TerrainGrid grid, IntVec3 o, int h, bool clippers)
         {
-            TerrainDef t = grid.TerrainAt(c);
+            if (!o.InBounds(map) || o.z >= h)
+            {
+                return !clippers;
+            }
+            TerrainDef t = grid.TerrainAt(o);
             return t == null || t.dontRender;
-        }
-
-        // The run goes on into this cell (the game's corner test: outside the map never does).
-        private static bool Solid(Map map, TerrainGrid grid, IntVec3 c, int h)
-        {
-            return c.InBounds(map) && c.z < h && !Void(grid, c);
         }
     }
 }
