@@ -48,6 +48,31 @@ namespace IsoRim
         public bool cutRooms = false;    // walls in front of every roofed room are cut down
         public int turn = 0;             // eighth turns of the camera, clockwise
         public bool snap45 = true;       // Q and E turn an eighth (45 degrees) at a time; otherwise a quarter
+        public bool freeLook = true;     // the view can be turned and tilted by dragging with the mouse
+        public float freeYaw = 0f;       // degrees turned by free look, on top of the eighth turns
+        public float lookSensitivity = 0.25f;   // degrees per pixel dragged
+        public bool invertY = false;     // dragging up tilts toward top-down instead of lower
+        public bool perspective = true;  // perspective camera (Rim3D-like) instead of orthographic
+        public float fov = 40f;          // perspective: vertical field of view, degrees
+        public float viewDistance = 160f; // perspective: how far past the screen centre the map is drawn, cells
+        public float labelFade = 1.4f;   // perspective: labels fade out past this many times the distance to the screen centre (4 = never)
+        public float fpFov = 70f;        // first person: vertical field of view, degrees
+        public float fpEyeHeight = 0.95f; // first person: eye height, cells (a full wall is wallHeight)
+        public bool sky = true;          // perspective: a sky behind the map instead of black
+        public bool distanceFog = true;  // perspective: the far map fades into the sky's horizon
+        public float fogStrength = 1f;   // 1 = solid at the view distance (hides the edge)
+        public float fogStart = 0.35f;   // where between the screen centre and the view distance the fog starts
+        public bool stars = true;        // sky at night: stars
+        public bool milkyWay = true;     // sky at night: the Milky Way band
+        public bool planets = true;      // sky at night: three planets (realistic points)
+        public bool gasGiant = true;     // sky: a ringed gas giant (sci-fi), faint by day
+        public float gasGiantSize = 1f;
+        public float starBrightness = 1f;
+        public bool moonPhases = true;   // the moon waxes and wanes over a quadrum
+        public bool lowSky = true;       // sun, moon and gas giant drawn lower, where the map camera can see them
+        public bool antiAlias = true;    // FXAA pass over the 3D view (the engine has no MSAA)
+        public float antiAliasStrength = 1f;
+        public int lookMode = 0;         // 0 = Ctrl (R3D_LookModifier) + middle button, 1 = right button with nothing selected
         public bool pawns3D = true;
         public bool effects3D = true;
         public bool groundShadows = true;
@@ -114,6 +139,31 @@ namespace IsoRim
             Scribe_Values.Look(ref cutRooms, "cutRooms", false);
             Scribe_Values.Look(ref turn, "turnSteps", 0);
             Scribe_Values.Look(ref snap45, "snap45", true);
+            Scribe_Values.Look(ref freeLook, "freeLook", true);
+            Scribe_Values.Look(ref freeYaw, "freeYaw", 0f);
+            Scribe_Values.Look(ref lookSensitivity, "lookSensitivity", 0.25f);
+            Scribe_Values.Look(ref invertY, "invertY", false);
+            Scribe_Values.Look(ref lookMode, "lookMode", 0);
+            Scribe_Values.Look(ref perspective, "perspective", true);
+            Scribe_Values.Look(ref fov, "fov", 40f);
+            Scribe_Values.Look(ref viewDistance, "viewDistance", 160f);
+            Scribe_Values.Look(ref labelFade, "labelFade", 1.4f);
+            Scribe_Values.Look(ref fpFov, "fpFov", 70f);
+            Scribe_Values.Look(ref sky, "sky", true);
+            Scribe_Values.Look(ref distanceFog, "distanceFog", true);
+            Scribe_Values.Look(ref fogStrength, "fogStrength", 1f);
+            Scribe_Values.Look(ref fogStart, "fogStart", 0.35f);
+            Scribe_Values.Look(ref stars, "stars", true);
+            Scribe_Values.Look(ref milkyWay, "milkyWay", true);
+            Scribe_Values.Look(ref planets, "planets", true);
+            Scribe_Values.Look(ref gasGiant, "gasGiant", true);
+            Scribe_Values.Look(ref gasGiantSize, "gasGiantSize", 1f);
+            Scribe_Values.Look(ref starBrightness, "starBrightness", 1f);
+            Scribe_Values.Look(ref moonPhases, "moonPhases", true);
+            Scribe_Values.Look(ref lowSky, "lowSky", true);
+            Scribe_Values.Look(ref antiAlias, "antiAlias", true);
+            Scribe_Values.Look(ref antiAliasStrength, "antiAliasStrength", 1f);
+            Scribe_Values.Look(ref fpEyeHeight, "fpEyeHeight", 0.95f);
             Scribe_Values.Look(ref pawns3D, "pawns3D", true);
             Scribe_Values.Look(ref effects3D, "effects3D", true);
             Scribe_Values.Look(ref cutHeight, "cutHeight", 0.5f);
@@ -201,6 +251,9 @@ namespace IsoRim
     public static class SettingsWindow
     {
         private static int tab;
+        private static int scrollTab = -1;
+        private static Vector2 scroll;
+        private static float contentHeight;
         private static readonly Color Muted = new Color(0.72f, 0.72f, 0.72f);
         private static readonly Color Rule = new Color(1f, 1f, 1f, 0.18f);
         private static readonly Color Accent = new Color(0.55f, 0.78f, 0.95f);
@@ -228,13 +281,23 @@ namespace IsoRim
             Widgets.DrawMenuSection(body);
             TabDrawer.DrawTabs(body, tabs);
 
+            // Both columns scroll together when a tab is taller than the window (the height is
+            // measured from the last frame).
             Rect inner = body.ContractedBy(14f);
+            if (scrollTab != tab)
+            {
+                scrollTab = tab;
+                scroll = Vector2.zero;
+            }
+            bool scrolls = contentHeight > inner.height;
+            Rect view = new Rect(0f, 0f, inner.width - (scrolls ? 18f : 0f), Mathf.Max(contentHeight, inner.height));
+            Widgets.BeginScrollView(inner, ref scroll, view);
             float gap = 24f;
-            float colW = (inner.width - gap) / 2f;
-            Rect left = new Rect(inner.x, inner.y, colW, inner.height);
-            Rect right = new Rect(inner.x + colW + gap, inner.y, colW, inner.height);
+            float colW = (view.width - gap) / 2f;
+            Rect left = new Rect(0f, 0f, colW, 4000f);
+            Rect right = new Rect(colW + gap, 0f, colW, 4000f);
             GUI.color = Rule;
-            Widgets.DrawLineVertical(inner.x + colW + gap / 2f, inner.y, inner.height);
+            Widgets.DrawLineVertical(colW + gap / 2f, 0f, view.height);
             GUI.color = Color.white;
 
             // One column at a time: a listing opens a drawing group, and two open at once would
@@ -242,11 +305,15 @@ namespace IsoRim
             Listing_Standard l = new Listing_Standard();
             l.Begin(left);
             Tab(l, null, st);
+            float leftH = l.CurHeight;
             l.End();
             Listing_Standard r = new Listing_Standard();
             r.Begin(right);
             Tab(null, r, st);
+            float rightH = r.CurHeight;
             r.End();
+            Widgets.EndScrollView();
+            contentHeight = Mathf.Max(leftH, rightH) + 8f;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.UpperLeft;
             GUI.color = Color.white;
@@ -403,6 +470,40 @@ namespace IsoRim
                 Section(l, "Camera", "How the map is seen while the 3D view is on.");
                 Check(l, "Isometric view", ref st.isometric, "The camera turned 45 degrees and lowered, as in isometric games. Off: north is up.");
                 Check(l, "Turn in 45° steps", ref st.snap45, "Q and E turn the camera an eighth of a turn at a time. Off: a quarter turn. Either way the camera swings smoothly.");
+                Check(l, "Free look", ref st.freeLook, "Drag with the mouse to turn the camera all the way round and tilt it (20° to 89°). Q and E snap to the next step; "
+                    + (R3DKeyDefOf.R3D_ResetCamera != null ? R3DKeyDefOf.R3D_ResetCamera.MainKeyLabel : "Home") + " resets the camera.");
+                if (st.freeLook)
+                {
+                    bool rightButton = st.lookMode == 1;
+                    Check(l, "Free look with the right button", ref rightButton, "Drag with the right mouse button while nothing is selected. Off: hold " + (R3DKeyDefOf.R3D_LookModifier != null ? R3DKeyDefOf.R3D_LookModifier.MainKeyLabel : "Ctrl") + " and drag with the middle button.");
+                    st.lookMode = rightButton ? 1 : 0;
+                    st.lookSensitivity = Slider(l, "Free look speed", st.lookSensitivity, 0.05f, 1f, st.lookSensitivity.ToString("0.00") + "°/px");
+                    Check(l, "Invert up and down", ref st.invertY, "Dragging up tilts the camera toward top-down.");
+                }
+                st.fpFov = Slider(l, "First person field of view", st.fpFov, 40f, 100f, st.fpFov.ToString("0") + "°",
+                    (R3DKeyDefOf.R3D_FirstPerson != null ? R3DKeyDefOf.R3D_FirstPerson.MainKeyLabel : "F5") + " with one person selected: the camera in their head. Middle button drag looks round.");
+                st.fpEyeHeight = Slider(l, "First person eye height", st.fpEyeHeight, 0.5f, 2f, st.fpEyeHeight.ToString("0.00") + " cells");
+                Check(l, "Smooth edges (anti-aliasing)", ref st.antiAlias, "Softens the stair steps on the edges of walls and models (FXAA). The interface is not touched.");
+                if (st.antiAlias)
+                {
+                    st.antiAliasStrength = Slider(l, "Edge smoothing", st.antiAliasStrength, 0.2f, 1f, (st.antiAliasStrength * 100f).ToString("0") + "%");
+                }
+                Check(l, "Perspective", ref st.perspective, "A real perspective camera: far things get smaller, as in Rim3D. Off: the flat (orthographic) view.");
+                if (st.perspective)
+                {
+                    st.fov = Slider(l, "Field of view", st.fov, 15f, 90f, st.fov.ToString("0") + "°", "Wider shows more round the edges and makes depth stronger.");
+                    st.viewDistance = Slider(l, "View distance", st.viewDistance, 40f, 400f, st.viewDistance.ToString("0") + " cells",
+                        "How far past the middle of the screen the map is drawn when the camera is low. Further costs frame time.");
+                    Check(l, "Sky", ref st.sky, "A sky with the sun and moon behind the map, following the time of day and the weather.");
+                    Check(l, "Distance fog", ref st.distanceFog, "The far map fades into the horizon, so the edge of what is drawn never shows.");
+                    if (st.distanceFog)
+                    {
+                        st.fogStart = Slider(l, "Fog starts", st.fogStart, 0f, 0.95f, (st.fogStart * 100f).ToString("0") + "%", "Where between the middle of the screen and the view distance the fog begins.");
+                        st.fogStrength = Slider(l, "Fog strength", st.fogStrength, 0.2f, 1f, (st.fogStrength * 100f).ToString("0") + "%", "100% is solid at the view distance and hides the edge.");
+                    }
+                    st.labelFade = Slider(l, "Far labels fade from", st.labelFade, 1f, 4f, st.labelFade >= 4f ? "never" : "×" + st.labelFade.ToString("0.0"),
+                        "Labels (stack counts, quality, names) fade out past this many times the distance to the middle of the screen. Your colonists keep their names.");
+                }
                 if (st.isometric)
                 {
                     st.isoPitch = Slider(l, "Isometric camera angle", st.isoPitch, View3D.MinPitch, View3D.MaxPitch, st.isoPitch.ToString("0") + "°",
@@ -437,6 +538,22 @@ namespace IsoRim
                 KeyRow(r, R3DKeyDefOf.R3D_TiltUp, "raise the camera");
                 KeyRow(r, R3DKeyDefOf.R3D_ToggleRoofs, "roofs on and off");
                 Note(r, "The 3D view and the roofs also have buttons in the bottom right corner of the screen, next to the game's own.");
+
+                if (st.perspective && st.sky)
+                {
+                    Section(r, "Night sky", "The sky turns with the hour round a pole set by the map's latitude.");
+                    Check(r, "Stars", ref st.stars, "Thousands of stars that twinkle, more of them near the horizon's haze. Hidden by rain, snow and fog.");
+                    Check(r, "Milky Way", ref st.milkyWay, "A band of the galaxy across the sky, with dark dust lanes and a bright core.");
+                    Check(r, "Planets (realistic)", ref st.planets, "Three steady points of light that wander along the sky from day to day.");
+                    Check(r, "Gas giant with rings (sci-fi)", ref st.gasGiant, "A big ringed planet high in the sky, lit by the sun so it shows phases. Faint by day.");
+                    if (st.gasGiant)
+                    {
+                        st.gasGiantSize = Slider(r, "Gas giant size", st.gasGiantSize, 0.4f, 2.5f, "×" + st.gasGiantSize.ToString("0.0"));
+                    }
+                    Check(r, "Sun, moon and gas giant low in the sky", ref st.lowSky, "Drawn about a third as high, so the map camera (which cannot look up) sees them. The light and shadows do not change. Off: where they really are, seen in first person.");
+                    Check(r, "Moon phases", ref st.moonPhases, "The moon goes from new to full and back over a quadrum (15 days). Off: always full.");
+                    st.starBrightness = Slider(r, "Night sky brightness", st.starBrightness, 0.2f, 2f, (st.starBrightness * 100f).ToString("0") + "%", "Stars, Milky Way and planets.");
+                }
 
                 Section(r, "Advanced");
                 st.feetOffset = Slider(r, "Where upright sprites stand", st.feetOffset, 0f, 0.5f, st.feetOffset.ToString("0.00"),
@@ -689,6 +806,9 @@ namespace IsoRim
         public static KeyBindingDef R3D_TiltUp;
         public static KeyBindingDef R3D_TiltDown;
         public static KeyBindingDef R3D_ToggleRoofs;
+        public static KeyBindingDef R3D_ResetCamera;
+        public static KeyBindingDef R3D_LookModifier;
+        public static KeyBindingDef R3D_FirstPerson;
 
         static R3DKeyDefOf()
         {

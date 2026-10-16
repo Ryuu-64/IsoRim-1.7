@@ -74,6 +74,13 @@ namespace IsoRim
             Patch("name labels in the isometric view", AccessTools.Method(typeof(GenMapUI), "LabelDrawPosFor", new[] { typeof(Thing), typeof(float) }),
                 prefix: nameof(LabelDrawPosFor_Prefix));
 
+            // Far labels fade out with the perspective camera (stack counts, quality, names).
+            Patch("far labels", AccessTools.Method(typeof(GenMapUI), "DrawThingLabel", new[] { typeof(Thing), typeof(string), typeof(Color) }),
+                prefix: nameof(DrawThingLabel_Prefix));
+            Patch("far labels", AccessTools.Method(typeof(GenMapUI), "DrawPawnLabel", new[] { typeof(Pawn), typeof(Vector2), typeof(float), typeof(float),
+                typeof(Dictionary<string, string>), typeof(GameFont), typeof(bool), typeof(bool) }),
+                prefix: nameof(DrawPawnLabel_Prefix));
+
             Patch("mouse position", AccessTools.Method(typeof(Verse.UI), "UIToMapPosition", new[] { typeof(Vector2) }),
                 prefix: nameof(UIToMapPosition_Prefix));
 
@@ -759,6 +766,11 @@ namespace IsoRim
         // x is "right", y is "up the screen".
         public static void DollyVect_Postfix(ref Vector2 __result)
         {
+            if (FirstPerson.On)
+            {
+                __result = Vector2.zero;   // the camera rides with the colonist
+                return;
+            }
             if (View3D.Ready && __result != Vector2.zero)
             {
                 __result = View3D.ScreenMoveToGround(__result, false);
@@ -777,6 +789,13 @@ namespace IsoRim
                 if (!View3D.Ready)
                 {
                     dragging = false;
+                    return;
+                }
+                if (View3D.LookDragging || View3D.LookHeld())
+                {
+                    // The middle button is turning the view (free look), not dragging the map.
+                    dragging = false;
+                    StopGameDrag(__instance);
                     return;
                 }
                 bool held = Input.GetMouseButton(2);
@@ -1004,6 +1023,59 @@ namespace IsoRim
                 Log.ErrorOnce("[IsoRim] Placing a name label failed: " + e, 93611193);
                 return true;
             }
+        }
+
+        // A thing's label: skipped when it is too far away, faded on the way. The grey background
+        // is drawn with GUI.color as the game leaves it, so that is faded too.
+        public static bool DrawThingLabel_Prefix(Thing __0, ref Color __2)
+        {
+            if (!View3D.Ready || __0 == null)
+            {
+                return true;
+            }
+            if (!View3D.InFront(__0.DrawPos))
+            {
+                return false;   // behind the camera: it would show mirrored up in the sky
+            }
+            float a = View3D.LabelAlpha(__0.DrawPos);
+            if (a <= 0.01f)
+            {
+                return false;
+            }
+            if (a < 1f)
+            {
+                __2.a *= a;
+                GUI.color = new Color(1f, 1f, 1f, a);
+            }
+            return true;
+        }
+
+        // The same for names over people and animals. The player's own colonists always keep theirs.
+        public static bool DrawPawnLabel_Prefix(Pawn __0, ref float __2)
+        {
+            if (__0 != null && __0 == FirstPerson.Pawn)
+            {
+                return false;   // first person: no name floating in front of the eyes
+            }
+            if (!View3D.Ready || __0 == null)
+            {
+                return true;
+            }
+            if (!View3D.InFront(__0.DrawPos))
+            {
+                return false;   // behind the camera: it would show mirrored up in the sky
+            }
+            if (__0.IsColonist)
+            {
+                return true;
+            }
+            float a = View3D.LabelAlpha(__0.DrawPos);
+            if (a <= 0.01f)
+            {
+                return false;
+            }
+            __2 *= a;
+            return true;
         }
 
         // The game assumes the camera looks straight down when it turns a mouse position into a map cell.
@@ -1300,6 +1372,11 @@ namespace IsoRim
                 IsoRimSettings st = IsoRimMod.Settings;
                 Pawn pawn = pawnOfRenderer != null ? pawnOfRenderer(__instance) : null;
                 float spriteHeight = 1.5f;
+
+                if (pawn != null && pawn == FirstPerson.Pawn)
+                {
+                    return false;   // first person: the camera is in this colonist's head
+                }
 
                 if (pawn != null && st.mechs3D && st.models3D && pawn.RaceProps != null && pawn.RaceProps.IsMechanoid
                     && Mechs.Draw(pawn, __0))

@@ -32,7 +32,10 @@ namespace IsoRim
         public static float Shrink = 1f;
 
         private static bool ready;
-        private static Vector4 rowX, rowY;       // clip x and y of a point in drawn (squashed) space; orthographic, so affine
+        private static Vector4 rowX, rowY, rowW; // clip x, y and w of a point in drawn (squashed) space
+        // The screen's four sides and the near plane as planes in drawn space: a point is on screen when
+        // all five are >= 0. Orthographic (w = 1) they are x and y against the limits as before.
+        private static readonly Vector4[] planes = new Vector4[5];
         private static float limX = 1f, limY = 1f;
         private static float squash = 0.003f;
 
@@ -41,9 +44,15 @@ namespace IsoRim
         {
             rowX = viewProj.GetRow(0);
             rowY = viewProj.GetRow(1);
+            rowW = viewProj.GetRow(3);
             // Two pixels of slack on every side.
             limX = (1f + 4f / Mathf.Max(1, Screen.width)) * Shrink;
             limY = (1f + 4f / Mathf.Max(1, Screen.height)) * Shrink;
+            planes[0] = rowW * limX - rowX;
+            planes[1] = rowW * limX + rowX;
+            planes[2] = rowW * limY - rowY;
+            planes[3] = rowW * limY + rowY;
+            planes[4] = rowW;   // in front of the eye (always 1 when orthographic)
             squash = s;
             ready = true;
         }
@@ -65,20 +74,21 @@ namespace IsoRim
             get { return ready && Enabled && View3D.Ready && !WorldComponent_GravshipController.CutsceneInProgress && !WorldComponent_GravshipController.GravshipRenderInProgess; }
         }
 
-        // Whether any of the box (min..max, drawn space) can be on screen.
+        // Whether any of the box (min..max, drawn space) can be on screen: no plane has the whole box behind it.
         public static bool BoxVisible(Vector3 min, Vector3 max)
         {
-            float cx = (min.x + max.x) * 0.5f, cy = (min.y + max.y) * 0.5f, cz = (min.z + max.z) * 0.5f;
-            float ex = (max.x - min.x) * 0.5f, ey = (max.y - min.y) * 0.5f, ez = (max.z - min.z) * 0.5f;
-            float x = rowX.x * cx + rowX.y * cy + rowX.z * cz + rowX.w;
-            float rx = Mathf.Abs(rowX.x) * ex + Mathf.Abs(rowX.y) * ey + Mathf.Abs(rowX.z) * ez;
-            if (x - rx > limX || x + rx < -limX)
+            Vector3 c = (min + max) * 0.5f, e = (max - min) * 0.5f;
+            for (int i = 0; i < planes.Length; i++)
             {
-                return false;
+                Vector4 pl = planes[i];
+                float v = pl.x * c.x + pl.y * c.y + pl.z * c.z + pl.w;
+                float r = Mathf.Abs(pl.x) * e.x + Mathf.Abs(pl.y) * e.y + Mathf.Abs(pl.z) * e.z;
+                if (v + r < 0f)
+                {
+                    return false;
+                }
             }
-            float y = rowY.x * cx + rowY.y * cy + rowY.z * cz + rowY.w;
-            float ry = Mathf.Abs(rowY.x) * ex + Mathf.Abs(rowY.y) * ey + Mathf.Abs(rowY.z) * ez;
-            return !(y - ry > limY || y + ry < -limY);
+            return true;
         }
 
         // The same for a mesh drawn with a matrix (exact for the mesh's box under any affine matrix).
@@ -90,28 +100,21 @@ namespace IsoRim
                 return true;
             }
             Vector3 c = (min + max) * 0.5f, e = (max - min) * 0.5f;
-            // Clip rows of the whole transform: row * m.
-            float ax = rowX.x * m.m00 + rowX.y * m.m10 + rowX.z * m.m20;
-            float bx = rowX.x * m.m01 + rowX.y * m.m11 + rowX.z * m.m21;
-            float cxr = rowX.x * m.m02 + rowX.y * m.m12 + rowX.z * m.m22;
-            float dx = rowX.x * m.m03 + rowX.y * m.m13 + rowX.z * m.m23 + rowX.w;
-            float x = ax * c.x + bx * c.y + cxr * c.z + dx;
-            float rx = Mathf.Abs(ax) * e.x + Mathf.Abs(bx) * e.y + Mathf.Abs(cxr) * e.z;
-            if (x - rx > limX || x + rx < -limX)
+            for (int i = 0; i < planes.Length; i++)
             {
-                culledParts++;
-                return false;
-            }
-            float ay = rowY.x * m.m00 + rowY.y * m.m10 + rowY.z * m.m20;
-            float by = rowY.x * m.m01 + rowY.y * m.m11 + rowY.z * m.m21;
-            float cy = rowY.x * m.m02 + rowY.y * m.m12 + rowY.z * m.m22;
-            float dy = rowY.x * m.m03 + rowY.y * m.m13 + rowY.z * m.m23 + rowY.w;
-            float y = ay * c.x + by * c.y + cy * c.z + dy;
-            float ry = Mathf.Abs(ay) * e.x + Mathf.Abs(by) * e.y + Mathf.Abs(cy) * e.z;
-            if (y - ry > limY || y + ry < -limY)
-            {
-                culledParts++;
-                return false;
+                // The plane in the mesh's own space: plane * m.
+                Vector4 pl = planes[i];
+                float a = pl.x * m.m00 + pl.y * m.m10 + pl.z * m.m20;
+                float b = pl.x * m.m01 + pl.y * m.m11 + pl.z * m.m21;
+                float cz = pl.x * m.m02 + pl.y * m.m12 + pl.z * m.m22;
+                float d = pl.x * m.m03 + pl.y * m.m13 + pl.z * m.m23 + pl.w;
+                float v = a * c.x + b * c.y + cz * c.z + d;
+                float r = Mathf.Abs(a) * e.x + Mathf.Abs(b) * e.y + Mathf.Abs(cz) * e.z;
+                if (v + r < 0f)
+                {
+                    culledParts++;
+                    return false;
+                }
             }
             if (drawingHidden)
             {

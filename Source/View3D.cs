@@ -17,8 +17,15 @@ namespace IsoRim
     // after squashing, which is what ends up on screen.
     public static class View3D
     {
-        public const float MinPitch = 30f;
-        public const float MaxPitch = 85f;
+        // Free look (IsoRimSettings.freeLook) opens up the range of camera angles.
+        public static float MinPitch
+        {
+            get { return IsoRimMod.Settings.freeLook ? 20f : 30f; }
+        }
+        public static float MaxPitch
+        {
+            get { return IsoRimMod.Settings.freeLook ? 89f : 85f; }
+        }
         public const float IsoYaw = 45f;   // how far the isometric camera is turned from north, clockwise seen from above
 
         // How far the lighting overlay is pulled toward the camera, and how much depth is kept
@@ -53,6 +60,16 @@ namespace IsoRim
         private static Vector3 right = Vector3.right;
         private static float orthoSize = 20f;
         private static float aspect = 1.6f;
+        private static bool persp;            // this frame uses a perspective camera (IsoRimSettings.perspective)
+        private static float tanHalf = 0.36f; // tan of half the vertical field of view
+        private static float camDist = 50f;   // from the eye to the focus point on the ground
+
+        // A perspective camera (Rim3D-like) instead of the orthographic one. The game's zoom
+        // (orthographicSize) sets the distance, so the ground at the centre of the screen keeps its scale.
+        public static bool Perspective
+        {
+            get { return persp; }
+        }
 
         private static Camera[] cams;
         private static bool camerasOverridden;
@@ -74,6 +91,10 @@ namespace IsoRim
         {
             get
             {
+                if (FirstPerson.On)
+                {
+                    return FirstPerson.Pitch;
+                }
                 IsoRimSettings st = IsoRimMod.Settings;
                 return Mathf.Clamp(st.isometric ? st.isoPitch : st.pitch, MinPitch, MaxPitch);
             }
@@ -90,7 +111,20 @@ namespace IsoRim
         // Where the camera is turning to: the base direction plus the eighth turns asked for.
         public static float YawTarget
         {
-            get { return Mathf.Repeat((IsoRimMod.Settings.isometric ? IsoYaw : 0f) + 45f * Step, 360f); }
+            get { return Mathf.Repeat(BaseYaw + 45f * Step + IsoRimMod.Settings.freeYaw, 360f); }
+        }
+
+        // The direction the view starts from before any turn: north-east when isometric, north otherwise.
+        private static float BaseYaw
+        {
+            get { return IsoRimMod.Settings.isometric ? IsoYaw : 0f; }
+        }
+
+        // The eighth of a turn the camera is nearest to now (0 to 7, 0 = north). What is built for
+        // the camera's direction (map edge, cut walls) is redrawn when this changes.
+        public static int Facing
+        {
+            get { return Mathf.RoundToInt(Mathf.Repeat(Yaw, 360f) / 45f) % 8; }
         }
 
         // How many eighth turns clockwise the view has been turned from its starting direction (0 to 7).
@@ -103,7 +137,7 @@ namespace IsoRim
         // True while the camera is still swinging toward YawTarget.
         public static bool Turning
         {
-            get { return yawSet && Mathf.Abs(Mathf.DeltaAngle(yawNow, YawTarget)) > 0.05f; }
+            get { return lookDragging || FirstPerson.On || yawSet && Mathf.Abs(Mathf.DeltaAngle(yawNow, YawTarget)) > 0.05f; }
         }
 
         private static float yawNow;
@@ -112,9 +146,16 @@ namespace IsoRim
 
         private static void TurnCamera()
         {
-            float target = YawTarget;
-            if (!yawSet || !Active)
+            if (FirstPerson.On)
             {
+                yawNow = FirstPerson.Yaw;
+                yawSet = true;
+                return;
+            }
+            float target = YawTarget;
+            if (!yawSet || !Active || lookDragging)
+            {
+                // While the view is dragged round with the mouse it follows at once, with no easing.
                 yawNow = target;
                 yawSet = true;
             }
@@ -158,6 +199,38 @@ namespace IsoRim
             }
         }
 
+        // How much of a label to show for something at a map position (1 = all, 0 = none). Only with
+        // perspective: labels keep their size on screen while what they belong to shrinks, so beyond
+        // labelFade times the distance to the screen centre they fade out over the next 40 %.
+        // Whether a map position is in front of the perspective camera. Behind it, the projection
+        // mirrors points up into the sky, so labels for them must not be drawn. Always true orthographic.
+        public static bool InFront(Vector3 pos)
+        {
+            if (!persp)
+            {
+                return true;
+            }
+            Vector3 d = new Vector3(pos.x, 0f, pos.z) - eye;
+            return Vector3.Dot(d, fwd) > 0.2f;
+        }
+
+        public static float LabelAlpha(Vector3 pos)
+        {
+            float fade = IsoRimMod.Settings.labelFade;
+            if (!persp || fade >= 4f)
+            {
+                return 1f;
+            }
+            float d = Vector3.Distance(eye, new Vector3(pos.x, 0f, pos.z)) / Mathf.Max(1f, camDist);
+            return Mathf.Clamp01(1f - (d - fade) / (fade * 0.4f));
+        }
+
+        // How far past the focus point the perspective camera shows the map, in cells.
+        public static float ViewDistance
+        {
+            get { return Mathf.Clamp(IsoRimMod.Settings.viewDistance, 40f, 400f); }
+        }
+
         public static float WallHeight
         {
             get { return Mathf.Clamp(LockedWallHeight > 0f ? LockedWallHeight : IsoRimMod.Settings.wallHeight, 0.5f, 4f); }
@@ -194,6 +267,7 @@ namespace IsoRim
             }
 
             HandleKeys();
+            FirstPerson.Update();
             TurnCamera();
 
             Camera main = Find.Camera;
@@ -205,6 +279,7 @@ namespace IsoRim
             if (Active)
             {
                 ApplyCamera(main);
+                AntiAlias.Draw(main);
                 Grade.Draw(main);
             }
             else if (camerasOverridden)
@@ -272,24 +347,43 @@ namespace IsoRim
                 Messages.Message(st.isometric ? "IsoRim: isometric view" : "IsoRim: straight-on view", MessageTypeDefOf.SilentInput, false);
             }
 
+            if (!typing && R3DKeyDefOf.R3D_FirstPerson != null && R3DKeyDefOf.R3D_FirstPerson.JustPressed)
+            {
+                FirstPerson.Toggle();
+            }
+
             if (!Active || typing)
             {
+                lookDragging = false;
                 return;
+            }
+
+            HandleLook();
+            if (R3DKeyDefOf.R3D_ResetCamera != null && R3DKeyDefOf.R3D_ResetCamera.JustPressed)
+            {
+                if (FirstPerson.On)
+                {
+                    FirstPerson.ResetLook();
+                }
+                else
+                {
+                    ResetLook();
+                }
             }
 
             // Q and E turn the view an eighth or a quarter turn (see the options). The game uses the
             // same keys to turn a building that is being placed, so they are left alone while
             // something is selected to build.
-            if (Find.DesignatorManager == null || Find.DesignatorManager.SelectedDesignator == null)
+            if (!FirstPerson.On && (Find.DesignatorManager == null || Find.DesignatorManager.SelectedDesignator == null))
             {
                 IsoRimSettings turnSettings = IsoRimMod.Settings;
                 if (R3DKeyDefOf.R3D_TurnLeft != null && R3DKeyDefOf.R3D_TurnLeft.JustPressed)
                 {
-                    turnSettings.turn = TurnBy(turnSettings.turn, -1, turnSettings.snap45);
+                    SnapTurn(turnSettings, -1);
                 }
                 if (R3DKeyDefOf.R3D_TurnRight != null && R3DKeyDefOf.R3D_TurnRight.JustPressed)
                 {
-                    turnSettings.turn = TurnBy(turnSettings.turn, 1, turnSettings.snap45);
+                    SnapTurn(turnSettings, 1);
                 }
             }
             if (R3DKeyDefOf.R3D_ToggleRoofs != null && R3DKeyDefOf.R3D_ToggleRoofs.JustPressed)
@@ -306,7 +400,7 @@ namespace IsoRim
             {
                 dir -= 1f;
             }
-            if (dir != 0f)
+            if (dir != 0f && !FirstPerson.On)
             {
                 IsoRimSettings s = IsoRimMod.Settings;
                 float change = dir * 40f * Time.unscaledDeltaTime;
@@ -319,6 +413,117 @@ namespace IsoRim
                     s.pitch = Mathf.Clamp(s.pitch + change, MinPitch, MaxPitch);
                 }
             }
+        }
+
+        // ---------------------------------------------------------------- free look
+
+        private static bool lookDragging;
+        private static Vector3 lookLastMouse;
+
+        // True while the view is being dragged round with the mouse (read by the map drag in
+        // Patches, which then stays out of the way).
+        public static bool LookDragging
+        {
+            get { return lookDragging; }
+        }
+
+        // Whether the mouse buttons and keys for free look are held now (see IsoRimSettings.lookMode):
+        // 0 = look modifier (Ctrl) + middle button; 1 = right button while nothing is selected and no building is being placed.
+        public static bool LookHeld()
+        {
+            IsoRimSettings st = IsoRimMod.Settings;
+            if (FirstPerson.On && Active)
+            {
+                // Nothing to drag the map for in first person: the middle button alone looks round.
+                return Input.GetMouseButton(2);
+            }
+            if (!st.freeLook || !Active)
+            {
+                return false;
+            }
+            if (st.lookMode == 1)
+            {
+                return Input.GetMouseButton(1)
+                    && (Find.DesignatorManager == null || Find.DesignatorManager.SelectedDesignator == null)
+                    && (Find.Selector == null || Find.Selector.NumSelected == 0);
+            }
+            // The modifier is a key binding of its own (Ctrl by default: Alt is the game's cell inspector).
+            KeyBindingDef mod = R3DKeyDefOf.R3D_LookModifier;
+            return Input.GetMouseButton(2) && mod != null && mod.IsDown;
+        }
+
+        // Dragging turns the camera round (left and right) and tilts it (up and down). A drag only
+        // starts with the pointer over the map, not over a window.
+        private static void HandleLook()
+        {
+            if (!LookHeld())
+            {
+                lookDragging = false;
+                return;
+            }
+            Vector3 mouse = Input.mousePosition;
+            if (!lookDragging)
+            {
+                if (Find.WindowStack != null && Find.WindowStack.GetWindowAt(UI.MousePositionOnUIInverted) != null)
+                {
+                    return;
+                }
+                lookDragging = true;
+                lookLastMouse = mouse;
+                return;
+            }
+            Vector3 d = mouse - lookLastMouse;
+            lookLastMouse = mouse;
+            if (d.x == 0f && d.y == 0f)
+            {
+                return;
+            }
+            IsoRimSettings st = IsoRimMod.Settings;
+            float sens = Mathf.Clamp(st.lookSensitivity, 0.02f, 2f);
+            if (FirstPerson.On)
+            {
+                FirstPerson.Look(d.x * sens, (st.invertY ? 1f : -1f) * d.y * sens);
+                return;
+            }
+            st.freeYaw = Mathf.Repeat(st.freeYaw + d.x * sens, 360f);
+            float tilt = (st.invertY ? 1f : -1f) * d.y * sens;
+            if (st.isometric)
+            {
+                st.isoPitch = Mathf.Clamp(st.isoPitch + tilt, MinPitch, MaxPitch);
+            }
+            else
+            {
+                st.pitch = Mathf.Clamp(st.pitch + tilt, MinPitch, MaxPitch);
+            }
+        }
+
+        // Q and E after a free turn: the next eighth (or quarter) in that direction from where the
+        // camera faces now, so the view never stays half way between steps.
+        private static void SnapTurn(IsoRimSettings st, int dir)
+        {
+            float k = Mathf.Repeat(Yaw - BaseYaw, 360f) / 45f;   // eighths turned, 0 to 8
+            int unit = st.snap45 ? 1 : 2;
+            float q = k / unit;
+            int next = dir > 0 ? Mathf.FloorToInt(q + 0.05f) + 1 : Mathf.CeilToInt(q - 0.05f) - 1;
+            st.turn = ((next * unit) % 8 + 8) % 8;
+            st.freeYaw = 0f;
+        }
+
+        // The reset key: the starting direction and angle.
+        public static void ResetLook()
+        {
+            IsoRimSettings st = IsoRimMod.Settings;
+            st.freeYaw = 0f;
+            st.turn = 0;
+            if (st.isometric)
+            {
+                st.isoPitch = 35.3f;
+            }
+            else
+            {
+                st.pitch = 55f;
+            }
+            Messages.Message("IsoRim: camera reset", MessageTypeDefOf.SilentInput, false);
         }
 
         // One step left (-1) or right (+1) from an eighth-turn count. With quarter snaps an odd
@@ -357,15 +562,42 @@ namespace IsoRim
             // The transform is left alone so everything that reads it keeps working.
             Vector3 tp = main.transform.position;
             Vector3 focus = new Vector3(tp.x, 0f, tp.z);
+            bool fp = FirstPerson.On;
 
             Quaternion look = Quaternion.Euler(pitchDeg, Yaw, 0f);
             fwd = look * Vector3.forward;
             up = look * Vector3.up;
             right = look * Vector3.right;
 
-            float half = orthoSize / Mathf.Tan(p) + DepthPad;
-            eye = focus - fwd * (half + 5f);
-            float far = 2f * half + 10f;
+            IsoRimSettings st = IsoRimMod.Settings;
+            persp = st.perspective || fp;
+            float fovNow = Mathf.Clamp(fp ? st.fpFov : st.fov, 15f, 100f);
+            float near, far;
+            if (fp)
+            {
+                // In the colonist's head. camDist stands for "near things" (label fading, ray reach).
+                tanHalf = Mathf.Tan(fovNow * 0.5f * Mathf.Deg2Rad);
+                camDist = 10f;
+                eye = FirstPerson.Eye;
+                near = 0.08f;
+                far = ViewDistance + 2f * DepthPad;
+            }
+            else if (persp)
+            {
+                float fov = fovNow;
+                tanHalf = Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad);
+                camDist = orthoSize / tanHalf;
+                eye = focus - fwd * camDist;
+                near = Mathf.Clamp(camDist * 0.02f, 0.3f, 2f);
+                far = camDist + ViewDistance + 2f * DepthPad;
+            }
+            else
+            {
+                float half = orthoSize / Mathf.Tan(p) + DepthPad;
+                eye = focus - fwd * (half + 5f);
+                near = 0.5f;
+                far = 2f * half + 10f;
+            }
 
             Matrix4x4 view = Matrix4x4.Scale(new Vector3(1f, 1f, -1f))
                 * Matrix4x4.TRS(eye, look, Vector3.one).inverse;
@@ -380,7 +612,9 @@ namespace IsoRim
                 }
                 float size = c.orthographicSize;
                 float asp = c.aspect;
-                Matrix4x4 proj = Matrix4x4.Ortho(-size * asp, size * asp, -size, size, 0.5f, far);
+                Matrix4x4 proj = persp
+                    ? Matrix4x4.Perspective(fovNow, asp, near, far)
+                    : Matrix4x4.Ortho(-size * asp, size * asp, -size, size, near, far);
                 c.worldToCameraMatrix = worldToCamera;
                 c.projectionMatrix = proj;
                 c.cullingMatrix = proj * worldToCamera;
@@ -394,8 +628,28 @@ namespace IsoRim
 
             // Moving something straight toward an orthographic camera does not move it on screen,
             // it only puts it in front. That is how the lighting overlay gets to darken upright things.
-            LightingMatrix = Matrix4x4.Translate(new Vector3(-fwd.x * OverlayPull, -fwd.y * OverlayPull / s, -fwd.z * OverlayPull));
+            // With perspective the same is a shrink toward the eye (drawn space: the eye's height unsquashed).
+            if (persp)
+            {
+                float k = Mathf.Clamp(1f - OverlayPull / camDist, 0.3f, 0.9f);
+                Vector3 eyeDrawn = new Vector3(eye.x, eye.y / s, eye.z);
+                LightingMatrix = Matrix4x4.Translate(eyeDrawn) * Matrix4x4.Scale(new Vector3(k, k, k)) * Matrix4x4.Translate(-eyeDrawn);
+            }
+            else
+            {
+                LightingMatrix = Matrix4x4.Translate(new Vector3(-fwd.x * OverlayPull, -fwd.y * OverlayPull / s, -fwd.z * OverlayPull));
+            }
             UprightCards.SetCamera(pitchDeg, Yaw);
+
+            if (persp)
+            {
+                // The fog is solid a little before the reach of the pointer rays and of the drawn ground
+                // (view depth is shorter than the distance along the ground toward the screen corners).
+                float reach = camDist + ViewDistance;
+                float fogEnd = reach * 0.92f;
+                float fogStart = Mathf.Lerp(Mathf.Min(camDist * 0.8f, fogEnd * 0.5f), fogEnd, Mathf.Clamp(st.fogStart, 0f, 0.95f));
+                Sky.Draw(main, fwd, right, up, tanHalf * aspect, tanHalf, near, far, fogStart, fogEnd);
+            }
         }
 
         private static void ResetCamera()
@@ -530,7 +784,7 @@ namespace IsoRim
             // (anything redrawn during the swing was built at an angle in between).
             bool turned = false;
             bool turning = Turning;
-            int step = Step;
+            int step = Facing;
             if (litFacing < 0)
             {
                 litFacing = step;
@@ -696,6 +950,21 @@ namespace IsoRim
         {
             float nx = px.x / Screen.width * 2f - 1f;
             float ny = px.y / Screen.height * 2f - 1f;
+            if (persp)
+            {
+                // A ray from the eye. Toward the horizon (or above it) it is stopped at the view distance.
+                Vector3 dir = fwd + right * (nx * tanHalf * aspect) + up * (ny * tanHalf);
+                float reach = camDist + ViewDistance;
+                float flat = new Vector2(dir.x, dir.z).magnitude;
+                float tMax = flat > 1e-5f ? reach / flat : reach;
+                float tr = dir.y < -1e-5f ? (height - eye.y) / dir.y : tMax;
+                if (tr < 0f || tr > tMax)
+                {
+                    tr = tMax;
+                }
+                Vector3 h = eye + dir * tr;
+                return new Vector3(h.x, height, h.z);
+            }
             Vector3 origin = eye + right * (nx * orthoSize * aspect) + up * (ny * orthoSize);
             float t = (height - origin.y) / fwd.y;
             Vector3 hit = origin + fwd * t;
@@ -707,8 +976,18 @@ namespace IsoRim
         public static Vector2 WorldToScreen(Vector3 p)
         {
             Vector3 d = p - eye;
-            float nx = Vector3.Dot(d, right) / (orthoSize * aspect);
-            float ny = Vector3.Dot(d, up) / orthoSize;
+            float nx, ny;
+            if (persp)
+            {
+                float z = Mathf.Max(0.01f, Vector3.Dot(d, fwd));
+                nx = Vector3.Dot(d, right) / (z * tanHalf * aspect);
+                ny = Vector3.Dot(d, up) / (z * tanHalf);
+            }
+            else
+            {
+                nx = Vector3.Dot(d, right) / (orthoSize * aspect);
+                ny = Vector3.Dot(d, up) / orthoSize;
+            }
             return new Vector2((nx + 1f) * 0.5f * Screen.width, (ny + 1f) * 0.5f * Screen.height);
         }
 

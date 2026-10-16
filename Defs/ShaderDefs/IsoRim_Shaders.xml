@@ -259,4 +259,75 @@
     </shaderProgram>
   </ShaderDef>
 
+  <!-- Depth only, for the perspective camera (Sky.cs): the map's ground as a flat quad, so the distance fog
+       and the sky see the game's terrain (which writes no depth) at its real distance. Queue 3180: after
+       everything that writes depth, before the fog. -->
+  <ShaderDef>
+    <defName>IsoRimDepthPlane</defName>
+    <shaderProgram>
+      <vertexShaderFileName>IsoRimDepthPlane.vert.glsl</vertexShaderFileName>
+      <fragmentShaderFileName>IsoRimDepthPlane.frag.glsl</fragmentShaderFileName>
+      <useTexture>false</useTexture>
+      <flipTextureST>false</flipTextureST>
+      <blendMode>Opaque</blendMode>
+      <colorWrite>false</colorWrite>
+      <depthWrite>true</depthWrite>
+      <cullMode>None</cullMode>
+      <renderQueue>3180</renderQueue>
+    </shaderProgram>
+  </ShaderDef>
+
+  <!-- Distance fog for the perspective camera (Sky.cs): layers of full-screen quads at set distances,
+       depth-tested, blended. Queue 3190: after the lighting overlay and the fog-of-war lid. -->
+  <ShaderDef>
+    <defName>IsoRimDistFog</defName>
+    <shaderProgram>
+      <vertexShaderFileName>IsoRimDistFog.vert.glsl</vertexShaderFileName>
+      <fragmentShaderFileName>IsoRimDistFog.frag.glsl</fragmentShaderFileName>
+      <useTexture>false</useTexture>
+      <flipTextureST>false</flipTextureST>
+      <blendMode>Alpha</blendMode>
+      <depthWrite>false</depthWrite>
+      <cullMode>None</cullMode>
+      <renderQueue>3190</renderQueue>
+    </shaderProgram>
+  </ShaderDef>
+
+  <!-- The sky for the perspective camera (Sky.cs): a full-screen quad at the far depth, so only
+       pixels nothing was drawn on take it. Queue 3195: after the distance fog, which would cover it. -->
+  <ShaderDef>
+    <defName>IsoRimSky</defName>
+    <shaderProgram>
+      <vertexShaderFileName>IsoRimSky.vert.glsl</vertexShaderFileName>
+      <fragmentShaderFileName>IsoRimSky.frag.glsl</fragmentShaderFileName>
+      <useTexture>false</useTexture>
+      <flipTextureST>false</flipTextureST>
+      <blendMode>Opaque</blendMode>
+      <depthWrite>false</depthWrite>
+      <cullMode>None</cullMode>
+      <renderQueue>3195</renderQueue>
+    </shaderProgram>
+  </ShaderDef>
+
+  <!-- Anti-aliasing (AntiAlias.cs): FXAA as one full-screen pass over the map view drawn so far
+       (scene grab IsoRimAA), just before the colour grade. The interface is drawn later and untouched. -->
+  <ShaderDef>
+    <defName>IsoRimAA</defName>
+    <shaderProgram>
+      <vertexShaderFileName>IsoRimScreen.vert.glsl</vertexShaderFileName>
+      <fragmentShaderFileName>IsoRimAA.frag.glsl</fragmentShaderFileName>
+      <useTexture>false</useTexture>
+      <flipTextureST>false</flipTextureST>
+      <blendMode>Opaque</blendMode>
+      <depthTest>false</depthTest>
+      <depthWrite>false</depthWrite>
+      <cullMode>None</cullMode>
+      <renderQueue>4890</renderQueue>
+      <sceneGrab>
+        <name>IsoRimAA</name>
+        <queue>4890</queue>
+      </sceneGrab>
+    </shaderProgram>
+  </ShaderDef>
+
 </Defs>
