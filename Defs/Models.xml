@@ -8580,4 +8580,339 @@
     <builtFor>(3, 5)</builtFor>
   </IsoRim.ModelDef>
 
+  <!-- Odyssey clutter O2, ancient interior fittings (Odyssey Things/Building/Ancient defs and their Core Ruins
+       counterparts used by the ancient prefabs; 2026-10-17, Blender block-out v1): one model per def, close to the vanilla
+       sprite, Models\odyclutter.mtl (oc_* fixed colours, glow_oc_* for the emergency light lenses; stuffless defs, no
+       stuff* faces). Exact thingDef entries. The Graphic_Random defs use the one model for every sprite variant.
+       Beds are built as the vanilla North sprite shows them (pillow at the south end), so no extra rotation;
+       beddingTop is the blanket top, surfaceHeight the mattress top. The emergency lights are wall attachments
+       (as WallLamp). AncientSecurityTerminal shares the existing ancient_terminal.obj (as AncientTerminal). -->
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientLargeCrate</defName>
+    <thingDef>AncientLargeCrate</thingDef>
+    <model>Models/oc_large_crate.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientLongCrate</defName>
+    <thingDef>AncientLongCrate</thingDef>
+    <model>Models/oc_long_crate.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientSmallCrate</defName>
+    <thingDef>AncientSmallCrate</thingDef>
+    <model>Models/oc_small_crate.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientMetalCrate</defName>
+    <thingDef>AncientMetalCrate</thingDef>
+    <model>Models/oc_metal_crate.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientMilitaryCrate</defName>
+    <thingDef>AncientMilitaryCrate</thingDef>
+    <model>Models/oc_military_crate.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientWoodenCrate</defName>
+    <thingDef>AncientWoodenCrate</thingDef>
+    <model>Models/oc_wooden_crate.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientCardboardBox</defName>
+    <thingDef>AncientCardboardBox</thingDef>
+    <model>Models/oc_cardboard_box.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientAmmoStack</defName>
+    <thingDef>AncientAmmoStack</thingDef>
+    <model>Models/oc_ammo_stack.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientMiningCharge</defName>
+    <thingDef>AncientMiningCharge</thingDef>
+    <model>Models/oc_mining_charge.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientExplosivesCrate</defName>
+    <thingDef>AncientExplosivesCrate</thingDef>
+    <model>Models/oc_explosives_crate.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientChembarrel</defName>
+    <thingDef>AncientChembarrel</thingDef>
+    <model>Models/oc_chembarrel.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientChembarrelPallet</defName>
+    <thingDef>AncientChembarrelPallet</thingDef>
+    <model>Models/oc_chembarrel_pallet.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientFuelNode</defName>
+    <thingDef>AncientFuelNode</thingDef>
+    <model>Models/oc_fuel_node.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientPlantPot</defName>
+    <thingDef>AncientPlantPot</thingDef>
+    <model>Models/oc_plant_pot.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientLockers</defName>
+    <thingDef>AncientLockers</thingDef>
+    <model>Models/oc_lockers.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientFilingCabinet</defName>
+    <thingDef>AncientFilingCabinet</thingDef>
+    <model>Models/oc_filing_cabinet.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientLockerBank</defName>
+    <thingDef>AncientLockerBank</thingDef>
+    <model>Models/oc_locker_bank.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientSystemRack</defName>
+    <thingDef>AncientSystemRack</thingDef>
+    <model>Models/oc_system_rack.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientIndustrialShelf</defName>
+    <thingDef>AncientIndustrialShelf</thingDef>
+    <model>Models/oc_industrial_shelf.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientMilitaryGeneratorSmall</defName>
+    <thingDef>AncientMilitaryGeneratorSmall</thingDef>
+    <model>Models/oc_military_generator.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientDestroyedConsole</defName>
+    <thingDef>AncientDestroyedConsole</thingDef>
+    <model>Models/oc_destroyed_console.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientDestroyedConsoleLarge</defName>
+    <thingDef>AncientDestroyedConsoleLarge</thingDef>
+    <model>Models/oc_destroyed_console_large.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientDisplayBank</defName>
+    <thingDef>AncientDisplayBank</thingDef>
+    <model>Models/oc_display_bank.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientTV</defName>
+    <thingDef>AncientTV</thingDef>
+    <model>Models/oc_tv.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientEmergencyLight_Red</defName>
+    <thingDef>AncientEmergencyLight_Red</thingDef>
+    <model>Models/oc_emergency_light_red.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <wallMounted>true</wallMounted>
+    <groundShadow>false</groundShadow>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientEmergencyLight_Blue</defName>
+    <thingDef>AncientEmergencyLight_Blue</thingDef>
+    <model>Models/oc_emergency_light_blue.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <wallMounted>true</wallMounted>
+    <groundShadow>false</groundShadow>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientEmergencyLight_Green</defName>
+    <thingDef>AncientEmergencyLight_Green</thingDef>
+    <model>Models/oc_emergency_light_green.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <wallMounted>true</wallMounted>
+    <groundShadow>false</groundShadow>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientBarrierLong</defName>
+    <thingDef>AncientBarrierLong</thingDef>
+    <model>Models/oc_barrier_long.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientMilitaryBarrier</defName>
+    <thingDef>AncientMilitaryBarrier</thingDef>
+    <model>Models/oc_military_barrier.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientToilet</defName>
+    <thingDef>AncientToilet</thingDef>
+    <model>Models/oc_toilet.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientBathtub</defName>
+    <thingDef>AncientBathtub</thingDef>
+    <model>Models/oc_bathtub.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientShower</defName>
+    <thingDef>AncientShower</thingDef>
+    <model>Models/oc_shower.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientOperatingTable</defName>
+    <thingDef>AncientOperatingTable</thingDef>
+    <model>Models/oc_operating_table.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientBed</defName>
+    <thingDef>AncientBed</thingDef>
+    <model>Models/oc_bed.obj</model>
+    <beddingTop>0.46</beddingTop>
+    <surfaceHeight>0.38</surfaceHeight>
+    <builtFor>(1, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientSingleBed</defName>
+    <thingDef>AncientSingleBed</thingDef>
+    <model>Models/oc_single_bed.obj</model>
+    <beddingTop>0.47</beddingTop>
+    <surfaceHeight>0.40</surfaceHeight>
+    <builtFor>(1, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientDoubleBed</defName>
+    <thingDef>AncientDoubleBed</thingDef>
+    <model>Models/oc_double_bed.obj</model>
+    <beddingTop>0.47</beddingTop>
+    <surfaceHeight>0.40</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientArmchair</defName>
+    <thingDef>AncientArmchair</thingDef>
+    <model>Models/oc_armchair.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientStove</defName>
+    <thingDef>AncientStove</thingDef>
+    <model>Models/oc_stove.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientAntenna</defName>
+    <thingDef>AncientAntenna</thingDef>
+    <model>Models/oc_antenna.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientSecurityTerminal</defName>
+    <thingDef>AncientSecurityTerminal</thingDef>
+    <model>Models/ancient_terminal.obj</model>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
 </Defs>
