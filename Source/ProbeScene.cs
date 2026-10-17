@@ -70,7 +70,8 @@ namespace IsoRim
     //   bookcheck=1                  logs, for each bookcase, the books held against the books baked
     //   paint=x,z,<ColorDef>|-        the building in the cell painted (Building.ChangePaint, as the paint job does)
     //   style=x,z,<ThingStyleDef>|-   the building in the cell given that style (as the game's "Set style" debug action)
-    //   ritual=x,z                   the building in the cell counts as the target of a running ritual (RitualUtility.IsRitualTarget)
+    //   ritual=x,z                   the building in the cell counts as the target of a running ritual (RitualUtility.IsRitualTarget);
+    //                                a ritual fire there burns (Effects.Burning)
     //   contain=x,z,<Def>[,<Stuff>]  a new thing put into the building's container (its own or its first holding comp);
     //                                a race def gives a new pawn, corpse:<race> a new corpse (reliquary, gibbet cage, dryad cocoon)
     //                                (contain=x,z,<Def>,-|<Stuff>,<count> for a stack)
@@ -1671,6 +1672,13 @@ namespace IsoRim
 
         private static readonly HashSet<Thing> ritualTargets = new HashSet<Thing>();
         private static bool ritualPatched;
+
+        // ritual=x,z on a ritual fire (pyre, effigy, flag, burnbong): its fire burns (Effects.Burning), as far into a
+        // ritual as it needs; the harness scenes run no real ritual lord.
+        public static bool RitualTarget(Thing t)
+        {
+            return ritualTargets.Count > 0 && ritualTargets.Contains(t);
+        }
 
         // ritual=x,z: the building counts as a running ritual's target.
         public static void RitualPostfix(Thing thing, ref bool __result)

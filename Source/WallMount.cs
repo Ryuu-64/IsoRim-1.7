@@ -8,9 +8,10 @@ namespace IsoRim
     // wall torch, Odyssey's oxygen pump, life support unit and ancient emergency lights); a model can also ask
     // for it (ModelDef.wallMounted). One rule places all of them, on the face of the wall they face, at a height
     // that follows that wall: the top of the fixture just over a standing colonist's head, or just under the top
-    // of a lower wall (a cut-down wall included). Models (baked and placement preview), the game's own sprite for
-    // those without a model (stood on the wall face) and the height used for clicks and status icons all come
-    // from here.
+    // of a lower wall. Always the wall as built: the cut-away never moves a fixture (it lowers walls in the vertex
+    // stage every frame and rebuilds nothing, so a fixture baked from a cut wall stayed low). Models (baked and
+    // placement preview), the game's own sprite for those without a model (stood on the wall face) and the height
+    // used for clicks and status icons all come from here.
     public static class WallMount
     {
         private const float HeadClear = 1.55f;   // top of a fixture on a tall wall: over a colonist's head (Interaction.PickHeight 1.25)
@@ -34,17 +35,17 @@ namespace IsoRim
 
         // The wall a fixture in cell c facing rot hangs on, and where its model stands: in c facing the wall
         // (yaw unchanged), or, for one sitting in the wall's own cell, one cell out and turned round.
-        // Returns the wall's height as drawn (cut down or not); the full wall height if there is none.
+        // Returns the wall's height as built (never cut down); the full wall height if there is none.
         public static float Wall(Map map, IntVec3 c, Rot4 rot, ref Vector3 center, ref float yaw)
         {
             IntVec3 ahead = rot.FacingCell;
             center = new Vector3(c.x + 0.5f, center.y, c.z + 0.5f);
-            float wall = map != null ? WallBoxes.BlockHeightAt(map, c + ahead) : 0f;
+            float wall = map != null ? WallBoxes.BuiltHeightAt(map, c + ahead) : 0f;
             if (wall > 0f)
             {
                 return wall;
             }
-            wall = map != null ? WallBoxes.BlockHeightAt(map, c) : 0f;
+            wall = map != null ? WallBoxes.BuiltHeightAt(map, c) : 0f;
             if (wall > 0f)
             {
                 // The fitting sits in the wall's own cell and faces out of it: the same thing as standing one

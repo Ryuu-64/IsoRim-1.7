@@ -1640,6 +1640,8 @@ namespace IsoRim
                 {
                     flame = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_flame.obj"));
                     flameCore = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_flame_core.obj"));
+                    flameDark = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_flame_dark.obj"));
+                    flameDarkCore = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_flame_dark_core.obj"));
                     puff = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_puff.obj"));
                 }
                 campfire = DefDatabase<ThingDef>.GetNamedSilentFail("Campfire");
@@ -1652,14 +1654,22 @@ namespace IsoRim
                 float wind = map.windManager != null ? Mathf.Clamp(map.windManager.WindSpeed, 0f, 2f) : 0.5f;
                 CellRect view = Find.CameraDriver.CurrentViewRect.ExpandedBy(4);
 
-                if (campfire != null && puff != null)
+                List<ThingDef> defs = FlameDefs();
+                for (int d = 0; d < defs.Count; d++)
                 {
-                    List<Thing> fires = map.listerThings.ThingsOfDef(campfire);
+                    List<Thing> fires = map.listerThings.ThingsOfDef(defs[d]);
                     for (int i = 0; i < fires.Count; i++)
                     {
                         if (view.Contains(fires[i].Position))
                         {
-                            Campfire(fires[i], t, wind);
+                            if (defs[d] == campfire)
+                            {
+                                Campfire(fires[i], t, wind);
+                            }
+                            else
+                            {
+                                LiveFlame(fires[i], t);
+                            }
                         }
                     }
                 }
@@ -1794,16 +1804,203 @@ namespace IsoRim
             return m;
         }
 
-        // Whether Campfire draws 3D flames over this thing now (its flat fire sprite is then left out).
+        // Whether a live 3D flame is drawn over this thing now (its flat fire sprite is then left out).
         public static bool DrawsFlamesFor(Thing fire)
         {
-            IsoRimSettings st = IsoRimMod.Settings;
-            if (!st.effects3D || !st.models3D || fire == null || fire.def.defName != "Campfire" || fire.Map != Find.CurrentMap || flame == null && tried)
+            if (fire == null || fire.Map != Find.CurrentMap || flame == null && tried)
             {
                 return false;
             }
-            ModelEntry entry;
-            return ModelLibrary.TryGet(fire.def, out entry) && entry.HasModel;
+            return Animates(fire.def);
+        }
+
+        // ---- live flames -----------------------------------------------------------------------
+        // Every building the game draws with a fire overlay (CompFireOverlay, CompDarklightOverlay, CompRitualFireOverlay)
+        // whose model shows where its flame burns (its own flame* parts, or ModelDef.flameAt and flameSize) gets the
+        // campfire's flickering flame there, every frame: in place of the still flame in its baked model
+        // (ModelBaker.NoFlame) and of the game's flat fire sprite (SectionLayer_IsoRimBodies.FlameStandsIn). Placed with
+        // the bake's own placement (ModelBaker.PointOnMap: a wall torch's flame is on its wall), sized by the model.
+
+        private struct FlameBox
+        {
+            public bool has;
+            public Vector3 foot;     // bottom middle of the flame, model space
+            public float height;
+            public float width;
+            public bool dark;        // darklight: the blue flame
+        }
+
+        // The campfire's flame, which Flame scales: tongues from FlameBase over the foot, about FlameHeight tall
+        // and FlameWidth across.
+        private const float FlameBase = 0.07f;
+        private const float FlameHeight = 0.70f;
+        private const float FlameWidth = 0.44f;
+
+        private static Model flameDark;
+        private static Model flameDarkCore;
+        private static List<ThingDef> flameDefs;
+        private static HashSet<ThingDef> flameSet;
+        private static readonly Dictionary<int, FlameBox> boxes = new Dictionary<int, FlameBox>();   // by Model.id
+
+        // A flame part of a model (flame, flame_core, flame_dark, ...), not embers.
+        public static bool IsFlame(ModelMaterial mm)
+        {
+            return mm != null && mm.fire && mm.name != null && mm.name.StartsWith("flame", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Whether things of this def get the live flame (and so their model is baked without its own).
+        public static bool Animates(ThingDef def)
+        {
+            IsoRimSettings st = IsoRimMod.Settings;
+            if (!st.effects3D || !st.models3D || def == null)
+            {
+                return false;
+            }
+            FlameDefs();
+            return flameSet.Contains(def);
+        }
+
+        // The defs with a live flame, worked out once: the campfire, and every other one drawn every frame with a fire
+        // overlay and a model that says where the flame is.
+        private static List<ThingDef> FlameDefs()
+        {
+            if (flameDefs != null)
+            {
+                return flameDefs;
+            }
+            flameDefs = new List<ThingDef>();
+            flameSet = new HashSet<ThingDef>();
+            foreach (ThingDef def in DefDatabase<ThingDef>.AllDefsListForReading)
+            {
+                if (def.drawerType != DrawerType.RealtimeOnly || def.GetCompProperties<CompProperties_FireOverlay>() == null)
+                {
+                    continue;
+                }
+                ModelEntry entry;
+                if (!ModelLibrary.TryGet(def, out entry) || !entry.HasModel)
+                {
+                    continue;
+                }
+                if (def.defName == "Campfire" || BoxFor(entry, entry.variants[0]).has)
+                {
+                    flameDefs.Add(def);
+                    flameSet.Add(def);
+                }
+            }
+            return flameDefs;
+        }
+
+        private static FlameBox BoxFor(ModelEntry entry, Model m)
+        {
+            FlameBox b = new FlameBox();
+            if (entry.def.flameAt.y >= 0f)
+            {
+                b.has = entry.def.flameSize.x > 0f;
+                b.foot = entry.def.flameAt;
+                b.height = entry.def.flameSize.x;
+                b.width = entry.def.flameSize.y;
+                return b;
+            }
+            if (m == null || m.positions == null || m.materials == null || m.material == null)
+            {
+                return b;
+            }
+            if (boxes.TryGetValue(m.id, out b))
+            {
+                return b;
+            }
+            Vector3 lo = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+            Vector3 hi = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+            for (int i = 0; i < m.positions.Length; i++)
+            {
+                ModelMaterial mm = m.materials[m.material[i]];
+                if (!IsFlame(mm))
+                {
+                    continue;
+                }
+                b.has = true;
+                b.dark |= mm.name.IndexOf("_dark", StringComparison.OrdinalIgnoreCase) >= 0;
+                lo = Vector3.Min(lo, m.positions[i]);
+                hi = Vector3.Max(hi, m.positions[i]);
+            }
+            if (b.has)
+            {
+                b.foot = new Vector3((lo.x + hi.x) * 0.5f, lo.y, (lo.z + hi.z) * 0.5f);
+                b.height = hi.y - lo.y;
+                b.width = Mathf.Max(hi.x - lo.x, hi.z - lo.z);
+            }
+            boxes[m.id] = b;
+            return b;
+        }
+
+        // Whether the thing's fire burns now, as the game's own overlay decides: while there is fuel, or (a ritual
+        // fire) once its ritual has gone far enough.
+        public static bool Burning(Thing t)
+        {
+            CompRitualFireOverlay ritual = t.TryGetComp<CompRitualFireOverlay>();
+            if (ritual != null)
+            {
+                if (Probe.On && Probe.RitualTarget(t))
+                {
+                    return true;   // harness: ritual=x,z
+                }
+                LordJob_Ritual job = t.TargetOfRitual();
+                return job != null && job.Progress >= ritual.Props.minRitualProgress;
+            }
+            return SectionLayer_IsoRimBodies.Lit(t);
+        }
+
+        private static void LiveFlame(Thing t, float time)
+        {
+            if (!Burning(t) || !SectionLayer_IsoRimBodies.StandsIn(t))
+            {
+                return;   // out, or its model is not standing in (the game's own sprite and fire are drawn)
+            }
+            ModelEntry entry = Forms.For(t.def).model;
+            if (entry == null || !entry.HasModel)
+            {
+                return;
+            }
+            Model m = entry.Pick(t);
+            FlameBox b = BoxFor(entry, m);
+            if (!b.has)
+            {
+                return;
+            }
+            Vector3 fit;
+            float yaw;
+            Vector3 foot = ModelBaker.PointOnMap(t, entry, m, b.foot, out fit, out yaw);
+            float sy = b.height * fit.y / FlameHeight;
+            float sxz = b.width * Mathf.Max(fit.x, fit.z) / FlameWidth;
+            foot.y -= FlameBase * sy;
+            Flame(foot, sy, sxz, b.dark, t.thingIDNumber * 0.37f, time);
+        }
+
+        // Three tongues of flame round a brighter heart, each flickering to its own beat; the campfire's at sizes 1, 1.
+        private static void Flame(Vector3 foot, float sy, float sxz, bool dark, float own, float t)
+        {
+            Model tongue = dark ? flameDark : flame;
+            Model heart = dark ? flameDarkCore : flameCore;
+            if (tongue != null)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    float beat = t * (7.0f + i * 1.7f) + own + i * 2.1f;
+                    float tall = 0.62f + 0.13f * Mathf.Sin(beat) + 0.05f * Mathf.Sin(beat * 2.3f);
+                    float wide = 0.30f - 0.035f * Mathf.Sin(beat * 1.3f);
+                    float a = i * 2.094f + 0.3f * Mathf.Sin(beat * 0.5f);
+                    Matrix4x4 local = Matrix4x4.Translate(new Vector3(0.07f * Mathf.Cos(a) * sxz, FlameBase * sy, 0.07f * Mathf.Sin(a) * sxz))
+                        * Matrix4x4.Scale(new Vector3(wide * sxz, tall * sy, wide * sxz));
+                    DynamicModels.DrawLocal(tongue, foot, t * 50f * (i % 2 == 0 ? 1f : -1f) + i * 40f, local, Color.white, null);
+                }
+            }
+            if (heart != null)
+            {
+                float beat = t * 11f + own;
+                Matrix4x4 local = Matrix4x4.Translate(new Vector3(0f, 0.08f * sy, 0f))
+                    * Matrix4x4.Scale(new Vector3(0.18f * sxz, (0.40f + 0.07f * Mathf.Sin(beat)) * sy, 0.18f * sxz));
+                DynamicModels.DrawLocal(heart, foot, t * 90f, local, Color.white, null);
+            }
         }
 
         private static void Campfire(Thing fire, float t, float wind)
@@ -1822,27 +2019,7 @@ namespace IsoRim
             Vector3 foot = new Vector3(at.x, 0f, at.z);
             float own = fire.thingIDNumber * 0.37f;
 
-            // Three tongues of flame round a brighter heart, each flickering to its own beat.
-            if (flame != null)
-            {
-                for (int i = 0; i < 3; i++)
-                {
-                    float beat = t * (7.0f + i * 1.7f) + own + i * 2.1f;
-                    float tall = 0.62f + 0.13f * Mathf.Sin(beat) + 0.05f * Mathf.Sin(beat * 2.3f);
-                    float wide = 0.30f - 0.035f * Mathf.Sin(beat * 1.3f);
-                    float a = i * 2.094f + 0.3f * Mathf.Sin(beat * 0.5f);
-                    Matrix4x4 local = Matrix4x4.Translate(new Vector3(0.07f * Mathf.Cos(a), 0.07f, 0.07f * Mathf.Sin(a)))
-                        * Matrix4x4.Scale(new Vector3(wide, tall, wide));
-                    DynamicModels.DrawLocal(flame, foot, t * 50f * (i % 2 == 0 ? 1f : -1f) + i * 40f, local, Color.white, null);
-                }
-            }
-            if (flameCore != null)
-            {
-                float beat = t * 11f + own;
-                Matrix4x4 local = Matrix4x4.Translate(new Vector3(0f, 0.08f, 0f))
-                    * Matrix4x4.Scale(new Vector3(0.18f, 0.40f + 0.07f * Mathf.Sin(beat), 0.18f));
-                DynamicModels.DrawLocal(flameCore, foot, t * 90f, local, Color.white, null);
-            }
+            Flame(foot, 1f, 1f, false, own, t);
 
             Rise(foot, t * 0.30f + own, 5, 0.75f, 2.3f, 0.15f, 0.44f, 0.35f + 0.5f * wind, 0.30f, 0.60f);
         }

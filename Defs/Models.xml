@@ -4733,6 +4733,8 @@
     <thingDef>Burnbong</thingDef>
     <model>Models/burnbong.obj</model>
     <builtFor>(1, 1)</builtFor>
+    <flameAt>(0, 0.32, 0)</flameAt>        <!-- live ritual flame (Effects): on the fill in its bowl -->
+    <flameSize>(0.40, 0.30)</flameSize>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -4747,6 +4749,8 @@
     <thingDef>Pyre</thingDef>
     <model>Models/ritual_pyre.obj</model>
     <builtFor>(2, 2)</builtFor>
+    <flameAt>(0, 0.20, 0)</flameAt>        <!-- live ritual flame (Effects): up out of the log stack (top 0.66) -->
+    <flameSize>(1.10, 1.20)</flameSize>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -4761,6 +4765,8 @@
     <thingDef>Effigy</thingDef>
     <model>Models/ritual_effigy.obj</model>
     <builtFor>(1, 1)</builtFor>
+    <flameAt>(0, 0.05, 0)</flameAt>        <!-- live ritual flame (Effects): round the figure (top 1.19) -->
+    <flameSize>(1.25, 0.60)</flameSize>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -4768,6 +4774,8 @@
     <thingDef>SacrificialFlag</thingDef>
     <model>Models/sacrificial_flag.obj</model>
     <builtFor>(1, 1)</builtFor>
+    <flameAt>(0, 0.05, 0)</flameAt>        <!-- live ritual flame (Effects): round the pole and cloth (top 1.38) -->
+    <flameSize>(1.10, 0.50)</flameSize>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>

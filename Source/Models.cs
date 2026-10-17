@@ -68,6 +68,9 @@ namespace IsoRim
         public bool fullVariant = false;    // the second model is used once the thing holds something (graves)
         public string emptyModel;           // used instead while the game draws the thing as empty (CompEmptyStateGraphic: an opened mech capsule)
         public bool groundShadow = true;    // soft shading on the ground under it
+        public Vector3 flameAt = new Vector3(0f, -1f, 0f);   // foot of the live flame (Effects), model space; y < 0: from the model's
+                                            // own flame* parts (torches, braziers), none if it has none
+        public Vector2 flameSize;           // with flameAt: the live flame's height and width (cells, model space)
         public float sinkHole = 0f;         // > 0: a hole sunk into the ground (pits), this the radius (cells, model space) of
                                             // its opening: the model may reach below the ground, the ground cells the opening
                                             // touches are cut out of the map mesh and the ground round it hides what lies under

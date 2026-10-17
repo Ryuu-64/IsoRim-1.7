@@ -1200,6 +1200,24 @@ namespace IsoRim
             return !FullHeights && IsCut(map, c, b) ? form.height * CutFraction : form.height;
         }
 
+        // The height of the block standing in a cell as built, never cut down, or 0 if there is none. For what is
+        // fixed to a wall (WallMount): the cut-away follows the pointer and the colonists every frame without
+        // rebuilding the map mesh, so nothing baked may depend on it.
+        public static float BuiltHeightAt(Map map, IntVec3 c)
+        {
+            if (map == null || !c.InBounds(map))
+            {
+                return 0f;
+            }
+            Building b = c.GetEdifice(map);
+            if (b == null)
+            {
+                return 0f;
+            }
+            ThingForm form = Forms.For(b.def);
+            return form.form == Form3D.Block ? form.height : 0f;
+        }
+
         // As in the Sims games: a built wall is cut down when the cell just behind it, seen from
         // the camera, is the floor of a roofed room. The far walls of the same room have open sky
         // behind them and stay whole, so each room keeps its back walls and loses the ones that
@@ -1840,6 +1858,74 @@ namespace IsoRim
             baseHeight = WallMount.ModelLift(def, wall, m.maxY * fitY);
         }
 
+        // How big and which way round a thing's model is baked, before anything that depends on what kind of thing it
+        // is (a plant's growth): the def's scale and turn, its random turn and size jitter.
+        public static void StartPlace(Thing thing, ModelEntry entry, out float scale, out float yaw)
+        {
+            ModelDef def = entry.def;
+            scale = def.scale;
+            yaw = entry.Yaw(thing.Rotation);
+            int id = thing.thingIDNumber;
+            if (def.randomRotation)
+            {
+                float spin = Hashing.Unit(id, 7, 1) * 360f;
+                // a sunk hole's apron covers its square cut only when turned by quarter turns
+                yaw += def.sinkHole > 0f ? Mathf.Floor(spin / 90f) * 90f : spin;
+            }
+            if (def.scaleJitter > 0f)
+            {
+                scale *= 1f + (Hashing.Unit(id, 11, 2) * 2f - 1f) * def.scaleJitter;
+            }
+        }
+
+        // Where a thing's model m stands: its centre on the map, its turn (more turns added to yaw), its size per axis
+        // (fit) and its base height (wall fittings go up their wall). One place for the bake and for what is drawn
+        // every frame in step with the baked model (Effects' flames).
+        public static void Place(Thing thing, ModelEntry entry, Model m, float scale, ref float yaw, ref float baseHeight,
+            out Vector3 center, out Vector3 fit, out bool mounted)
+        {
+            ModelDef def = entry.def;
+            center = thing.DrawPos;   // centre of the footprint for anything that does not move
+            if (def.alongRun)
+            {
+                yaw += RunTurn(thing);
+            }
+            if (entry.Swapped(thing.def))
+            {
+                yaw += 90f;
+            }
+            mounted = WallMount.Is(thing.def);
+            fit = entry.Fit(thing.def) * scale;
+            if (mounted)
+            {
+                Mount(thing, def, m, fit.y, ref center, ref yaw, ref baseHeight);
+            }
+            if (def.scatter > 0f)
+            {
+                int id = thing.thingIDNumber;
+                center.x += (Hashing.Unit(id, 13, 3) - 0.5f) * def.scatter;
+                center.z += (Hashing.Unit(id, 17, 4) - 0.5f) * def.scatter;
+            }
+            if (def.overArt && thing.MultipleItemsPerCellDrawn())
+            {
+                fit *= 0.8f;   // as the game draws several items in one cell (a shelf) at 0.8 size
+            }
+        }
+
+        // Where a point of the model (model space) ends up on the map (y in cells above the ground), and the model's
+        // size per axis there, as Place puts it for the bake (not for models laid flat).
+        public static Vector3 PointOnMap(Thing thing, ModelEntry entry, Model m, Vector3 local, out Vector3 fit, out float yaw)
+        {
+            float scale;
+            StartPlace(thing, entry, out scale, out yaw);
+            float baseHeight = 0f;
+            Vector3 center;
+            bool mounted;
+            Place(thing, entry, m, scale, ref yaw, ref baseHeight, out center, out fit, out mounted);
+            Vector3 p = Quaternion.AngleAxis(yaw, Vector3.up) * (Vector3.Scale(local, fit) + entry.def.offset);
+            return new Vector3(center.x + p.x, baseHeight + p.y, center.z + p.z);
+        }
+
         // Every model baked into a layer is tagged to be clipped under the roof of the cell it stands in (RoofClip).
         public static bool Bake(SectionLayer layer, Thing thing, ModelEntry entry, float baseHeight)
         {
@@ -1884,19 +1970,8 @@ namespace IsoRim
             IsoRimSettings st = IsoRimMod.Settings;
 
             // Where, which way round and how big.
-            float scale = def.scale;
-            float yaw = entry.Yaw(thing.Rotation);
-            int id = thing.thingIDNumber;
-            if (def.randomRotation)
-            {
-                float spin = Hashing.Unit(id, 7, 1) * 360f;
-                // a sunk hole's apron covers its square cut only when turned by quarter turns
-                yaw += def.sinkHole > 0f ? Mathf.Floor(spin / 90f) * 90f : spin;
-            }
-            if (def.scaleJitter > 0f)
-            {
-                scale *= 1f + (Hashing.Unit(id, 11, 2) * 2f - 1f) * def.scaleJitter;
-            }
+            float scale, yaw;
+            StartPlace(thing, entry, out scale, out yaw);
             bool bare = false;
             Plant plant = thing as Plant;
             if (plant != null)
@@ -1910,35 +1985,13 @@ namespace IsoRim
             }
 
             Vector3 offset = def.offset;
-            Vector3 center = thing.DrawPos;   // centre of the footprint for anything that does not move
-            if (def.alongRun)
-            {
-                yaw += RunTurn(thing);
-            }
-            if (entry.Swapped(thing.def))
-            {
-                yaw += 90f;
-            }
-            bool mounted = WallMount.Is(thing.def);
-            Vector3 fit = entry.Fit(thing.def) * scale;
-            if (mounted)
-            {
-                Mount(thing, def, m, fit.y, ref center, ref yaw, ref baseHeight);
-            }
+            Vector3 center, fit;
+            bool mounted;
+            Place(thing, entry, m, scale, ref yaw, ref baseHeight, out center, out fit, out mounted);
             Quaternion turn = Quaternion.AngleAxis(yaw, Vector3.up);
             Quaternion lay = def.layFlat ? Quaternion.AngleAxis(90f, Vector3.right) : Quaternion.identity;
             Vector3 layLift = def.layFlat ? new Vector3(0f, m.halfDepth, 0f) : Vector3.zero;
             Color tint = def.spriteTint ? SpriteColors.MeanFor(thing) : R3DTextures.ModelTint(thing);
-            if (def.scatter > 0f)
-            {
-                center.x += (Hashing.Unit(id, 13, 3) - 0.5f) * def.scatter;
-                center.z += (Hashing.Unit(id, 17, 4) - 0.5f) * def.scatter;
-            }
-
-            if (def.overArt && thing.MultipleItemsPerCellDrawn())
-            {
-                fit *= 0.8f;   // as the game draws several items in one cell (a shelf) at 0.8 size
-            }
             if (!Write(layer, thing, m, center, turn, lay, layLift, fit, offset, baseHeight, tint, bare, def.outline))
             {
                 return false;
@@ -2064,6 +2117,10 @@ namespace IsoRim
         // While set, Bake leaves out flames and embers (ModelMaterial.fire): a torch or campfire
         // whose fuel has run out (see SectionLayer_IsoRimBodies).
         public static bool NoFire;
+
+        // While set, Bake leaves out the model's own flames (flame* parts) but keeps embers: Effects draws a live
+        // flame there every frame instead (Effects.Animates).
+        public static bool NoFlame;
 
         private static bool WriteDamage(SectionLayer layer, Thing thing, Model m, Vector3 center, Quaternion turn, Quaternion lay, Vector3 layLift,
             Vector3 scale, Vector3 offset, float baseHeight)
@@ -2197,9 +2254,9 @@ namespace IsoRim
                 int mi = m.material != null ? m.material[i] : 0;
                 ModelMaterial mm = m.materials != null ? m.materials[mi] : null;
                 bool tagged = treeTags && mm != null && (mm.leaf || mm.twig);
-                if (mm != null && ((bare && mm.leaf) || (!bare && mm.twig && !tagged) || (NoFire && mm.fire)))
+                if (mm != null && ((bare && mm.leaf) || (!bare && mm.twig && !tagged) || (NoFire && mm.fire) || (NoFlame && Effects.IsFlame(mm))))
                 {
-                    continue;   // no leaves on a bare tree; no hidden twigs on a leafy one; no flame once the fire is out
+                    continue;   // no leaves on a bare tree; no hidden twigs on a leafy one; no flame once the fire is out (or where a live one burns)
                 }
                 Vector3 triTag = tagged ? (mm.leaf ? leafTag : twigTag) : Vector3.zero;
 

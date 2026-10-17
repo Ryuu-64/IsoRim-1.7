@@ -667,7 +667,7 @@ namespace IsoRim
         }
 
         // Whether the game's flat fire sprite over this thing is left out: a 3D flame stands in for
-        // it (the model's own, or the campfire's flames from Effects).
+        // it (the model's own, or a live flame from Effects).
         public static bool FlameStandsIn(Thing t)
         {
             if (!StandsIn(t))
@@ -724,6 +724,7 @@ namespace IsoRim
                         }
                         bool lit = Lit(t);
                         ModelBaker.NoFire = !lit;
+                        ModelBaker.NoFlame = Effects.Animates(t.def);   // a live flame burns there instead (Effects)
                         try
                         {
                             if (ModelBaker.Bake(this, t, Forms.For(t.def).model, 0f))
@@ -739,6 +740,7 @@ namespace IsoRim
                         finally
                         {
                             ModelBaker.NoFire = false;
+                            ModelBaker.NoFlame = false;
                         }
                     }
                 }

@@ -329,6 +329,9 @@ namespace IsoRim
                 prefix: nameof(FireOverlayPostDraw_Prefix), finalizer: nameof(FireOverlayPostDraw_Finalizer));
             Patch("3D models of buildings drawn every frame", AccessTools.DeclaredMethod(typeof(CompDarklightOverlay), "PostDraw"),
                 prefix: nameof(FireOverlayPostDraw_Prefix), finalizer: nameof(FireOverlayPostDraw_Finalizer));
+            // Ritual fires (pyre, effigy, sacrificial flag, burnbong): their live flame is Effects'.
+            Patch("3D models of buildings drawn every frame", AccessTools.DeclaredMethod(typeof(CompRitualFireOverlay), "PostDraw"),
+                prefix: nameof(FireOverlayPostDraw_Prefix), finalizer: nameof(FireOverlayPostDraw_Finalizer));
             // A bookcase draws its books and bookends itself after its body; with the model, the
             // books are baked onto its shelves (Bookcases), rebuilt when one goes in or out.
             Patch("3D bookcases", AccessTools.DeclaredMethod(typeof(Building_Bookcase), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
