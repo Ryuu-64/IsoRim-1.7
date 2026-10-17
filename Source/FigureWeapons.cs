@@ -136,8 +136,9 @@ namespace IsoRim
 
         // The figure's weapon and worn extras. at: the figure's base (x, z in the game's rows, y its height over the floor,
         // cells), yaw its facing, local its pose in figure space (People: pose and size), size its size, front how far its
-        // chest reaches forward and side how far its body reaches to the side (figure units, size 1).
-        public static void Draw(Pawn pawn, bool neverAim, Vector3 drawLoc, Vector3 at, float yaw, Matrix4x4 local, float size, float front, float side)
+        // chest reaches forward and side how far its body reaches to the side (figure units, size 1). measure: nothing is
+        // drawn, only where the aimed weapon is (Projectiles.FigureTip), for a figure not drawn now (People.MeasureWeapon).
+        public static void Draw(Pawn pawn, bool neverAim, Vector3 drawLoc, Vector3 at, float yaw, Matrix4x4 local, float size, float front, float side, bool measure = false)
         {
             caught.Clear();
             Capturing = true;
@@ -152,7 +153,7 @@ namespace IsoRim
                 drawingWeapon = null;
                 carryPath = false;
             }
-            string report = Reporting ? "" : null;
+            string report = Reporting && !measure ? "" : null;
             if (caught.Count == 0)
             {
                 if (report != null)
@@ -177,6 +178,10 @@ namespace IsoRim
                 Vector3 normal = Vector3.Cross(m.GetColumn(2), m.GetColumn(0)).normalized;
                 m.SetColumn(1, new Vector4(normal.x, normal.y, normal.z, 0f));
                 bool flipped = c.mesh == MeshPool.plane10Flip;
+                if (measure && (c.weapon == null || c.carried))
+                {
+                    continue;
+                }
                 if (c.weapon == null)
                 {
                     DrawExtra(pawn, c, drawLoc, at, size);
@@ -223,7 +228,10 @@ namespace IsoRim
                     Quaternion raise = Quaternion.FromToRotation(dir, dir * Mathf.Cos(pitch * Mathf.Deg2Rad) + Vector3.up * Mathf.Sin(pitch * Mathf.Deg2Rad));
                     Matrix4x4 world = Matrix4x4.Translate(hands) * Matrix4x4.Rotate(raise * standUp)
                         * Matrix4x4.Scale(new Vector3(Picture * size, Picture * size, Picture * size)) * turned * SlabToPlane(flipped);
-                    SpriteSolids.DrawSlab(c.material, Floors.DrawnMatrix(Matrix4x4.Scale(new Vector3(1f, 1f / s, 1f)) * world));
+                    if (!measure)
+                    {
+                        SpriteSolids.DrawSlab(c.material, Floors.DrawnMatrix(Matrix4x4.Scale(new Vector3(1f, 1f / s, 1f)) * world));
+                    }
                     Projectiles.FigureTip(pawn, c.weapon, world);
                     if (report != null)
                     {
@@ -285,8 +293,8 @@ namespace IsoRim
             Vector3 from = pawn.DrawPos;
             Vector3 to = busy.focusTarg.HasThing ? busy.focusTarg.Thing.DrawPos : busy.focusTarg.Cell.ToVector3Shifted();
             Vector3 a = from, b = to;
-            Floors.Drawn(ref a);
-            Floors.Drawn(ref b);
+            Floors.Placed(ref a);   // (a hidden floor too: a figure measured there, People.MeasureWeapon)
+            Floors.Placed(ref b);
             float rise = ((b.y - to.y) - (a.y - from.y)) * View3D.Squash;   // the floors' height between them, cells
             Vector3 d = b - a;
             d.y = 0f;

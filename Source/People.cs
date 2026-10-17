@@ -534,6 +534,52 @@ namespace IsoRim
             return true;
         }
 
+        // A standing figure that is not being drawn now (its floor hidden, off screen) posed as Draw would pose it, without
+        // drawing anything: only where its aimed weapon would be (FigureWeapons measure: Projectiles.FigureTip), so its shot
+        // still starts from that weapon. Standing still (no step), facing its aim as the body turns to it while aiming.
+        // False if it would not be drawn as a standing figure.
+        public static bool MeasureWeapon(Pawn pawn)
+        {
+            IsoRimSettings st = IsoRimMod.Settings;
+            if (!st.pawns3D || !st.models3D || pawn == null || pawn.RaceProps == null || !pawn.RaceProps.Humanlike || !pawn.Spawned || pawn.Dead
+                || pawn.GetPosture() != PawnPosture.Standing || pawn.story == null || !FigureRace(pawn) || Hidden(pawn) || !Corpses.ShownAsModel(pawn)
+                || Statues.Colour(pawn).HasValue || head == null)
+            {
+                return false;
+            }
+            Look look = LookOf(pawn);
+            if (look == null || look.upper == null || look.lower == null)
+            {
+                return false;
+            }
+            Vector3 drawLoc = pawn.DrawPos;
+            float lift = Carried.LiftOf(pawn, ref drawLoc);
+            Poses.Seat seat = default(Poses.Seat);
+            bool seated = lift <= 0f && Poses.Seated(pawn, ref drawLoc, out seat);
+            float size = look.size;
+            float aimGame, aimDrawn;
+            float yaw = FigureWeapons.AimOf(pawn, false, out aimGame, out aimDrawn) ? aimDrawn : pawn.Rotation.AsAngle;
+            Matrix4x4 pose = BodyAnims.Apply(pawn, drawLoc, yaw, size, Matrix4x4.identity);
+            Vector3 at = new Vector3(drawLoc.x, (seated ? seat.Lift : 0f) + lift, drawLoc.z);
+            Matrix4x4 whole = pose * Matrix4x4.Scale(new Vector3(size, size, size));
+            float squash = seated ? seat.Squash : 1f;
+            Matrix4x4 hands = seated ? whole * Matrix4x4.Translate(new Vector3(0f, -(1f - squash) * HandY, 0f)) : whole;
+            Model upper = look.upper;
+            // (it may run in a game tick, for a shot's flash: whatever the game's drawing code rolls stays out of the game's
+            // random numbers)
+            Rand.PushState();
+            try
+            {
+                FigureWeapons.Draw(pawn, false, drawLoc, at, yaw, hands, size, upper.halfDepth * look.bodyScale.z,
+                    Mathf.Max(-upper.minX, upper.maxX) * look.bodyScale.x, true);
+            }
+            finally
+            {
+                Rand.PopState();
+            }
+            return true;
+        }
+
         // The gibbet cage holding this dead person's corpse, while the cage is drawn as its model; else null.
         public static Building_GibbetCage GibbetOf(Pawn pawn)
         {

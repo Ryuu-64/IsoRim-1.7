@@ -15,8 +15,10 @@ namespace IsoRim
     // draws as a shift up the screen, becomes real height. The shadow stays on the ground. The game launches every shot
     // from the shooter's middle; it is drawn leaving from the muzzle in front instead (Muzzle, the same point as the
     // flash below) and back on the game's path by the target. Only the drawing moves: the flight and the hit are the
-    // game's. A shell from a manned turret leaves from the turret's gun, not the pawn's hands (MuzzleOwner). With the
-    // 3D view off the game draws as usual.
+    // game's. A shell from a manned turret leaves from the turret's gun, not the pawn's hands (MuzzleOwner). Every kind
+    // leaves from its weapon as drawn: a shot tail first from the barrel's end (a rocket out of its tube, an arrow off the
+    // bow: Rear), a thrown thing from the hand that holds it (Thrown), and a shooter not drawn just now (a hidden floor)
+    // from where its weapon would be (People.MeasureWeapon). With the 3D view off the game draws as usual.
     //
     // The shot's muzzle flash too (ShotFlash): the game puts it flat on the ground in the middle of the shooter's
     // cell, which in 3D is inside the shooter's body. Here it is put at the muzzle the bullet leaves from (Muzzle: a
@@ -41,6 +43,7 @@ namespace IsoRim
             public int launcherRow;   // map rows of the shooter and the target (their floors, Floors)
             public int targetRow;
             public Vector3 lead;      // from the game's launch point (the shooter's middle) to the muzzle, flat
+            public Vector3 rear;      // from the muzzle on to the drawn sprite's middle, flat: its tail at the muzzle (Rear)
         }
 
         private static readonly ConditionalWeakTable<Projectile, Flight> flights = new ConditionalWeakTable<Projectile, Flight>();
@@ -102,7 +105,8 @@ namespace IsoRim
             float h = Height(p, drawLoc) + arc;
             // Drawn leaving from the muzzle, not the shooter's middle, and back on the game's path by the target (only
             // the drawing moves: the flight, the hit and ExactPosition are the game's).
-            drawLoc += flights.GetValue(p, Begin).lead * (1f - Flown(p, drawLoc));
+            Flight fl = flights.GetValue(p, Begin);
+            drawLoc += (fl.lead + fl.rear) * (1f - Flown(p, drawLoc));
             bool wasFloor = DrawHook.floor;
             DrawHook.floor = false;   // the floor is in the position already (the graphic's draw goes through DrawHook)
             try
@@ -224,7 +228,7 @@ namespace IsoRim
             Flight f = flights.GetValue(p, Begin);
             Vector3 o = originRef(p);
             Vector3 d = destinationRef(p);
-            Path path = new Path { origin = o, destination = d, lead = f.lead };
+            Path path = new Path { origin = o, destination = d, lead = f.lead + f.rear };
             path.start = f.start + FloorHeight(f.launcherRow);
             path.lobbed = SkyStrikes.Enabled && p.def.projectile.flyOverhead && p.def.projectile.arcHeightFactor < 0.5f;
             if (path.lobbed)
@@ -286,10 +290,20 @@ namespace IsoRim
                     Vector3 muzzle = Muzzle(owner, p.EquipmentDef, o, FlatDirection(originRef(p), destinationRef(p)));
                     f.start = muzzle.y;
                     f.lead = new Vector3(muzzle.x - o.x, 0f, muzzle.z - o.z);
+                    f.rear = FlatDirection(originRef(p), destinationRef(p)) * Rear(p);
                 }
                 f.end = AimHeight(p);
                 f.launcherRow = owner != null && owner.Spawned ? owner.Position.z : p.Position.z;
                 f.targetRow = Mathf.FloorToInt(destinationRef(p).z);   // where it comes down (a gameplay addon may move it)
+                if (LaunchLog)
+                {
+                    Vector3 tip;
+                    int age;
+                    bool had = LastTip(owner, out tip, out age);
+                    Log.Message("[IsoRim probe] launch " + p.def.defName + " by " + (owner != null ? owner.LabelShort : "-") + " with " + (p.EquipmentDef != null ? p.EquipmentDef.defName : "-")
+                        + " tick " + Find.TickManager.TicksGame + " frame " + Time.frameCount + ": start " + (o + f.lead).ToString("F3") + " y " + f.start.ToString("0.000")
+                        + ", last drawn tip " + (had ? tip.ToString("F3") + " age " + age : "none") + ", game origin " + o.ToString("F2"));
+                }
             }
             catch (Exception e)
             {
@@ -334,6 +348,9 @@ namespace IsoRim
 
         // Harness only (probe muzzle=0): the flash and the bullet as before (flat flash, bullet from the middle).
         public static bool FromMuzzle = true;
+
+        // Harness only (probe launchlog=1): each projectile logs its drawn start when it is first drawn.
+        public static bool LaunchLog;
 
         // Shot flashes so far, and who fired the last one (probe tickuntil=flash).
         public static int Flashes;
@@ -391,17 +408,99 @@ namespace IsoRim
 
         // The muzzle, the one point both a shot's flash and its bullet's drawn flight start from: from (where the game
         // launches the shot, the shooter's middle) moved MuzzleReach along dir (flat), at MuzzleHeight (in y, cells
-        // above the ground). gun is the weapon's def (null if unknown). A 2D pawn on a card fires from the end of its
-        // barrel as the weapon was last drawn (CardTip).
+        // above the ground). gun is the weapon's def (null if unknown). A person fires from the end of its barrel as the
+        // weapon is drawn (CardTip: on a 2D card or a 3D figure); a thrown weapon (Thrown: a grenade, a pilum) leaves from
+        // where the thing in the hand is drawn, its middle. A 3D figure not drawn just now (its floor hidden, off screen) is
+        // posed for it without drawing (People.MeasureWeapon), so its shots start where they would be seen to.
         public static Vector3 Muzzle(Thing owner, ThingDef gun, Vector3 from, Vector3 dir)
         {
+            bool thrown = Thrown(gun);
             Vector3 tip;
-            if (CardTip(owner, gun, out tip))
+            if (CardTip(owner, gun, thrown, out tip))
+            {
+                return tip;
+            }
+            if (FromMuzzle && owner is Pawn person && View3D.Ready && People.MeasureWeapon(person) && CardTip(owner, gun, thrown, out tip))
             {
                 return tip;
             }
             Vector3 at = from + dir * MuzzleReach(owner, gun);
             return new Vector3(at.x, MuzzleHeight(owner), at.z);
+        }
+
+        // A weapon that is itself thrown (grenades, molotovs, pila): the game's own mark for it, its verb's log of a throw
+        // (rangedFireRulepack Combat_RangedFire_Thrown, which modded thrown weapons use too).
+        public static bool Thrown(ThingDef gun)
+        {
+            if (gun == null || !gun.IsWeapon || gun.Verbs == null)
+            {
+                return false;
+            }
+            for (int i = 0; i < gun.Verbs.Count; i++)
+            {
+                RulePackDef log = gun.Verbs[i].rangedFireRulepack;
+                if (log != null && log.defName == "Combat_RangedFire_Thrown")
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static readonly Dictionary<ThingDef, float> rears = new Dictionary<ThingDef, float>();
+
+        // How far the drawn projectile reaches back from its middle (cells): its tail, the last opaque pixel of its sprite
+        // behind the middle along the way it flies (up the sprite, as the game turns it). A shot leaves the barrel tail
+        // first (a rocket out of its tube, an arrow off the bow), so its middle starts this far in front of the muzzle. Not
+        // for a thrown thing (it starts in the hand), a spinning one or a lobbed shell (no nose along the flight): 0.
+        private static float Rear(Projectile p)
+        {
+            ProjectileProperties pp = p.def.projectile;
+            if (pp.spinRate != 0f || pp.flyOverhead || Thrown(p.EquipmentDef) || p.def.graphicData == null)
+            {
+                return 0f;
+            }
+            float rear;
+            if (rears.TryGetValue(p.def, out rear))
+            {
+                return rear;
+            }
+            rear = 0f;
+            try
+            {
+                Material mat = p.def.graphicData.Graphic != null ? p.def.graphicData.Graphic.MatSingle : null;
+                if (mat != null && mat.mainTexture != null)
+                {
+                    const int n = 64;
+                    Color32[] px = SpritePixels.Sample(mat.mainTexture, Vector2.one, Vector2.zero, n);
+                    if (px == null && !SpritePixels.IsSheet(mat.mainTexture))
+                    {
+                        px = SpritePixels.GpuSample(mat.mainTexture, n);
+                    }
+                    if (px != null && px.Length >= n * n)
+                    {
+                        for (int j = 0; j < n; j++)
+                        {
+                            bool any = false;
+                            for (int i = 0; i < n && !any; i++)
+                            {
+                                any = px[j * n + i].a > 128;
+                            }
+                            if (any)
+                            {
+                                rear = Mathf.Max(0f, (0.5f - (float)j / n) * p.def.graphicData.drawSize.y);   // row 0 is the bottom (the tail)
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Measuring a projectile's sprite failed: " + e, 93611506);
+            }
+            rears[p.def] = rear;
+            return rear;
         }
 
         // ---- The barrel tip of a 2D pawn's weapon on its card. The game draws the aimed weapon itself
@@ -415,6 +514,7 @@ namespace IsoRim
         private sealed class Tip
         {
             public Vector3 at;        // x, z in the game's rows; y cells above the ground
+            public Vector3 centre;    // the middle of the drawn weapon, as at (where a thrown thing leaves the hand)
             public ThingDef gun;
             public int frame;
             public float yaw, pitch;  // the camera it was drawn for (a turned camera draws the card, and its tip, elsewhere)
@@ -470,19 +570,10 @@ namespace IsoRim
                 bool flipped = mesh == MeshPool.plane10Flip;
                 // The plane's corners are at -0.5..0.5 (x, z), u = x + 0.5 (the flipped plane: 0.5 - x), v = z + 0.5.
                 Vector3 local = new Vector3(flipped ? 0.5f - uv.x : uv.x - 0.5f, 0f, uv.y - 0.5f);
-                Vector3 drawn = DrawHook.xform.MultiplyPoint3x4(matrix.MultiplyPoint3x4(local));
-                Vector3 at = new Vector3(drawn.x, (drawn.y - tipGround) * View3D.Squash, drawn.z);
-                if (at.y < TipLow)
-                {
-                    // A barrel drawn pointing down the card ends below the feet, under the ground: the point is slid along
-                    // the camera's line of sight (it stays on the same pixel) up to just above the ground.
-                    float pitch = View3D.Pitch * Mathf.Deg2Rad;
-                    float t0 = (TipLow - at.y) / Mathf.Max(0.05f, Mathf.Sin(pitch));
-                    Vector3 back = View3D.GroundForward * (t0 * Mathf.Cos(pitch));
-                    at = new Vector3(at.x - back.x, TipLow, at.z - back.z);
-                }
+                Vector3 at = OnCard(matrix, local);
                 Tip t = tips.GetValue(pawn, k => new Tip());
                 t.at = at;
+                t.centre = OnCard(matrix, Vector3.zero);
                 if (TipMarks)
                 {
                     TipMarksDraw(pawn, weapon, at);
@@ -496,6 +587,23 @@ namespace IsoRim
             {
                 Log.ErrorOnce("[IsoRim] Finding the end of a drawn weapon's barrel failed: " + e, 93611504);
             }
+        }
+
+        // A point of the weapon's plane as drawn on its card (x, z in the game's rows, y cells above the ground). A point
+        // drawn below the feet (a barrel pointing down the card) is slid along the camera's line of sight (it stays on the
+        // same pixel) up to just above the ground.
+        private static Vector3 OnCard(Matrix4x4 matrix, Vector3 local)
+        {
+            Vector3 drawn = DrawHook.xform.MultiplyPoint3x4(matrix.MultiplyPoint3x4(local));
+            Vector3 at = new Vector3(drawn.x, (drawn.y - tipGround) * View3D.Squash, drawn.z);
+            if (at.y < TipLow)
+            {
+                float pitch = View3D.Pitch * Mathf.Deg2Rad;
+                float t0 = (TipLow - at.y) / Mathf.Max(0.05f, Mathf.Sin(pitch));
+                Vector3 back = View3D.GroundForward * (t0 * Mathf.Cos(pitch));
+                at = new Vector3(at.x - back.x, TipLow, at.z - back.z);
+            }
+            return at;
         }
 
         // FigureWeapons: a 3D figure's aimed weapon drawn with this matrix (SpriteSolids' slab, true cells: x, z in the game's
@@ -512,6 +620,7 @@ namespace IsoRim
                 Vector3 at = slab.MultiplyPoint3x4(new Vector3(uv.x - 0.5f, uv.y - 0.5f, 0f));
                 Tip t = tips.GetValue(pawn, k => new Tip());
                 t.at = at;
+                t.centre = slab.MultiplyPoint3x4(Vector3.zero);
                 t.gun = weapon.def;
                 t.frame = Time.frameCount;
                 t.yaw = View3D.Yaw;
@@ -555,6 +664,12 @@ namespace IsoRim
         // The drawn barrel tip of a 2D pawn's aimed weapon, if it was drawn just now with that gun.
         public static bool CardTip(Thing owner, ThingDef gun, out Vector3 at)
         {
+            return CardTip(owner, gun, false, out at);
+        }
+
+        // The same, or with centre the middle of the drawn weapon (a thrown thing in the hand).
+        public static bool CardTip(Thing owner, ThingDef gun, bool centre, out Vector3 at)
+        {
             at = Vector3.zero;
             Tip t;
             if (!(owner is Pawn) || !tips.TryGetValue(owner, out t) || Time.frameCount - t.frame > TipFrames || (gun != null && t.gun != gun)
@@ -562,7 +677,7 @@ namespace IsoRim
             {
                 return false;
             }
-            at = t.at;
+            at = centre ? t.centre : t.at;
             return true;
         }
 
@@ -721,7 +836,7 @@ namespace IsoRim
             // Plus half the gun in its hands (SpriteSolids draws it at 0.8 of its drawn size, centred on the hands);
             // not a mech's turret comp or an apparel or ability verb.
             ThingWithComps held = pawn != null && pawn.equipment != null ? pawn.equipment.Primary : null;
-            if (held != null && gun != null && held.def == gun && gun.graphicData != null)
+            if (held != null && gun != null && held.def == gun && gun.graphicData != null && !Thrown(gun))   // a thrown thing: in the hand
             {
                 reach += gun.graphicData.drawSize.x * 0.4f;
             }

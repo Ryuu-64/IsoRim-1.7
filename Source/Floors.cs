@@ -332,11 +332,27 @@ namespace IsoRim
             return m;
         }
 
-        // Which way from one world point to another as drawn (flat): an aim between floors points at what is seen.
+        // A world point moved to where its floor stands (as Drawn), whether that floor is shown now or hidden: for
+        // geometry between floors (which way, how high), not for drawing.
+        public static void Placed(ref Vector3 p)
+        {
+            if (!On || p.z < groundRows)
+            {
+                return;
+            }
+            int k = FloorOfRow(Mathf.FloorToInt(p.z));
+            if (k > 0)
+            {
+                p = new Vector3(p.x, p.y + heights[k] / View3D.Squash, p.z - shifts[k]);
+            }
+        }
+
+        // Which way from one world point to another as drawn (flat): an aim between floors points at what is seen. A
+        // point on a hidden floor counts where that floor stands (Placed): a shooter there still aims at its target.
         public static Vector3 FlatDelta(Vector3 from, Vector3 to)
         {
-            Drawn(ref from);
-            Drawn(ref to);
+            Placed(ref from);
+            Placed(ref to);
             Vector3 d = to - from;
             d.y = 0f;
             return d;

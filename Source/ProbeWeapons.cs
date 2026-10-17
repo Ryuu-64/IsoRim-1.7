@@ -60,6 +60,33 @@ namespace IsoRim
                     Log.Message("[IsoRim probe] tickjitter " + p.LabelShort + ": " + done + " ticks, jitter " + probeJitter(p.Drawer).CurrentOffset.ToString("F3"));
                     return true;
                 }
+                case "tickwarm":
+                {
+                    // tickwarm=N,x,z,left: game ticks one at a time (at most N) until the pawn in (x,z) is warming up a shot with
+                    // at most `left` ticks to go (the shot leaves `left` ticks later; burstticks=1 burst= films it frame by frame).
+                    Pawn p = PawnAt(map, I(a[1]), I(a[2]));
+                    if (p == null)
+                    {
+                        return true;
+                    }
+                    int limit = Mathf.Clamp(I(a[0]), 1, 900), done = 0, left = I(a[3]);
+                    while (done < limit && !(p.stances.curStance is Stance_Warmup w && w.ticksLeft <= left))
+                    {
+                        Find.TickManager.DoSingleTick();
+                        done++;
+                    }
+                    foreach (Pawn tp in map.mapPawns.AllPawnsSpawned)
+                    {
+                        tp.Drawer.tweener.ResetTweenedPosToRoot();
+                    }
+                    Log.Message("[IsoRim probe] tickwarm " + p.LabelShort + ": " + done + " ticks, stance " + p.stances.curStance.GetType().Name
+                        + (p.stances.curStance is Stance_Busy b ? " left " + b.ticksLeft : ""));
+                    return true;
+                }
+                case "launchlog":
+                    // launchlog=1: every projectile logs where its drawn flight starts when it is first drawn (Projectiles.LaunchLog).
+                    Projectiles.LaunchLog = a[0] == "1";
+                    return true;
                 case "visuals":
                 {
                     // visuals=N: the per-frame visual catch-up the game runs while unpaused (Pawn.ProcessPostTickVisuals: lean
