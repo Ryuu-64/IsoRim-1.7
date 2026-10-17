@@ -23,8 +23,13 @@ namespace IsoRim
 
         public bool uprightPawns = true;
         public bool uprightPlants = true;
-        public float plantCardSize = 1f;
-        public bool fullPawnDraw = false;  // people never drawn from the game's cached image in 3D (on by itself with Facial Animation)   // plants drawn from their sprite (cards), other than trees: how big
+        public float plantCardSize = 1f;   // plants drawn from their sprite (cards), other than trees: how big
+        public bool fullPawnDraw = false;  // people never drawn from the game's cached image in 3D (on by itself with Facial Animation)
+        public bool faceDecal = true;       // with Facial Animation: its face on 3D heads instead of IsoRim's eyes (FaceDecal)
+        public float faceDecalSize = 1f;    // its size on the head
+        public float faceDecalHeight = 0f;  // and how far it is moved up (cells)
+        public float faceDecalMouth = 1.6f; // the mouth's own size (Facial Animation's is a thin line)
+        public float faceDecalMouthHeight = 0f; // and how far the mouth alone is moved up (cells)
         public bool walls3D = true;
         public bool texturedWalls = true;
         public bool autoExtrude = true;
@@ -121,6 +126,11 @@ namespace IsoRim
             Scribe_Values.Look(ref uprightPlants, "uprightPlants", true);
             Scribe_Values.Look(ref plantCardSize, "plantCardSize", 1f);
             Scribe_Values.Look(ref fullPawnDraw, "fullPawnDraw", false);
+            Scribe_Values.Look(ref faceDecal, "faceDecal", true);
+            Scribe_Values.Look(ref faceDecalSize, "faceDecalSize", 1f);
+            Scribe_Values.Look(ref faceDecalHeight, "faceDecalHeight", 0f);
+            Scribe_Values.Look(ref faceDecalMouth, "faceDecalMouth", 1.6f);
+            Scribe_Values.Look(ref faceDecalMouthHeight, "faceDecalMouthHeight", 0f);
             Scribe_Values.Look(ref walls3D, "walls3D", true);
             Scribe_Values.Look(ref texturedWalls, "texturedWalls", true);
             Scribe_Values.Look(ref autoExtrude, "autoExtrude", true);
@@ -821,6 +831,17 @@ namespace IsoRim
             {
                 Section(r, "R3D_Settings_CreaturesEffects".Translate());
                 Check(r, "R3D_Settings_Pawns3D".Translate(), ref st.pawns3D);
+                if (st.pawns3D && ModsConfig.IsActive("Nals.FacialAnimation"))
+                {
+                    Check(r, "R3D_Settings_FaceDecal".Translate(), ref st.faceDecal, "R3D_Settings_FaceDecalTip".Translate());
+                    if (st.faceDecal)
+                    {
+                        st.faceDecalSize = Slider(r, "R3D_Settings_FaceDecalSize".Translate(), st.faceDecalSize, 0.5f, 1.5f, (st.faceDecalSize * 100f).ToString("0") + "%");
+                        st.faceDecalHeight = Slider(r, "R3D_Settings_FaceDecalHeight".Translate(), st.faceDecalHeight, -0.15f, 0.15f, st.faceDecalHeight.ToString("+0.000;-0.000;0"));
+                        st.faceDecalMouth = Slider(r, "R3D_Settings_FaceDecalMouth".Translate(), st.faceDecalMouth, 0.5f, 3f, (st.faceDecalMouth * 100f).ToString("0") + "%");
+                        st.faceDecalMouthHeight = Slider(r, "R3D_Settings_FaceDecalMouthHeight".Translate(), st.faceDecalMouthHeight, -0.1f, 0.1f, st.faceDecalMouthHeight.ToString("+0.000;-0.000;0"));
+                    }
+                }
                 Check(r, "R3D_Settings_Animals3D".Translate(), ref st.animals3D);
                 Check(r, "R3D_Settings_Mechs3D".Translate(), ref st.mechs3D);
                 Check(r, "R3D_Settings_HeldWeapons3D".Translate(), ref st.heldWeapons3D);

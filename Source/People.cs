@@ -58,6 +58,7 @@ namespace IsoRim
             public bool pads;
             public bool visor;
             public bool faceHidden;   // the game leaves out the eyes (skip flag Eyes): no face, eyes or scars
+            public bool faceDecal;    // Facial Animation's face goes on this head (FaceDecal): IsoRim's eyes left out
             public bool femaleEyes;   // a Female_* head type: vanilla draws its eyes with the longer upturned lash
             public bool headHidden;   // the game leaves out the whole head (skip flag Head, the burka): its covering (hat) instead
             public bool bedHidesHat;  // in a bed that hides headgear when this look was worked out (People.BedHidesHeadgear)
@@ -131,7 +132,7 @@ namespace IsoRim
             {
                 return o != null && size == o.size && headWide == o.headWide && shoulders == o.shoulders && bodyScale == o.bodyScale && lower == o.lower && upper == o.upper
                     && coat == o.coat && underCoat == o.underCoat && underCoatColor == o.underCoatColor && hair == o.hair && hairTop == o.hairTop && beard == o.beard && hat == o.hat && pads == o.pads && visor == o.visor
-                    && legArmour == o.legArmour && legArmourColor == o.legArmourColor && faceHidden == o.faceHidden && femaleEyes == o.femaleEyes && headHidden == o.headHidden
+                    && legArmour == o.legArmour && legArmourColor == o.legArmourColor && faceHidden == o.faceHidden && faceDecal == o.faceDecal && femaleEyes == o.femaleEyes && headHidden == o.headHidden
                     && skin == o.skin && hairColor == o.hairColor && upperColor == o.upperColor && lowerColor == o.lowerColor
                     && coatColor == o.coatColor && hatColor == o.hatColor && ownHead == o.ownHead && ownFace == o.ownFace && eyeLeft == o.eyeLeft
                     && eyeRight == o.eyeRight && scars == o.scars && skinOverlay == o.skinOverlay && barbs == o.barbs && plating == o.plating
@@ -201,7 +202,7 @@ namespace IsoRim
                 else
                 {
                     AddPart(head, headPlace, skin);
-                    if (!look.faceHidden)
+                    if (!look.faceHidden && !look.faceDecal)
                     {
                         AddPart(look.ownFace ?? (look.femaleEyes && faceFemale != null ? faceFemale : face), headPlace, look.ownFace != null ? look.faceTint : Color.white);
                         AddPart(look.eyeLeft, headPlace, Color.white);
@@ -501,6 +502,10 @@ namespace IsoRim
                 DynamicModels.DrawParts(Merged(look, false, dead, turned), at, yaw, bodyPlace);
             }
             DynamicModels.DrawParts(Merged(look, true, dead, turned), at, yaw, headPlace);
+            if (look.faceDecal && !look.headHidden && look.skull == null)
+            {
+                FaceDecal.Draw(pawn, head, at, yaw, headPlace * Matrix4x4.Scale(new Vector3(look.headWide, 1f, 1f)));
+            }
             if (workTool != null)
             {
                 // The tool is placed in the figure's own space, so it leans and dips with it.
@@ -715,6 +720,7 @@ namespace IsoRim
             }
             look.faceHidden = (skip & RenderSkipFlagDefOf.Eyes) != 0;
             Anomaly(pawn, look, build, headName);
+            look.faceDecal = !look.faceHidden && look.ownFace == null && look.ownHead == null && FaceDecal.Wanted(pawn);
             if (Corpses.Bones(pawn))
             {
                 Bones(look, build);
