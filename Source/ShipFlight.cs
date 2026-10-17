@@ -497,11 +497,15 @@ namespace IsoRim
 
         // The ship and everything round it this frame. All of it is worked out in drawn space (upper floors already moved
         // over the ground and raised): the floors' mapping of single draws is off meanwhile, so a ship flown over the
-        // north edge of the ground is not read as standing on a floor there.
+        // north edge of the ground is not read as standing on a floor there. The recorder is paused meanwhile: the flying
+        // copy's own deck edge (drawn lit, through IsoGlow.DrawLit) passes over the landing ship's cells near touchdown and
+        // was taken for one of its parts to hide.
         private static void DrawFlight(GravshipRenderer r, Gravship g, Vector3 enginePos, float progress, float heightShare, bool isTakeoff)
         {
             bool was = Floors.InDrawnSpace;
+            bool recording = ShipCapture.Recording;
             Floors.InDrawnSpace = true;
+            ShipCapture.Recording = false;
             try
             {
                 snap.Draw(ground, height, turn);
@@ -510,6 +514,7 @@ namespace IsoRim
             finally
             {
                 Floors.InDrawnSpace = was;
+                ShipCapture.Recording = recording;
             }
         }
 
@@ -627,13 +632,13 @@ namespace IsoRim
                 foreach (IntVec3 c in g.GravFieldExtenderPositions)
                 {
                     Vector3 p = Turned(enginePos + c.ToVector3() + ThingDefOf.GravFieldExtender.graphicData.drawSize.ToVector3() * 0.5f);
-                    Glow(new Vector3(p.x, height + snap.FloorHeight(c.y) + ExtenderHeight, p.z), 8f, matExtenderGlow);
+                    Glow(new Vector3(p.x, height + snap.FloorHeight(c.y) + ExtenderHeight, p.z), 8f, matExtenderGlow, snap.GlowPull);
                 }
             }
             if (matEngineGlow != null)
             {
                 matEngineGlow.SetColor(Color2, value);
-                Glow(orb, 12.5f, matEngineGlow);
+                Glow(orb, 12.5f, matEngineGlow, snap.GlowPull);
             }
         }
 
@@ -670,10 +675,11 @@ namespace IsoRim
 
         // A glow sprite stood up facing the camera, centred on a point (true height in y). It is moved toward the camera
         // by more than half its size (no change on screen with the orthographic camera), so the deck it hangs over does not
-        // cut it off with a hard edge.
-        private static void Glow(Vector3 at, float size, Material mat)
+        // cut it off with a hard edge; by pull more for a ship with upper decks, whose walls would otherwise stand through
+        // the card and show where they cross it (a V at the corner toward the camera).
+        private static void Glow(Vector3 at, float size, Material mat, float pull = 0f)
         {
-            at -= View3D.Forward * (size * 0.6f);
+            at -= View3D.Forward * (size * 0.6f + pull);
             Vector3 pivot = new Vector3(at.x, at.y / View3D.Squash, at.z);
             Graphics.DrawMesh(MeshPool.plane10, View3D.UprightMatrix(pivot) * Matrix4x4.TRS(pivot, Quaternion.identity, new Vector3(size, 1f, size)), mat, 0);
         }
@@ -802,6 +808,20 @@ namespace IsoRim
 
         // The floor the engine stands on, and floor k's height over the ground (true cells; 0 the ground and without floors).
         public int EngineFloor { get; private set; }
+
+        // How much further a glow card is pulled toward the camera so the whole ship stands behind it: none for a one-storey
+        // ship (as before), else the box's reach round its middle (cells).
+        public float GlowPull
+        {
+            get
+            {
+                if (heights == null || heights.Length < 2)
+                {
+                    return 0f;
+                }
+                return new Vector3(max.x - min.x, max.y - min.y, max.z - min.z).magnitude * 0.5f + max.y;
+            }
+        }
 
         public float FloorHeight(int k)
         {
