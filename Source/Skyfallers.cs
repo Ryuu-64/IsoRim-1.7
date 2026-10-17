@@ -67,6 +67,7 @@ namespace IsoRim
             public float turn;
             public Vector3 back;
             public float floorHeight;
+            public float rowShift;   // rows from the landing floor's cells down to the ground band (0 on the ground)
         }
 
         private delegate void PosRotFn(Skyfaller s, ref Vector3 drawLoc, out float extraRotation);
@@ -134,6 +135,7 @@ namespace IsoRim
                 row = Floors.RowOffset(s.Position.z);
             }
             pose.floorHeight = row.y;
+            pose.rowShift = row.z;
             Vector3 drift;
             float h;
             Convert(drawLoc.x - land.x, drawLoc.z - land.z, out drift, out h);
@@ -409,7 +411,14 @@ namespace IsoRim
             }
             shadowBlock.SetColor(ShaderPropertyIDs.Color, c);
             float sq = View3D.Squash;
-            Vector3 at = new Vector3(pose.ground.x, AltitudeLayer.Shadows.AltitudeFor() + pose.floorHeight / sq, pose.ground.z);
+            // On the landing floor where it has a floor under the shadow; where the drift takes it out over open air, on
+            // the ground below.
+            float floorAt = pose.floorHeight;
+            if (floorAt > 0f && !Floors.HasFloor(s.Map, new IntVec3(Mathf.FloorToInt(pose.ground.x), 0, Mathf.FloorToInt(pose.ground.z - pose.rowShift))))
+            {
+                floorAt = 0f;
+            }
+            Vector3 at = new Vector3(pose.ground.x, AltitudeLayer.Shadows.AltitudeFor() + floorAt / sq, pose.ground.z);
             Matrix4x4 m = Matrix4x4.TRS(at, s.Rotation.AsQuat, new Vector3(grow * size.x, 1f, grow * size.y));
             Graphics.DrawMesh(MeshPool.plane10Back, m, mat, 0, null, 0, shadowBlock);
         }

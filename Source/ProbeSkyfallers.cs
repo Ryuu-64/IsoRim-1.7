@@ -12,6 +12,7 @@ namespace IsoRim
     //   skyfall=meteor,x,z          a meteorite (the incident's contents, ThingSetMakerDefOf.Meteorite) falling on the cell
     //   skyfall=shuttle,x,z         a Royalty shuttle landing (ShuttleIncoming with a new Shuttle, as the debug action)
     //   skyfall=pshuttle,x,z,rot    an Odyssey passenger shuttle landing facing rot (PassengerShuttleIncoming)
+    //   skyfall=podof,x,z,plain|mech|ancient  one drop pod (MakeDropPodAt): plain, mechanoid faction, or an arriving ancient launch pod
     //   skyfall=chunk,x,z           a ship chunk (ShipChunkIncoming), skyfall=crash,x,z a crashing shuttle (ShuttleCrashing)
     //   skyfall=def,<Skyfaller>,<Inner|->,x,z  any skyfaller def holding a new thing of that def (or nothing)
     //   podlaunch=x,z               the transport pod in the cell (with a fuelled pod launcher by it) gets some steel and is
@@ -86,6 +87,23 @@ namespace IsoRim
                     steel.stackCount = 50;
                     List<List<Thing>> groups = new List<List<Thing>> { new List<Thing> { p }, new List<Thing> { steel } };
                     DropPodUtility.DropThingGroupsNear(c, map, groups, 110, false, true, true, true, false);
+                    break;
+                }
+                case "podof":
+                {
+                    // skyfall=podof,x,z,plain|mech|ancient: one drop pod with some steel (DropPodUtility.MakeDropPodAt), as the
+                    // player's transport pods arrive (plain), a mechanoid drop (mech: Faction.OfMechanoids), or an ancient launch
+                    // pod arriving (ancient: sentTransporterDef AncientTransportPod)
+                    string what = a.Length > 3 ? a[3] : "plain";
+                    ActiveTransporterInfo info = new ActiveTransporterInfo();
+                    Thing steel = ThingMaker.MakeThing(ThingDefOf.Steel);
+                    steel.stackCount = 25;
+                    info.innerContainer.TryAdd(steel);
+                    if (what == "ancient")
+                    {
+                        info.sentTransporterDef = DefDatabase<ThingDef>.GetNamed("AncientTransportPod");
+                    }
+                    DropPodUtility.MakeDropPodAt(c, map, info, what == "mech" ? Faction.OfMechanoids : null);
                     break;
                 }
                 case "meteor":

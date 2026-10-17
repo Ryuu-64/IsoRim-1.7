@@ -1734,6 +1734,25 @@
     <builtFor>(1, 1)</builtFor>
   </IsoRim.ModelDef>
 
+  <!-- Drop pods (landed, ActiveDropPod; and falling or leaving through Skyfallers.cs): the transport pod's model, as the
+       game's drop pod sprite is the transport pod's. The mechanoid pod uses the mech drop pod's model (same sprite);
+       the ancient pod (ActiveDropPodAncient) has no model and stays its solid sprite. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_ActiveDropPod</defName>
+    <thingDef>ActiveDropPod</thingDef>
+    <model>Models/transport_pod.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_ActiveDropPodMechanoid</defName>
+    <thingDef>ActiveDropPodMechanoid</thingDef>
+    <model>Models/mech_drop_pod.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
   <IsoRim.ModelDef>
     <defName>R3D_PodLauncher</defName>
     <thingDef>PodLauncher</thingDef>

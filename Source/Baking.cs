@@ -84,7 +84,9 @@ namespace IsoRim
             {
                 return f;
             }
-            if (def.category == ThingCategory.Item && st.itemsFromArt && !IsChunk(def) && !OverArt(listed ? entry : null))
+            // (A landed drop pod is an item to the game, but a bound one is drawn as its pod model: ActiveTransporter defs.)
+            bool podModel = listed && entry.HasModel && st.models3D && typeof(ActiveTransporter).IsAssignableFrom(def.thingClass);
+            if (def.category == ThingCategory.Item && st.itemsFromArt && !IsChunk(def) && !OverArt(listed ? entry : null) && !podModel)
             {
                 // Items are made solid from their own game sprite, so they read exactly as
                 // they do in the game. (Chunks keep their rock and scrap models.)
