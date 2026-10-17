@@ -13,6 +13,9 @@ namespace IsoRim
     //   bolt=x,z[,delay]            a lightning strike on the cell (WeatherEvent_LightningStrike, or _Delayed by delay ticks)
     //   strike3d=0|1                strikes and lobbed shells in 3D (SkyStrikes.Enabled, default 1) or the game's drawing
     //   strikecheck=1               logs every strike, shell and bolt with its impact height (SkyStrikes.Report)
+    //   shieldhits=0|1              shots and shells stopped by a shield meet its dome (ShieldHits.Enabled, default 1) or not
+    //   domealpha=a                 shield bubbles drawn at opacity a, not the game's pulse (ShieldDomes.HarnessAlpha; -1 = off)
+    //   shieldhitcheck=1           logs the shots on their way to a dome (ShieldHits.Report)
     public static partial class Probe
     {
         private static bool StrikeKey(string key, string[] a, Map map)
@@ -24,6 +27,15 @@ namespace IsoRim
                     return true;
                 case "strikecheck":
                     SkyStrikes.Report(map);
+                    return true;
+                case "shieldhits":
+                    ShieldHits.Enabled = a[0] != "0";
+                    return true;
+                case "domealpha":
+                    ShieldDomes.HarnessAlpha = F(a[0]);
+                    return true;
+                case "shieldhitcheck":
+                    ShieldHits.Report();
                     return true;
                 case "bolt":
                 {

@@ -21,6 +21,9 @@ namespace IsoRim
 
         private static Mesh dome;
 
+        // Harness only (probe domealpha=a): the bubble drawn at this opacity, not the game's pulse (for still shots).
+        public static float HarnessAlpha = -1f;
+
         public static void DrawMesh(Mesh mesh, Matrix4x4 matrix, Material material, int layer, Camera camera, int submeshIndex, MaterialPropertyBlock properties)
         {
             if (!View3D.Ready || mesh != MeshPool.plane10)
@@ -33,6 +36,12 @@ namespace IsoRim
             Vector3 z = matrix.GetColumn(2);
             float size = x.magnitude;
             Quaternion turn = Quaternion.LookRotation(z.normalized, Vector3.up);
+            if (HarnessAlpha >= 0f && properties != null && material != null && material.mainTexture != null && material.mainTexture.name == "ForceField")
+            {
+                Color c = properties.GetColor(ShaderPropertyIDs.Color);
+                c.a = HarnessAlpha;
+                properties.SetColor(ShaderPropertyIDs.Color, c);
+            }
             float s = View3D.Squash;
             // On the ground, true height (the map is drawn squashed flat, see View3D).
             Matrix4x4 m = Matrix4x4.Translate(new Vector3(at.x, 0f, at.z))

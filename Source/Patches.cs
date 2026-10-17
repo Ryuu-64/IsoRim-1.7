@@ -392,7 +392,14 @@ namespace IsoRim
                 prefix: nameof(StatueDrawAt_Prefix));
 
             // Shield bubbles: a dome over the circle instead of a flat ring on the ground (ShieldDomes).
-            Patch("shield domes", AccessTools.DeclaredMethod(typeof(CompProjectileInterceptor), "PostDraw"), transpiler: nameof(ShieldDraw_Transpiler));
+            Patch("shield domes", AccessTools.DeclaredMethod(typeof(CompProjectileInterceptor), "PostDraw"), transpiler: nameof(ShieldDraw_Transpiler), postfix: nameof(ShieldDraw_Postfix));
+            // Shots and shells a shield stops meet its dome: drawn on to it, the game's intercept effect shown there (ShieldHits).
+            Patch("shots stopped on the dome", AccessTools.DeclaredMethod(typeof(CompProjectileInterceptor), nameof(CompProjectileInterceptor.CheckIntercept)),
+                prefix: nameof(ShieldIntercept_Prefix), postfix: nameof(ShieldIntercept_Postfix), finalizer: nameof(ShieldIntercept_Finalizer));
+            Patch("shots stopped on the dome", AccessTools.DeclaredMethod(typeof(CompProjectileInterceptor), nameof(CompProjectileInterceptor.CheckBombardmentIntercept)),
+                prefix: nameof(ShieldBombardment_Prefix), finalizer: nameof(ShieldBombardment_Finalizer));
+            Patch("shots stopped on the dome", AccessTools.DeclaredMethod(typeof(CompProjectileInterceptor), nameof(CompProjectileInterceptor.CompTick)), postfix: nameof(ShieldTick_Postfix));
+            Patch("shots stopped on the dome", AccessTools.Method(typeof(FleckManager), nameof(FleckManager.CreateFleck), new[] { typeof(FleckCreationData) }), prefix: nameof(CreateFleck_Prefix));
 
             // Smoke and dust the game throws from a building: from the model's nozzles, standing up at their height (Emitters).
             Patch("smoke from 3D nozzles", AccessTools.Method(typeof(CompThrownFleckEmitter), "Emit"), prefix: nameof(FleckEmit_Prefix));
@@ -3477,6 +3484,81 @@ namespace IsoRim
             {
                 ModLog.Warn("[IsoRim] The shot flash in Verb.TryCastNextBurstShot was not found; muzzle flashes are the game's.");
             }
+        }
+
+        public static void ShieldDraw_Postfix(CompProjectileInterceptor __instance)
+        {
+            try
+            {
+                ShieldHits.Draw(__instance);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Drawing a shot on its way to a shield dome failed: " + e, 93611561);
+            }
+        }
+
+        public static void ShieldIntercept_Prefix(CompProjectileInterceptor __instance)
+        {
+            ShieldHits.InterceptBegin(__instance);
+        }
+
+        public static void ShieldIntercept_Postfix(CompProjectileInterceptor __instance, Projectile projectile, Vector3 newExactPos, bool __result)
+        {
+            if (!__result)
+            {
+                return;
+            }
+            try
+            {
+                ShieldHits.Intercepted(__instance, projectile, newExactPos);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Drawing a shot on to a shield dome failed: " + e, 93611562);
+            }
+        }
+
+        public static Exception ShieldIntercept_Finalizer(Exception __exception)
+        {
+            ShieldHits.InterceptEnd();
+            return __exception;
+        }
+
+        public static void ShieldBombardment_Prefix(CompProjectileInterceptor __instance, Bombardment.BombardmentProjectile projectile)
+        {
+            try
+            {
+                ShieldHits.BombardmentBegin(__instance, projectile);
+            }
+            catch (Exception e)
+            {
+                ShieldHits.BombardmentEnd();
+                Log.ErrorOnce("[IsoRim] Putting a shield's flash on its dome failed: " + e, 93611563);
+            }
+        }
+
+        public static Exception ShieldBombardment_Finalizer(Exception __exception)
+        {
+            ShieldHits.BombardmentEnd();
+            return __exception;
+        }
+
+        public static void ShieldTick_Postfix(CompProjectileInterceptor __instance)
+        {
+            try
+            {
+                ShieldHits.Tick(__instance);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Showing a shield's flash on its dome failed: " + e, 93611564);
+            }
+        }
+
+        public static bool CreateFleck_Prefix(FleckCreationData fleckData)
+        {
+            return ShieldHits.CreateFleck(fleckData);
         }
 
         public static IEnumerable<CodeInstruction> ShieldDraw_Transpiler(IEnumerable<CodeInstruction> instructions)

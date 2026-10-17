@@ -26,7 +26,8 @@ namespace IsoRim
     //   - The power beam's 90-cell ground glow (Mote_PowerBeam, Mote_Bombardment): flat on the ground or roof it hits, not
     //     stood up as an overhead icon (Patches.ThingDraw_Prefix asks FlatGlow).
     //   - Bombardment shells (Bombardment.DrawAt): fall straight down over the target cell from vanilla's 60 cells of slide
-    //     (times Skyfallers.HeightPerSlide) to the impact, nose first, over vanilla's 60 ticks.
+    //     (times Skyfallers.HeightPerSlide) to the impact, nose first, over vanilla's 60 ticks; onto a shield's dome when
+    //     the shield will stop it (ShieldHits).
     //   - Lightning (WeatherEvent_LightningStrike / _Delayed .WeatherEventDraw): vanilla's bolt mesh (200 cells) standing
     //     from the strike point up into the sky, faded as vanilla.
     //   - Mortar and artillery shells: Projectiles.DrawLobbed (a drawn ballistic arc; uses Impact for the landing).
@@ -233,7 +234,10 @@ namespace IsoRim
                     continue;   // lands on a floor hidden now (as skyfallers)
                 }
                 float t = 1f - (float)shellLife(s) / Mathf.Max(1, shellMax(s));
-                float h = imp.height + Mathf.Lerp(60f, 0f, t) * Skyfallers.HeightPerSlide;
+                // A shell a shield will stop ends on its dome (ShieldHits), at the tick the game stops it.
+                float stop;
+                float end = ShieldHits.ShellStop(b, s.targetCell, out stop) ? stop : imp.height;
+                float h = end + Mathf.Lerp(60f, 0f, t) * Skyfallers.HeightPerSlide;
                 Vector3 nose = new Vector3(s.targetCell.x + 0.5f, AltitudeLayer.MoteOverhead.AltitudeFor() + h / sq, s.targetCell.z + 0.5f - imp.shift);
                 // Vanilla's Bullet_Big at 2.5 cells, turned 180 degrees (nose down), its nose at the height.
                 Matrix4x4 m = Card(nose, 0f) * Matrix4x4.Translate(new Vector3(0f, 0f, 1.25f))
@@ -310,7 +314,11 @@ namespace IsoRim
                             {
                                 Impact si = ImpactAt(map, bp.targetCell);
                                 float tt = 1f - (float)shellLife(bp) / Mathf.Max(1, shellMax(bp));
-                                Log.Message("[IsoRim probe]   shell to " + bp.targetCell + " life " + shellLife(bp) + "/" + shellMax(bp) + " height " + (si.height + Mathf.Lerp(60f, 0f, tt) * Skyfallers.HeightPerSlide).ToString("0.0"));
+                                float stop;
+                                bool stopped = ShieldHits.ShellStop(bo, bp.targetCell, out stop);
+                                float end = stopped ? stop : si.height;
+                                Log.Message("[IsoRim probe]   shell to " + bp.targetCell + " life " + shellLife(bp) + "/" + shellMax(bp) + " height " + (end + Mathf.Lerp(60f, 0f, tt) * Skyfallers.HeightPerSlide).ToString("0.0")
+                                    + (stopped ? " (stops on a shield dome at " + stop.ToString("0.0") + ")" : ""));
                             }
                         }
                     }

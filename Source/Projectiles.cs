@@ -179,6 +179,62 @@ namespace IsoRim
             return false;
         }
 
+        // ---- The drawn flight as numbers, for drawing on past the game's end of it (ShieldHits: a shot stopped by a shield
+        // flies on to the dome). The same curves as DrawAt and DrawLobbed, in true space: x and z on the ground rows (an
+        // upper floor's rows moved down onto the ground), y cells above the ground; t the share of the way flown (flat).
+        public sealed class Path
+        {
+            public Vector3 origin, destination, lead;
+            public float start, end, apex, arc, rowZ, perTick;
+            public bool lobbed;
+
+            public Vector3 Point(float t)
+            {
+                Vector3 flat = Vector3.Lerp(origin, destination, t) + lead * (1f - t);
+                float h = Mathf.Lerp(start, end, t) + (lobbed ? apex * 4f * t * (1f - t) : arc * GenMath.InverseParabola(t));
+                return new Vector3(flat.x, h, flat.z + rowZ);
+            }
+
+            // Which way the shell points at t (a lobbed shell's nose along the arc).
+            public Vector3 Along(float t)
+            {
+                Vector3 flat = new Vector3(destination.x - origin.x, 0f, destination.z - origin.z);
+                return flat + Vector3.up * (end - start + apex * 4f * (1f - 2f * t));
+            }
+        }
+
+        // The path the projectile is drawn along now (null if IsoRim does not draw it), and how far along it is.
+        public static Path PathOf(Projectile p, out float flown)
+        {
+            flown = 1f;
+            if (p == null || p.def?.projectile == null || p.def.graphicData == null || p.Map == null)
+            {
+                return null;
+            }
+            Flight f = flights.GetValue(p, Begin);
+            Vector3 o = originRef(p);
+            Vector3 d = destinationRef(p);
+            Path path = new Path { origin = o, destination = d, lead = f.lead };
+            path.start = f.start + FloorHeight(f.launcherRow);
+            path.lobbed = SkyStrikes.Enabled && p.def.projectile.flyOverhead && p.def.projectile.arcHeightFactor < 0.5f;
+            if (path.lobbed)
+            {
+                float length = new Vector2(d.x - o.x, d.z - o.z).magnitude;
+                path.apex = Mathf.Min(SkyStrikes.ShellArc * length, SkyStrikes.ShellArcMax);
+                path.end = SkyStrikes.LandingHeight(p.Map, d.ToIntVec3(), f.end + FloorHeight(f.targetRow));
+            }
+            else
+            {
+                path.end = f.end + FloorHeight(f.targetRow);
+                path.arc = arcHeight(p);
+            }
+            path.rowZ = Floors.On ? Floors.RowOffset(p.Position.z).z : 0f;
+            float whole = (o - d).magnitude;   // as the game's StartingTicksToImpact
+            path.perTick = whole > 0.001f ? p.def.projectile.SpeedTilesPerTick / whole : 1f;
+            flown = Flown(p, p.ExactPosition);
+            return path;
+        }
+
         // Height of the floor a row is on (cells), zero on the ground and without floors.
         private static float FloorHeight(int z)
         {
