@@ -124,7 +124,17 @@ namespace IsoRim
                 }
                 else
                 {
-                    Graphics.DrawMesh(MeshPool.GridPlane(p.def.graphicData.drawSize), at, rotation, p.DrawMat, 0);
+                    // An addon may draw the card with its own matrix (Api.ProjectileCard).
+                    Matrix4x4 card;
+                    ProjectileCardHook hook = Api.ProjectileCard;
+                    if (hook != null && hook(p, at, rotation, out card))
+                    {
+                        Graphics.DrawMesh(MeshPool.GridPlane(p.def.graphicData.drawSize), card, p.DrawMat, 0);
+                    }
+                    else
+                    {
+                        Graphics.DrawMesh(MeshPool.GridPlane(p.def.graphicData.drawSize), at, rotation, p.DrawMat, 0);
+                    }
                 }
                 postDraw(p);
             }
