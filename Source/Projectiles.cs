@@ -45,6 +45,29 @@ namespace IsoRim
 
         private static readonly ConditionalWeakTable<Projectile, Flight> flights = new ConditionalWeakTable<Projectile, Flight>();
 
+        private static readonly ConditionalWeakTable<Projectile, StrongBox<Vector3>> launchPoints = new ConditionalWeakTable<Projectile, StrongBox<Vector3>>();
+
+        // For a gameplay addon that moves a shot's launch point elsewhere on the map (stacked floors: onto the target
+        // floor's rows): where the shot really left from (the game's launch point before the move). The shooter, its
+        // muzzle and the bullet's lead to it are found from there. Call before the projectile is first drawn.
+        public static void SetLaunchPoint(Projectile p, Vector3 from)
+        {
+            if (p != null)
+            {
+                launchPoints.AddOrUpdate(p, new StrongBox<Vector3>(from));
+            }
+        }
+
+        // Where the drawn flight starts: the game's launch point plus the lead to the muzzle (x and z, the game's
+        // rows), y the height above the ground in cells (the shooter's floor included).
+        public static Vector3 DrawnStart(Projectile p)
+        {
+            Flight f = flights.GetValue(p, Begin);
+            Vector3 o = originRef(p) + f.lead;
+            o.y = f.start + FloorHeight(f.launcherRow);
+            return o;
+        }
+
         private static readonly AccessTools.FieldRef<Projectile, Vector3> originRef = AccessTools.FieldRefAccess<Projectile, Vector3>("origin");
         private static readonly AccessTools.FieldRef<Projectile, Vector3> destinationRef = AccessTools.FieldRefAccess<Projectile, Vector3>("destination");
         private static readonly Func<Projectile, float> arcHeight = AccessTools.MethodDelegate<Func<Projectile, float>>(AccessTools.PropertyGetter(typeof(Projectile), "ArcHeightFactor"));
@@ -136,14 +159,17 @@ namespace IsoRim
             Flight f = new Flight();
             try
             {
-                Vector3 o = originRef(p);
+                // (where the shot really left from: the game's launch point, unless an addon moved it, SetLaunchPoint)
+                Vector3 o = launchPoints.TryGetValue(p, out StrongBox<Vector3> from) ? from.Value : originRef(p);
                 Thing owner = FromMuzzle ? MuzzleOwner(p.Launcher, p.EquipmentDef, o, p.Map) : p.Launcher;
                 f.start = MuzzleHeight(owner);
                 // From the muzzle (as the flash, ShotFlash) when the shot really left from the shooter (not a shell
                 // dropped from elsewhere with a launcher named).
                 if (FromMuzzle && owner != null && owner.Spawned && owner.Map == p.Map && new Vector2(owner.DrawPos.x - o.x, owner.DrawPos.z - o.z).magnitude < 1.5f)
                 {
-                    Vector3 muzzle = Muzzle(owner, p.EquipmentDef, o, FlatDirection(o, destinationRef(p)));
+                    // (aimed along the game's flight: its launch point is on the destination's rows even when the
+                    // shot really left from a floor hidden now)
+                    Vector3 muzzle = Muzzle(owner, p.EquipmentDef, o, FlatDirection(originRef(p), destinationRef(p)));
                     f.start = muzzle.y;
                     f.lead = new Vector3(muzzle.x - o.x, 0f, muzzle.z - o.z);
                 }
