@@ -56,6 +56,7 @@ namespace IsoRim
     //   haulbook=<Def>,bx,bz,cx,cz   a new book at (bx,bz) and the first free colonist told to haul it
     //                                into the bookcase at (cx,cz) (a real job: run tick= after it)
     //   tick=N                       N game ticks at once (N <= 900)
+    //   cutjob=x,z                   the plant in the cell designated for cutting and the nearest free colonist ordered to cut it
     //   minejob=x,z                  the rock in the cell designated for mining and the nearest colonist able to
     //                                mine, stood beside it on the south, ordered to mine it (a real job: run film= after it)
     //   sway=0                       plant wind sway held still (every plant material's _SwayHead 0, each frame),
@@ -584,6 +585,27 @@ namespace IsoRim
                 case "minejob":
                     MineJob(map, new IntVec3(I(a[0]), 0, I(a[1])));
                     break;
+                case "cutjob":
+                {
+                    // cutjob=x,z: the plant in the cell designated for cutting and the nearest free colonist ordered to cut it
+                    // (a real job: let the game run after it).
+                    IntVec3 c = new IntVec3(I(a[0]), 0, I(a[1]));
+                    Plant plant = c.GetPlant(map);
+                    Pawn p = map.mapPawns.FreeColonistsSpawned.Where(x => !x.Downed).OrderBy(x => x.Position.DistanceToSquared(c)).FirstOrDefault();
+                    if (plant == null || p == null)
+                    {
+                        Log.Warning("[IsoRim probe] cutjob: no plant or no colonist at " + c);
+                        break;
+                    }
+                    map.designationManager.AddDesignation(new Designation(plant, DesignationDefOf.CutPlant));
+                    if (p.drafter != null)
+                    {
+                        p.drafter.Drafted = false;
+                    }
+                    bool ok = p.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.CutPlantDesignated, plant), JobTag.Misc);
+                    Log.Message("[IsoRim probe] cutjob: " + p.LabelShort + " cutting " + plant.def.defName + " at " + c + ": " + ok);
+                    break;
+                }
                 case "sway":
                     swayStill = a[0] == "0";
                     break;
@@ -1346,6 +1368,7 @@ namespace IsoRim
                 case "cullshrink":
                 case "batch":
                 case "abswitch":
+                case "speed":
                     PerfKey(key, a, map);
                     break;
                 case "meshstats":

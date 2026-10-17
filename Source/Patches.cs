@@ -40,6 +40,7 @@ namespace IsoRim
         public static void ApplyAll()
         {
             harmony = new Harmony(HarmonyId);
+            Probe.BiomeHook(harmony);   // harness only (-isorimbiome=)
 
             Patch("camera", AccessTools.Method(typeof(CameraDriver), "Update"),
                 postfix: nameof(CameraUpdate_Postfix));
@@ -185,6 +186,9 @@ namespace IsoRim
             // (built, deconstructed, mined, cut down) those layers are redrawn round it.
             Patch("redrawing walls and trees as they change", FindMethod(typeof(Thing), "SpawnSetup"), postfix: nameof(SpawnSetup_Postfix));
             Patch("redrawing walls and trees as they go", FindMethod(typeof(Thing), "DeSpawn"), prefix: nameof(DeSpawn_Prefix));
+            // A tree block is redrawn only for a change in a cell with a tree (SectionLayer_IsoRimTrees).
+            Patch("redrawing trees as they change", AccessTools.Method(typeof(MapDrawer), nameof(MapDrawer.MapMeshDirty), new[] { typeof(IntVec3), typeof(ulong), typeof(bool), typeof(bool) }),
+                postfix: nameof(TreesDirty_Postfix));
 
             // Sunk holes (pits, SinkHoles.cs): the layers the game paints on the ground leave out the cells a hole cuts.
             Patch("ground cut under sunk holes", FindMethod(typeof(SectionLayer_Terrain), "Regenerate"), postfix: nameof(SinkCut_Postfix));
@@ -1786,6 +1790,11 @@ namespace IsoRim
             NoteShapeChange(__instance, __instance != null ? __instance.MapHeld : null);
         }
 
+        public static void TreesDirty_Postfix(MapDrawer __instance, IntVec3 loc, ulong dirtyFlags)
+        {
+            SectionLayer_IsoRimTrees.MapMeshDirty_Postfix(__instance, loc, dirtyFlags);
+        }
+
         public static void SinkCut_Postfix(SectionLayer __instance)
         {
             try
@@ -1848,7 +1857,9 @@ namespace IsoRim
                 }
                 else if (t is Plant && SectionLayer_IsoRimTrees.Handles(t))
                 {
-                    MapSections.QueueAround(map, t.Position, 0, typeof(SectionLayer_IsoRimTrees), true);
+                    // Marked for the game to redraw (at once on screen, when it comes into view off screen) rather
+                    // than queued: a forest off screen is not rebuilt block after block while the game runs.
+                    SectionLayer_IsoRimTrees.Mark(map, t.Position);
                 }
             }
             catch (Exception e)

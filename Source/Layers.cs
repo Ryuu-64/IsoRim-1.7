@@ -521,11 +521,68 @@ namespace IsoRim
 
     // Trees with a model, in a layer of their own for the same reason: thinning out the trees
     // near the pointer or the colonists only redraws the trees.
+    //
+    // No change flags of the game's: with "Things" every plant spawning, being eaten or dying anywhere in
+    // the block (all the time in a forest while the game runs) redrew all its trees, the dearest block
+    // there is to build, and the game redraws a block that changed off screen at the moment it comes into
+    // view, so moving the camera over a forest rebuilt one tree block after another, several a frame.
+    // Only a change in a cell that holds one of these trees marks the layer now (Mark, from
+    // MapDrawer.MapMeshDirty, and the spawn/despawn hooks); the game redraws it as before.
     public class SectionLayer_IsoRimTrees : SectionLayer
     {
         public SectionLayer_IsoRimTrees(Section section) : base(section)
         {
-            MapSections.SetChangeFlags(this, "Things");
+        }
+
+        private static readonly AccessTools.FieldRef<MapDrawer, Section[,]> sectionsOf = AccessTools.FieldRefAccess<MapDrawer, Section[,]>("sections");
+        private static readonly AccessTools.FieldRef<MapDrawer, Map> mapOf = AccessTools.FieldRefAccess<MapDrawer, Map>("map");
+
+        // Postfix of MapDrawer.MapMeshDirty(loc, flags, adjacent cells, adjacent sections): a change of the
+        // things in a cell holding a tree with a model redraws that block's trees.
+        public static void MapMeshDirty_Postfix(MapDrawer __instance, IntVec3 loc, ulong dirtyFlags)
+        {
+            if ((dirtyFlags & (ulong)MapMeshFlagDefOf.Things) == 0 || !View3D.Active || Current.ProgramState != ProgramState.Playing)
+            {
+                return;
+            }
+            try
+            {
+                Map map = mapOf(__instance);
+                if (map == null || !loc.InBounds(map))
+                {
+                    return;
+                }
+                List<Thing> things = map.thingGrid.ThingsListAtFast(loc);
+                for (int i = 0; i < things.Count; i++)
+                {
+                    if (things[i].Position == loc && Handles(things[i]))
+                    {
+                        Mark(map, loc);
+                        return;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Noting a change to the trees failed: " + e, 93611114);
+            }
+        }
+
+        // Marks the trees of the block holding the cell to be redrawn (the game does it when the block is in
+        // view: its own change flags for the cell are set by the same change).
+        public static void Mark(Map map, IntVec3 c)
+        {
+            if (map == null || map.mapDrawer == null || !c.InBounds(map) || sectionsOf(map.mapDrawer) == null)
+            {
+                return;
+            }
+            Section s = map.mapDrawer.SectionAt(c);
+            SectionLayer layer = s != null ? s.GetLayer(typeof(SectionLayer_IsoRimTrees)) : null;
+            if (layer != null)
+            {
+                layer.Dirty = true;
+                s.dirtyFlags |= (ulong)MapMeshFlagDefOf.Things;   // (already set by the game's own call; looked at only while any flag is)
+            }
         }
 
         public override bool Visible

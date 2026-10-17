@@ -24,8 +24,57 @@ namespace IsoRim
     //   abswitch=cull|batch                   what cullab turns off and on (default cull)
     //   cullab=x,z,size,tag                   camera held there; three screenshots 5 frames apart: culling off, on, off
     //                                         (renders<harness tag>cullab_<tag>_off1/_on/_off2.png)
+    //   speed=0..4                            the game speed (0 paused, 1 normal, 2 fast, 3 superfast) held from now on,
+    //                                         against the harness's pauses
+    //   -isorimbiome=<BiomeDef> (command line) the quick-test map on a flat tile of that biome (after Capture17's pick)
     public static partial class Probe
     {
+        private static int heldSpeed = -1;
+
+        // -isorimbiome=<BiomeDef>: patched in at start-up (harness only: nobody else passes it).
+        public static void BiomeHook(HarmonyLib.Harmony h)
+        {
+            string biome;
+            if (!GenCommandLine.TryGetCommandLineArg("isorimbiome", out biome))
+            {
+                return;
+            }
+            h.Patch(HarmonyLib.AccessTools.Method(typeof(Root_Play), nameof(Root_Play.SetupForQuickTestPlay)),
+                prefix: new HarmonyLib.HarmonyMethod(typeof(Probe), nameof(BiomePrefix)),
+                postfix: new HarmonyLib.HarmonyMethod(typeof(Probe), nameof(BiomePostfix)) { priority = HarmonyLib.Priority.Last });
+        }
+
+        // -isorimseed=N with it: the same world, tile and map every run (the quick test's world seed is drawn from Rand).
+        public static void BiomePrefix()
+        {
+            string seed;
+            if (GenCommandLine.TryGetCommandLineArg("isorimseed", out seed))
+            {
+                Rand.Seed = int.Parse(seed);
+            }
+        }
+
+        public static void BiomePostfix()
+        {
+            string name;
+            GenCommandLine.TryGetCommandLineArg("isorimbiome", out name);
+            BiomeDef biome = DefDatabase<BiomeDef>.GetNamedSilentFail(name);
+            if (biome == null)
+            {
+                Log.Warning("[IsoRim probe] no biome " + name);
+                return;
+            }
+            foreach (RimWorld.Planet.SurfaceTile t in Find.WorldGrid.Tiles.InRandomOrder())
+            {
+                if (t.PrimaryBiome == biome && t.hilliness == RimWorld.Planet.Hilliness.Flat && RimWorld.Planet.TileFinder.IsValidTileForNewSettlement(t.tile))
+                {
+                    Find.GameInitData.startingTile = t.tile;
+                    Log.Message("[IsoRim probe] quick-test tile " + t.tile + " (" + biome.defName + ")");
+                    return;
+                }
+            }
+            Log.Warning("[IsoRim probe] no flat " + name + " tile");
+        }
         private static Vector3 camFrom, camTo;
         private static int camFrames, camFrame = -1;
         private static int spinLeft, spinEvery, spinFrame;
@@ -47,6 +96,9 @@ namespace IsoRim
                     break;
                 case "abswitch":
                     abSwitch = a[0];
+                    break;
+                case "speed":
+                    heldSpeed = I(a[0]);
                     break;
                 case "cullcheck":
                     Cull.checkThings = a[0] == "1";
@@ -186,6 +238,10 @@ namespace IsoRim
         // Every frame (from Sticky).
         private static void MotionTick()
         {
+            if (heldSpeed >= 0 && Find.TickManager != null)
+            {
+                Find.TickManager.CurTimeSpeed = (TimeSpeed)heldSpeed;   // held against the harness's pauses
+            }
             CullAbTick();
             if (camFrame >= 0)
             {
@@ -332,6 +388,72 @@ namespace IsoRim
                 new HarmonyLib.HarmonyMethod(typeof(Probe), nameof(FlushCmdBegin)), new HarmonyLib.HarmonyMethod(typeof(Probe), nameof(FlushCmdEnd)));
             h.Patch(HarmonyLib.AccessTools.Method(typeof(Thing), "DynamicDrawPhase"),
                 new HarmonyLib.HarmonyMethod(typeof(Probe), nameof(CatThingBegin)), new HarmonyLib.HarmonyMethod(typeof(Probe), nameof(CatThingEnd)));
+            // Map block rebuilds: every layer's own Regenerate, timed by layer type.
+            foreach (Type t in typeof(SectionLayer).AllSubclasses())   // (abstract ones too: SectionLayer_Things holds ThingsGeneral's)
+            {
+                MethodInfo m = HarmonyLib.AccessTools.DeclaredMethod(t, "Regenerate");
+                if (m != null && !m.IsAbstract)
+                {
+                    try
+                    {
+                        h.Patch(m, new HarmonyLib.HarmonyMethod(typeof(Probe), nameof(RegenBegin)), new HarmonyLib.HarmonyMethod(typeof(Probe), nameof(RegenEnd)));
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Warning("[IsoRim probe] regen hook " + t.Name + ": " + e.Message);
+                    }
+                }
+            }
+            h.Patch(HarmonyLib.AccessTools.Method(typeof(MapDrawer), "MapMeshDrawerUpdate_First"),
+                new HarmonyLib.HarmonyMethod(typeof(Probe), nameof(MeshUpdBegin)), new HarmonyLib.HarmonyMethod(typeof(Probe), nameof(MeshUpdEnd)));
+        }
+
+        // ---- map block rebuilds in a perf window: per layer type count and ms, the game's per-frame update of
+        // dirty blocks (MapMeshDrawerUpdate_First) and gen-0 collections.
+        private static readonly Dictionary<string, double[]> regen = new Dictionary<string, double[]>();
+        private static readonly Stack<long> regenStarts = new Stack<long>();
+        private static long meshUpdStart;
+        private static double meshUpdMs, meshUpdMax;
+        private static readonly List<float> perfMeshUpd = new List<float>();
+        private static int gcAtStart;
+
+        public static void RegenBegin() { regenStarts.Push(System.Diagnostics.Stopwatch.GetTimestamp()); }
+
+        public static void RegenEnd(SectionLayer __instance)
+        {
+            if (regenStarts.Count == 0)
+            {
+                return;
+            }
+            double ms = (System.Diagnostics.Stopwatch.GetTimestamp() - regenStarts.Pop()) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+            if (perfLeft <= 0)
+            {
+                return;
+            }
+            string k = __instance.GetType().Name.Replace("SectionLayer_", "");
+            double[] v;
+            if (!regen.TryGetValue(k, out v))
+            {
+                v = new double[3];
+                regen[k] = v;
+            }
+            v[0]++;
+            v[1] += ms;
+            v[2] = Math.Max(v[2], ms);
+        }
+
+        public static void MeshUpdBegin() { meshUpdStart = System.Diagnostics.Stopwatch.GetTimestamp(); }
+        public static void MeshUpdEnd() { meshUpdMs += (System.Diagnostics.Stopwatch.GetTimestamp() - meshUpdStart) * 1000.0 / System.Diagnostics.Stopwatch.Frequency; }
+
+        private static string RegenReport()
+        {
+            List<float> u = new List<float>(perfMeshUpd);
+            u.Sort();
+            int n = u.Count;
+            string s = "block rebuilds: MapMeshDrawerUpdate_First median " + Median(perfMeshUpd).ToString("0.000") + " p95 " + (n > 0 ? u[Mathf.Min(n - 1, (int)(n * 0.95f))] : 0f).ToString("0.000")
+                + " max " + (n > 0 ? u[n - 1] : 0f).ToString("0.000") + " ms, gen0 GCs " + (GC.CollectionCount(0) - gcAtStart) + "; layers (count/total ms/max ms): "
+                + string.Join(", ", regen.OrderByDescending(kv => kv.Value[1]).Take(10).Select(kv => kv.Key + " " + kv.Value[0] + "/" + kv.Value[1].ToString("0.0") + "/" + kv.Value[2].ToString("0.0")));
+            return s;
         }
 
         private static int CmdCount
@@ -446,6 +568,10 @@ namespace IsoRim
             perfCmdDyn.Clear();
             rtSum = recSum = 0;
             rtCount = 0;
+            regen.Clear();
+            perfMeshUpd.Clear();
+            meshUpdMs = 0;
+            gcAtStart = GC.CollectionCount(0);
             hist = "";
             cullTested = cullCulled = cullUnknown = cullParts = cullThings = cullViol = camMismatch = 0;
         }
@@ -472,6 +598,8 @@ namespace IsoRim
             perfCmd.Add(cmdTotal);
             perfCmdMesh.Add(cmdMesh);
             perfCmdDyn.Add(cmdDyn);
+            perfMeshUpd.Add((float)meshUpdMs);
+            meshUpdMs = 0;
             capMs = 0;
             cmdMesh = cmdDyn = 0;
             if (left == 20)
@@ -483,6 +611,7 @@ namespace IsoRim
         private static void RenderPerfIdle()
         {
             CullCountsReset();
+            meshUpdMs = 0;
             capMs = 0;
             cmdMesh = cmdDyn = 0;
         }
@@ -496,7 +625,8 @@ namespace IsoRim
                 + ", culled " + (cullCulled / (float)Math.Max(1, perfCmd.Count)).ToString("0.0") + ", unknown " + (cullUnknown / (float)Math.Max(1, perfCmd.Count)).ToString("0.0")
                 + ", model parts culled " + (cullParts / (float)Math.Max(1, perfCmd.Count)).ToString("0")
                 + ", frames rendered with another camera than culled against " + camMismatch
-                + ", things culled " + (cullThings / (float)Math.Max(1, perfCmd.Count)).ToString("0.0") + (Cull.checkThings ? ", CHECK: visible parts of culled things " + cullViol : "");
+                + ", things culled " + (cullThings / (float)Math.Max(1, perfCmd.Count)).ToString("0.0") + (Cull.checkThings ? ", CHECK: visible parts of culled things " + cullViol : "")
+                + "; " + RegenReport();
             if (hist.Length > 0)
             {
                 Log.Message("[IsoRim probe] perf " + perfLabel + " draw commands by shader (one frame): " + hist);
