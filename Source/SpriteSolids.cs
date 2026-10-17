@@ -95,8 +95,9 @@ namespace IsoRim
 
         // A thing carried in someone's hands (Carried.cs): the slab lying level, its bottom at bottom (x, z in map
         // cells, y height in cells), thick cells thick, the sprite's top toward north as the thing lies on the
-        // ground, scale times the game's drawn size.
-        public static bool DrawLying(Thing t, Vector3 bottom, float thick, float scale)
+        // ground, scale times the game's drawn size, turned clockwise (seen from above) by yaw degrees (a falling
+        // skyfaller's turn, Skyfallers).
+        public static bool DrawLying(Thing t, Vector3 bottom, float thick, float scale, float yaw = 0f)
         {
             Graphic g = t.Graphic;
             Material mat = g != null ? g.MatSingleFor(t) : null;
@@ -115,6 +116,7 @@ namespace IsoRim
             // Turned a quarter about east-west: the sprite's up points north, its thickness up and down.
             Matrix4x4 m = Matrix4x4.Translate(new Vector3(bottom.x, (bottom.y + thick * 0.5f) / s, bottom.z))
                 * Matrix4x4.Scale(new Vector3(1f, 1f / s, 1f))
+                * (yaw != 0f ? Matrix4x4.Rotate(Quaternion.AngleAxis(yaw, Vector3.up)) : Matrix4x4.identity)
                 * Matrix4x4.Rotate(Quaternion.AngleAxis(90f, Vector3.right))
                 * Matrix4x4.Scale(new Vector3(draw.x * scale, draw.y * scale, thick / Thickness));
             m = Floors.DrawnMatrix(m);

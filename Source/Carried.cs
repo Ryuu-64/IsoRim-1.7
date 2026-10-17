@@ -32,6 +32,11 @@ namespace IsoRim
         {
             try
             {
+                float sky;
+                if (Skyfallers.PawnLift(pawn, out sky))
+                {
+                    return sky;   // a flying animal arriving or leaving (Skyfallers: drawn at the ground point under it)
+                }
                 PawnFlyer flyer = pawn.ParentHolder as PawnFlyer;
                 if (flyer != null && flyer.def != null && flyer.def.pawnFlyer != null)
                 {

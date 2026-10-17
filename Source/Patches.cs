@@ -409,6 +409,12 @@ namespace IsoRim
             // Bullets and shells fly from the muzzle to the height of their target, not along the ground (Projectiles).
             Patch("projectiles at muzzle height", AccessTools.DeclaredMethod(typeof(Projectile), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
                 prefix: nameof(ProjectileDrawAt_Prefix));
+            // Drop pods, shuttles, meteorites and every other skyfaller come down from (or go up into) the sky with a real
+            // height, not slid over the ground (Skyfallers).
+            Patch("skyfallers from the sky", AccessTools.DeclaredMethod(typeof(Skyfaller), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
+                prefix: nameof(SkyfallerDrawAt_Prefix));
+            Patch("skyfallers from the sky", AccessTools.DeclaredMethod(typeof(Skyfaller_FlyingPawn), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
+                prefix: nameof(SkyfallerDrawAt_Prefix));
             // A shot's flash at the muzzle, standing up, not flat in the middle of the shooter (Projectiles.ShotFlash).
             Patch("muzzle flashes at the muzzle", AccessTools.DeclaredMethod(typeof(Verb), "TryCastNextBurstShot"), transpiler: nameof(ShotFlash_Transpiler));
 
@@ -1626,7 +1632,12 @@ namespace IsoRim
                     feet = Vector3.Lerp(standingFeet, onSeat, seat.amount);
                     pawnLift = seat.Lift;
                 }
-                DrawHook.xform = Matrix4x4.Translate(new Vector3(feet.x - pivot.x, 0f, feet.z - pivot.z)) * View3D.UprightMatrix(pivot);
+                float skyLift;
+                if (pawn != null && Skyfallers.PawnLift(pawn, out skyLift))
+                {
+                    pawnLift += skyLift;   // a flying animal arriving or leaving, at its height on the skyfaller's path
+                }
+                DrawHook.xform =Matrix4x4.Translate(new Vector3(feet.x - pivot.x, 0f, feet.z - pivot.z)) * View3D.UprightMatrix(pivot);
                 if (pawnLift > 0f)
                 {
                     DrawHook.xform = View3D.LiftMatrix(pawnLift) * DrawHook.xform;
@@ -2671,6 +2682,19 @@ namespace IsoRim
         public static bool FleshmassHeartDrawAt_Prefix(Building_FleshmassHeart __instance, Vector3 drawLoc, bool flip)
         {
             return Pulses.HeartDrawAt_Prefix(__instance, drawLoc, flip);
+        }
+
+        public static bool SkyfallerDrawAt_Prefix(Skyfaller __instance, Vector3 __0)
+        {
+            try
+            {
+                return Skyfallers.DrawAt(__instance, __0);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Drawing a skyfaller in 3D failed: " + e, 93611511);
+                return true;
+            }
         }
 
         public static bool StatueDrawAt_Prefix(CompStatue __instance, Vector3 __0)

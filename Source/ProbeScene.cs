@@ -1464,7 +1464,7 @@ namespace IsoRim
                     break;
                 }
                 default:
-                    if (CutKey(key, a) || MechKey(key, a, map) || EntityKey(key, a, map) || FixKey(key, a, map) || SeatKey(key, a, map) || GshipKey(key, a, map))
+                    if (CutKey(key, a) || MechKey(key, a, map) || EntityKey(key, a, map) || FixKey(key, a, map) || SeatKey(key, a, map) || GshipKey(key, a, map) || SkyKey(key, a, map))
                     {
                         break;
                     }
