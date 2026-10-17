@@ -8,6 +8,7 @@ using Verse;
 namespace IsoRim
 {
     // Body animations other mods give the game's pawn sprite, mapped onto a standing 3D figure (2026-10-17).
+    // A crawling figure (Crawl) gets them too, as its sprite lies on the ground: over the ground and about the vertical (ReadCrawl).
     //
     // Such mods (Yayo's Animation, for one) patch PawnRenderer.GetBodyPos and PawnRenderer.BodyAngle, which the game uses to
     // place and turn the sprite. For a standing pawn the game's own answers are fixed: the drawn position unchanged and no
@@ -134,6 +135,39 @@ namespace IsoRim
                 * Matrix4x4.Rotate(Quaternion.AngleAxis(turn, -forward)) * Matrix4x4.Translate(new Vector3(0f, -middle, 0f));
             Quaternion facing = Quaternion.AngleAxis(yaw, Vector3.up);
             return Matrix4x4.Rotate(Quaternion.Inverse(facing)) * world * Matrix4x4.Rotate(facing) * pose;
+        }
+
+        // The same for a crawling pawn (Crawl), whose sprite lies on the ground: what the patched methods add to the game's
+        // own answers (the drawn position; CrawlingBodyAngle of its facing) as a shift over the ground (cells) and a turn
+        // about the vertical (degrees clockwise from above). False when there is none.
+        public static bool ReadCrawl(Pawn pawn, Vector3 drawLoc, out Vector3 shift, out float turn)
+        {
+            shift = Vector3.zero;
+            turn = 0f;
+            PawnRenderer renderer = pawn.Drawer != null ? pawn.Drawer.renderer : null;
+            if (!Active || renderer == null)
+            {
+                return false;
+            }
+            try
+            {
+                if (posPatched)
+                {
+                    bool show;
+                    shift = bodyPos(renderer, drawLoc, pawn.GetPosture(), out show) - drawLoc;   // the game: drawLoc
+                    shift.y = 0f;
+                }
+                if (anglePatched)
+                {
+                    turn = Mathf.DeltaAngle(PawnRenderUtility.CrawlingBodyAngle(pawn.Rotation), renderer.BodyAngle(PawnRenderFlags.None));
+                }
+                return shift.sqrMagnitude > 1e-8f || Mathf.Abs(turn) > 0.01f;
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Reading another mod's body animation failed: " + e, 93611507);
+                return false;
+            }
         }
 
         // What the patched methods add to the game's own answers for a standing pawn: shift (x across, z up the picture,

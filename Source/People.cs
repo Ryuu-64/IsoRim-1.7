@@ -350,6 +350,8 @@ namespace IsoRim
                 vat = null;
             }
             bool lying = gibbet == null && vat == null && (dead || pawn.GetPosture() != PawnPosture.Standing);
+            // Crawling (1.7): the game's own test (Pawn.Crawling: downed, able to crawl, on a job done crawling, not in bed).
+            bool crawling = lying && !dead && gibbet == null && vat == null && pawn.Crawling;
             // Sitting (Poses): the game's shift up the screen taken out of drawLoc before the facing is tracked.
             Poses.Seat seat = default(Poses.Seat);
             bool seated = !lying && gibbet == null && vat == null && lift <= 0f && Poses.Seated(pawn, ref drawLoc, out seat);
@@ -380,7 +382,7 @@ namespace IsoRim
                 // Aiming, the body turns smoothly to face the aim as drawn (the game turns the pawn to face its target).
                 float aimGame, aimDrawn = 0f;
                 bool aiming = !lying && FigureWeapons.AimOf(pawn, neverAim, out aimGame, out aimDrawn);
-                Animals.Track(pawn, drawLoc, lying, 0.9f * size, out yaw, out phase, out gait, aiming ? aimDrawn : (float?)null);
+                Animals.Track(pawn, drawLoc, lying && !crawling, 0.9f * size, out yaw, out phase, out gait, aiming ? aimDrawn : (float?)null);
             }
 
             float ground = 0f;
@@ -390,6 +392,7 @@ namespace IsoRim
             Matrix4x4 workLocal = Matrix4x4.identity;
             float workLean = 0f;
             float workDip = 0f;
+            float headLift = 0f;
             if (lying)
             {
                 // On their back, head toward the south of the figure's own space before it is turned.
@@ -418,14 +421,26 @@ namespace IsoRim
                     }
                     pose = Matrix4x4.Translate(new Vector3(0f, 0.15f * size, HeadHeight * 0.5f * size)) * Matrix4x4.Rotate(onBack);
                 }
+                else if (crawling)
+                {
+                    // Crawling: face down, head first the way they go, chest and head raised as the game's sprite shows it
+                    // (Crawl); the game's lurch is in its drawn position. Other mods' turn or shift of the sprite go on top.
+                    float turn;
+                    Vector3 shift;
+                    if (BodyAnims.ReadCrawl(pawn, drawLoc, out shift, out turn))
+                    {
+                        yaw += turn;
+                        drawLoc += shift;
+                    }
+                    headLift = Crawl.HeadLift;
+                    float chest = Crawl.ChestLift;
+                    float front = look.upper.halfDepth * look.bodyScale.z * Mathf.Cos(chest * Mathf.Deg2Rad);   // the front of the feet on the ground
+                    pose = Matrix4x4.Translate(new Vector3(0f, front * size, -0.55f * size)) * Matrix4x4.Rotate(Quaternion.AngleAxis(90f - chest, Vector3.right));
+                }
                 else
                 {
                     ground = Corpses.RestHeight(pawn);
                     pose = Matrix4x4.Translate(new Vector3(0f, 0.15f * size, 0.55f * size)) * Matrix4x4.Rotate(onBack);
-                    if (!dead && pawn.pather != null && pawn.pather.Moving)
-                    {
-                        yaw += 180f;   // crawling: head first, the way they are going
-                    }
                 }
             }
             else if (vat != null)
@@ -472,6 +487,11 @@ namespace IsoRim
             float squash = seated ? seat.Squash : 1f;
             Matrix4x4 bodyPlace = seated ? whole * Matrix4x4.Scale(new Vector3(1f, squash, 1f)) : whole;
             Matrix4x4 headPlace = seated ? whole * Matrix4x4.Translate(new Vector3(0f, -(1f - squash) * Poses.BodyTop, 0f)) : whole;
+            if (headLift != 0f)
+            {
+                headPlace = whole * Matrix4x4.Translate(new Vector3(0f, Poses.BodyTop, 0f)) * Matrix4x4.Rotate(Quaternion.AngleAxis(-headLift, Vector3.right))
+                    * Matrix4x4.Translate(new Vector3(0f, -Poses.BodyTop, 0f));   // tipped back about the neck: looking ahead
+            }
 
             // The whole figure is two ready-made meshes (body and head), each a single draw, put
             // together once for this look and the way it is facing.
