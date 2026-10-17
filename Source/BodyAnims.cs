@@ -1,0 +1,171 @@
+using System;
+using System.Reflection;
+using HarmonyLib;
+using UnityEngine;
+using RimWorld;
+using Verse;
+
+namespace IsoRim
+{
+    // Body animations other mods give the game's pawn sprite, mapped onto a standing 3D figure (2026-10-17).
+    //
+    // Such mods (Yayo's Animation, for one) patch PawnRenderer.GetBodyPos and PawnRenderer.BodyAngle, which the game uses to
+    // place and turn the sprite. For a standing pawn the game's own answers are fixed: the drawn position unchanged and no
+    // turn. Whatever a patched method gives on top of that is the mod's animation, read here (not copied: whatever the mod
+    // works out, by whatever means) and put on the figure as the sprite would show it on screen: the shift across the
+    // picture along the camera's right, up the picture as height; the sprite's turn as a lean in the camera's view about the
+    // body's middle. Picture units are scaled to the figure's (as its weapon).
+    // When no other mod patches either method nothing is read at all (Active: decided once, after every mod has loaded).
+    public static class BodyAnims
+    {
+        private const float Picture = 1.12f / 1.5f;   // the game's picture units to figure units (FigureWeapons)
+        private const float Middle = 0.56f;           // the body's middle on a figure of size 1
+
+        private delegate Vector3 BodyPosFn(PawnRenderer renderer, Vector3 drawLoc, PawnPosture posture, out bool showBody);
+
+        private static BodyPosFn bodyPos;
+        private static bool posPatched, anglePatched;
+        private static volatile int active = -1;   // -1 not decided yet, 0 off, 1 on (also read on the game's worker threads)
+        private static readonly object deciding = new object();
+
+        public static bool Active
+        {
+            get
+            {
+                if (active < 0)
+                {
+                    Decide();
+                }
+                return active == 1;
+            }
+        }
+
+        // Decided once, on first use (after every mod has loaded); the game's worker threads may ask at the same time.
+        private static void Decide()
+        {
+            lock (deciding)
+            {
+                if (active >= 0)
+                {
+                    return;
+                }
+                int on = 0;
+                try
+                {
+                    MethodInfo pos = AccessTools.Method(typeof(PawnRenderer), "GetBodyPos");
+                    MethodInfo angle = AccessTools.Method(typeof(PawnRenderer), "BodyAngle");
+                    posPatched = PatchedByOthers(pos);
+                    anglePatched = PatchedByOthers(angle);
+                    if (posPatched)
+                    {
+                        bodyPos = AccessTools.MethodDelegate<BodyPosFn>(pos);
+                    }
+                    on = posPatched || anglePatched ? 1 : 0;
+                    if (on == 1)
+                    {
+                        ModLog.Note("[IsoRim] Body animations from other mods mapped onto 3D figures (" + (posPatched ? "GetBodyPos " : "") + (anglePatched ? "BodyAngle" : "") + ").");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    on = 0;
+                    Log.ErrorOnce("[IsoRim] Looking for other mods' body animations failed: " + ex, 93611506);
+                }
+                active = on;
+            }
+        }
+
+        private static bool PatchedByOthers(MethodInfo m)
+        {
+            if (m == null)
+            {
+                return false;
+            }
+            HarmonyLib.Patches info = Harmony.GetPatchInfo(m);
+            if (info == null)
+            {
+                return false;
+            }
+            foreach (HarmonyLib.Patch p in info.Prefixes)
+            {
+                if (p.owner != IsoRim.Patches.HarmonyId)
+                {
+                    return true;
+                }
+            }
+            foreach (HarmonyLib.Patch p in info.Postfixes)
+            {
+                if (p.owner != IsoRim.Patches.HarmonyId)
+                {
+                    return true;
+                }
+            }
+            foreach (HarmonyLib.Patch p in info.Transpilers)
+            {
+                if (p.owner != IsoRim.Patches.HarmonyId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // The figure's pose (figure space, before its turn by yaw and its size) with the animation put on: pose unchanged
+        // when there is none.
+        public static Matrix4x4 Apply(Pawn pawn, Vector3 drawLoc, float yaw, float size, Matrix4x4 pose)
+        {
+            if (!Active)
+            {
+                return pose;
+            }
+            Vector3 shift;
+            float turn;
+            if (!Read(pawn, drawLoc, out shift, out turn) || (shift.sqrMagnitude < 1e-8f && Mathf.Abs(turn) < 0.01f))
+            {
+                return pose;
+            }
+            Vector3 right = Quaternion.AngleAxis(View3D.Yaw, Vector3.up) * Vector3.right;
+            Vector3 forward = View3D.GroundForward;
+            float k = Picture * size;
+            Vector3 move = right * (shift.x * k) + Vector3.up * (shift.z * k);
+            float middle = Middle * size;
+            // The sprite turned clockwise as seen: the figure leans clockwise as the camera sees it.
+            Matrix4x4 world = Matrix4x4.Translate(move) * Matrix4x4.Translate(new Vector3(0f, middle, 0f))
+                * Matrix4x4.Rotate(Quaternion.AngleAxis(turn, -forward)) * Matrix4x4.Translate(new Vector3(0f, -middle, 0f));
+            Quaternion facing = Quaternion.AngleAxis(yaw, Vector3.up);
+            return Matrix4x4.Rotate(Quaternion.Inverse(facing)) * world * Matrix4x4.Rotate(facing) * pose;
+        }
+
+        // What the patched methods add to the game's own answers for a standing pawn: shift (x across, z up the picture,
+        // cells) and turn (degrees clockwise).
+        public static bool Read(Pawn pawn, Vector3 drawLoc, out Vector3 shift, out float turn)
+        {
+            shift = Vector3.zero;
+            turn = 0f;
+            PawnRenderer renderer = pawn.Drawer != null ? pawn.Drawer.renderer : null;
+            if (renderer == null)
+            {
+                return false;
+            }
+            try
+            {
+                if (posPatched)
+                {
+                    bool show;
+                    shift = bodyPos(renderer, drawLoc, PawnPosture.Standing, out show) - drawLoc;   // the game: drawLoc
+                    shift.y = 0f;
+                }
+                if (anglePatched)
+                {
+                    turn = Mathf.DeltaAngle(0f, renderer.BodyAngle(PawnRenderFlags.None));   // the game: 0 standing
+                }
+                return true;
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Reading another mod's body animation failed: " + e, 93611507);
+                return false;
+            }
+        }
+    }
+}

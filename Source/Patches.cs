@@ -26,9 +26,6 @@ namespace IsoRim
         // compared with a person.
         private static bool pawnUpright;
         private static Pawn uprightPawn;     // the pawn pawnUpright is about
-        private static bool pawnFigure;     // the pawn being drawn is a 3D figure
-        private static float pawnFacing;     // which way it faces, degrees clockwise from north
-        private static float pawnHandHeight; // how high it holds a weapon, in cells
         private static Vector3 pawnFeet;
         private static float pawnLift;       // an upright card sitting on a seat (Poses): how far it is raised
         private static float pawnSize = 1f;
@@ -38,10 +35,11 @@ namespace IsoRim
 
         // Set once ApplyAll has run (a floor layout registered later hooks its own drawing then, Floors).
         public static bool Ready;
+        public const string HarmonyId = "isorim.core";
 
         public static void ApplyAll()
         {
-            harmony = new Harmony("isorim.core");
+            harmony = new Harmony(HarmonyId);
 
             Patch("camera", AccessTools.Method(typeof(CameraDriver), "Update"),
                 postfix: nameof(CameraUpdate_Postfix));
@@ -286,6 +284,10 @@ namespace IsoRim
                 aiming = null;
             }
             Patch("3D weapons in hand", aiming, prefix: nameof(DrawEquipmentAiming_Prefix), finalizer: nameof(DrawEquipmentAiming_Finalizer));
+            // A 3D figure's weapon is posed by the game (FigureWeapons): which pose it chose, and the shield belt's bubble caught.
+            Patch("3D weapons carried", renderUtility != null ? FindMethod(renderUtility, "DrawCarriedWeapon") : null,
+                prefix: nameof(DrawCarriedWeapon_Prefix), finalizer: nameof(DrawCarriedWeapon_Finalizer));
+            Patch("shield bubbles on 3D figures", AccessTools.DeclaredMethod(typeof(CompShield), "Draw"), transpiler: nameof(CatchDraws_Transpiler));
 
             // Wind turbines: the blades are a turning 3D model.
             Type wind = AccessTools.TypeByName("RimWorld.CompPowerPlantWind");
@@ -1529,7 +1531,6 @@ namespace IsoRim
             DrawHook.skip = false;
             pawnUpright = false;
             pawnLift = 0f;
-            pawnFigure = false;
             cardAiming = false;
             if (!View3D.Ready)
             {
@@ -1573,17 +1574,9 @@ namespace IsoRim
 
                 if (pawn != null && st.pawns3D && st.models3D && pawn.RaceProps != null && pawn.RaceProps.Humanlike)
                 {
-                    bool standing;
-                    if (People.Draw(pawn, __0, out pawnHandHeight, out pawnFacing, out standing))
+                    if (People.Draw(pawn, __0, __2))
                     {
-                        if (standing)
-                        {
-                            Vector3 spot = __0;
-                            Poses.Seat figureSeat;
-                            Poses.Seated(pawn, ref spot, out figureSeat);   // on a seat: where the figure is drawn
-                            DrawHeldWeapon(pawn, spot, pawnHandHeight, pawnFacing);
-                        }
-                        return false;
+                        return false;   // with its weapon (FigureWeapons)
                     }
                 }
 
@@ -2009,7 +2002,8 @@ namespace IsoRim
                 {
                     return true;
                 }
-                return !DrawnAsModel(pawn);
+                // Kept while another mod animates the body (BodyAnims): such mods work out their animation here.
+                return !DrawnAsModel(pawn) || BodyAnims.Active;
             }
             catch (Exception e)
             {
@@ -2018,58 +2012,11 @@ namespace IsoRim
             }
         }
 
-        // The weapon of a 3D figure, drawn here because the game's own drawing (which would
-        // otherwise do it) is skipped. Shown when the person is drafted or aiming, pointed at
-        // what they are aiming at, otherwise the way they face.
-        private static void DrawHeldWeapon(Pawn pawn, Vector3 feet, float handHeight, float facing)
-        {
-            IsoRimSettings st = IsoRimMod.Settings;
-            if (!st.heldWeapons3D || pawn.equipment == null || pawn.equipment.Primary == null)
-            {
-                return;
-            }
-            Thing weapon = pawn.equipment.Primary;
-            float aim = facing;
-            bool aiming = false;
-            Stance_Busy busy = pawn.stances != null ? pawn.stances.curStance as Stance_Busy : null;
-            if (busy != null && busy.focusTarg.IsValid)
-            {
-                Vector3 to = Floors.FlatDelta(pawn.DrawPos, busy.focusTarg.HasThing ? busy.focusTarg.Thing.DrawPos : busy.focusTarg.Cell.ToVector3Shifted());   // as drawn: between floors too
-                if (to.x * to.x + to.z * to.z > 0.001f)
-                {
-                    aim = to.AngleFlat();
-                    aiming = true;
-                }
-            }
-            if (!aiming && !pawn.Drafted)
-            {
-                return;
-            }
-            float artYaw = aim - 90f;
-            Vector3 artDir = Quaternion.AngleAxis(artYaw, Vector3.up) * Vector3.right;
-            if (st.itemsFromArt && SpriteSolids.DrawHeld(weapon,
-                new Vector3(feet.x + artDir.x * 0.30f, handHeight, feet.z + artDir.z * 0.30f), aim))
-            {
-                return;
-            }
-            ModelEntry entry;
-            if (!ModelLibrary.TryGet(weapon.def, out entry) || !entry.HasModel)
-            {
-                return;
-            }
-            float yaw = aim - 90f;
-            Vector3 dir = Quaternion.AngleAxis(yaw, Vector3.up) * Vector3.right;
-            Vector3 hand = new Vector3(0f, handHeight, 0f) + dir * 0.30f;
-            DynamicModels.Draw(entry.Pick(weapon), new Vector3(feet.x + hand.x, hand.y, feet.z + hand.z), yaw, Vector3.one * entry.def.scale,
-                weapon.DrawColor, R3DTextures.StuffSwatch(weapon));
-        }
-
         public static void RenderPawnAt_Finalizer()
         {
             DrawHook.active = false;
             DrawHook.billboard = false;
             DrawHook.skip = false;
-            pawnFigure = false;
             pawnUpright = false;
             cardAiming = false;
         }
@@ -2134,42 +2081,30 @@ namespace IsoRim
         // On a 2D card the game draws its own sprite (DrawHook stands it up with the card, with the game's offsets,
         // flip, recoil and layer); only an aim is turned, about the pawn, from its map angle to the angle it shows on
         // screen, before any other mod's prefix sees it (they then work on the turned pose).
-        // A 3D figure's weapon is drawn as a real object at its side.
+        // A 3D figure's weapon is drawn by the game too, caught and put on the figure (FigureWeapons).
         [HarmonyPriority(Priority.First)]
         public static bool DrawEquipmentAiming_Prefix(Thing __0, ref Vector3 __1, ref float __2)
         {
-            if ((!pawnUpright && !pawnFigure) || __0 == null || !View3D.Ready)
+            FigureWeapons.Weapon(__0);
+            if (!pawnUpright || __0 == null || !View3D.Ready)
             {
                 return true;
             }
             try
             {
-                if (pawnUpright)
+                if (cardAiming && uprightPawn != null)
                 {
-                    if (cardAiming && uprightPawn != null)
-                    {
-                        float turn = Mathf.DeltaAngle(cardAimGame, cardAimSeen);
-                        float factor = uprightPawn.ageTracker != null ? uprightPawn.ageTracker.CurLifeStage.equipmentDrawDistanceFactor : 1f;
-                        Vector3 reach = new Vector3(0f, 0f, 0.4f + __0.def.equippedDistanceOffset).RotatedBy(cardAimGame) * factor;
-                        Vector3 centre = __1 - reach;
-                        Vector3 off = (__1 - centre).RotatedBy(turn);
-                        __1 = new Vector3(centre.x + off.x, __1.y, centre.z + off.z);
-                        __2 = Mathf.Repeat(__2 + turn, 360f);
-                        // Where the barrel ends as drawn: shots start there (Projectiles.CardTip).
-                        Projectiles.BeginTip(uprightPawn, __0, pawnFeet.y);
-                    }
-                    return true;
+                    float turn = Mathf.DeltaAngle(cardAimGame, cardAimSeen);
+                    float factor = uprightPawn.ageTracker != null ? uprightPawn.ageTracker.CurLifeStage.equipmentDrawDistanceFactor : 1f;
+                    Vector3 reach = new Vector3(0f, 0f, 0.4f + __0.def.equippedDistanceOffset).RotatedBy(cardAimGame) * factor;
+                    Vector3 centre = __1 - reach;
+                    Vector3 off = (__1 - centre).RotatedBy(turn);
+                    __1 = new Vector3(centre.x + off.x, __1.y, centre.z + off.z);
+                    __2 = Mathf.Repeat(__2 + turn, 360f);
+                    // Where the barrel ends as drawn: shots start there (Projectiles.CardTip).
+                    Projectiles.BeginTip(uprightPawn, __0, pawnFeet.y);
                 }
-                IsoRimSettings st = IsoRimMod.Settings;
-                if (!st.heldWeapons3D)
-                {
-                    return true;
-                }
-                float yaw = __2 - 90f;
-                Vector3 aim = Quaternion.AngleAxis(yaw, Vector3.up) * Vector3.right;
-                Vector3 hand = new Vector3(0f, pawnHandHeight, 0f) + aim * 0.30f;
-                Vector3 position = new Vector3(pawnFeet.x + hand.x, hand.y, pawnFeet.z + hand.z);
-                return !HeldWeapon3D(__0, position, __2);
+                return true;
             }
             catch (Exception e)
             {
@@ -2182,6 +2117,22 @@ namespace IsoRim
         public static void DrawEquipmentAiming_Finalizer()
         {
             Projectiles.EndTip();
+            FigureWeapons.Weapon(null);
+        }
+
+        public static void DrawCarriedWeapon_Prefix()
+        {
+            FigureWeapons.DrawCarriedWeapon_Prefix();
+        }
+
+        public static void DrawCarriedWeapon_Finalizer()
+        {
+            FigureWeapons.DrawCarriedWeapon_Finalizer();
+        }
+
+        public static IEnumerable<CodeInstruction> CatchDraws_Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            return FigureWeapons.CatchDraws_Transpiler(instructions);
         }
 
         // A projectile drawn at its height in 3D (Projectiles). __0 is where the game would draw it.

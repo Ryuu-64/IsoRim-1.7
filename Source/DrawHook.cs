@@ -91,6 +91,11 @@ namespace IsoRim
 
         public static void DrawMesh(Mesh mesh, Matrix4x4 matrix, Material material, int layer)
         {
+            if (FigureWeapons.Capturing)
+            {
+                FigureWeapons.Note(mesh, matrix, material);   // a 3D figure's weapon, posed by the game (FigureWeapons)
+                return;
+            }
             if (skip)
             {
                 return;
@@ -116,6 +121,11 @@ namespace IsoRim
 
         public static void DrawMesh(Mesh mesh, Vector3 position, Quaternion rotation, Material material, int layer)
         {
+            if (FigureWeapons.Capturing)
+            {
+                FigureWeapons.Note(mesh, Matrix4x4.TRS(position, rotation, Vector3.one), material);   // a 3D figure's weapon, posed by the game (FigureWeapons)
+                return;
+            }
             if (skip)
             {
                 return;
@@ -139,6 +149,11 @@ namespace IsoRim
 
         public static void DrawMesh(Mesh mesh, Matrix4x4 matrix, Material material, int layer, Camera camera, int submeshIndex, MaterialPropertyBlock properties)
         {
+            if (FigureWeapons.Capturing)
+            {
+                FigureWeapons.Note(mesh, matrix, material);   // a 3D figure's weapon, posed by the game (FigureWeapons)
+                return;
+            }
             if (skip)
             {
                 return;
@@ -160,6 +175,11 @@ namespace IsoRim
 
         public static void DrawMesh(Mesh mesh, Vector3 position, Quaternion rotation, Material material, int layer, Camera camera, int submeshIndex, MaterialPropertyBlock properties)
         {
+            if (FigureWeapons.Capturing)
+            {
+                FigureWeapons.Note(mesh, Matrix4x4.TRS(position, rotation, Vector3.one), material);   // a 3D figure's weapon, posed by the game (FigureWeapons)
+                return;
+            }
             if (skip)
             {
                 return;
@@ -213,6 +233,11 @@ namespace IsoRim
         // Graphic_Mote.DrawMote, for a mote in its own colour (no property block): speech bubbles while fully shown.
         public static void DrawMesh(Mesh mesh, Matrix4x4 matrix, Material material, int layer, Camera camera, int submeshIndex)
         {
+            if (FigureWeapons.Capturing)
+            {
+                FigureWeapons.Note(mesh, matrix, material);   // a 3D figure's weapon, posed by the game (FigureWeapons)
+                return;
+            }
             if (skip)
             {
                 return;
@@ -235,6 +260,11 @@ namespace IsoRim
         // Graphic_RandomRotated (weapons and other items lying at an angle): a relic in a reliquary.
         public static void DrawMesh(Mesh mesh, Vector3 position, Quaternion rotation, Material material, int layer, Camera camera, int submeshIndex)
         {
+            if (FigureWeapons.Capturing)
+            {
+                FigureWeapons.Note(mesh, Matrix4x4.TRS(position, rotation, Vector3.one), material);   // a 3D figure's weapon, posed by the game (FigureWeapons)
+                return;
+            }
             if (skip)
             {
                 return;

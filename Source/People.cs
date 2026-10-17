@@ -283,14 +283,12 @@ namespace IsoRim
         private static Model pads;
         private static bool tried;
 
-        // Draws the person at drawLoc. Returns false if they cannot be drawn as a figure, in
-        // which case the game's sprite must be drawn as usual. handHeight is how high above the
-        // ground a weapon is held and facing which way the figure faces, for whoever draws the weapon.
-        public static bool Draw(Pawn pawn, Vector3 drawLoc, out float handHeight, out float facing, out bool standing)
+        // Draws the person at drawLoc, standing with what they hold and wear over themselves as the game draws it
+        // (FigureWeapons; neverAim: the game's flag not to aim the weapon). Returns false if they cannot be drawn as a
+        // figure, in which case the game's sprite must be drawn as usual.
+        public static bool Draw(Pawn pawn, Vector3 drawLoc, bool neverAim)
         {
-            handHeight = 0.5f;
-            facing = 0f;
-            standing = false;
+            bool standing = false;
             if (pawn.story == null || !FigureRace(pawn) || Hidden(pawn) || !Corpses.ShownAsModel(pawn))
             {
                 return false;
@@ -335,9 +333,7 @@ namespace IsoRim
                 Matrix4x4 scaled = Matrix4x4.Scale(new Vector3(look.size, look.size, look.size));
                 DynamicModels.DrawParts(Merged(look, false, false, 4, stone), onBase, South, scaled);
                 DynamicModels.DrawParts(Merged(look, true, false, 4, stone), onBase, South, scaled);
-                handHeight = 0.46f * look.size + Statues.ground;
-                facing = South;
-                return true;   // standing stays false: nothing held, no weapon
+                return true;   // nothing held, no weapon
             }
 
             bool dead = pawn.Dead;
@@ -381,7 +377,10 @@ namespace IsoRim
             }
             else
             {
-                Animals.Track(pawn, drawLoc, lying, 0.9f * size, out yaw, out phase, out gait);
+                // Aiming, the body turns smoothly to face the aim as drawn (the game turns the pawn to face its target).
+                float aimGame, aimDrawn = 0f;
+                bool aiming = !lying && FigureWeapons.AimOf(pawn, neverAim, out aimGame, out aimDrawn);
+                Animals.Track(pawn, drawLoc, lying, 0.9f * size, out yaw, out phase, out gait, aiming ? aimDrawn : (float?)null);
             }
 
             float ground = 0f;
@@ -462,6 +461,9 @@ namespace IsoRim
                 {
                     pose = Matrix4x4.Translate(new Vector3(0f, -workDip * size, 0f)) * Matrix4x4.Rotate(Quaternion.AngleAxis(workLean, Vector3.right));
                 }
+
+                // A body animation another mod gives the game's sprite (BodyAnims: none, unless a mod patches it).
+                pose = BodyAnims.Apply(pawn, drawLoc, yaw, size, pose);
             }
 
             Vector3 at = new Vector3(drawLoc.x, ground + lift, drawLoc.z);
@@ -497,8 +499,13 @@ namespace IsoRim
                 float reach = CarryReach * size * Mathf.Max(1f, look.bodyScale.z);   // clear of a deeper body
                 Carried.Draw(pawn, new Vector3(at.x + front.x * reach, at.y + CarryHeight * size * squash, at.z + front.z * reach), yaw);
             }
-            handHeight = HandY * size * squash + lift + (seated ? ground : 0f);
-            facing = yaw;
+            if (standing)
+            {
+                Matrix4x4 hands = seated ? whole * Matrix4x4.Translate(new Vector3(0f, -(1f - squash) * HandY, 0f)) : whole;
+                Model upper = look.upper;
+                FigureWeapons.Draw(pawn, neverAim, drawLoc, at, yaw, hands, size, upper.halfDepth * look.bodyScale.z,
+                    Mathf.Max(-upper.minX, upper.maxX) * look.bodyScale.x);
+            }
             return true;
         }
 

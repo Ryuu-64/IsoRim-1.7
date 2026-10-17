@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using HarmonyLib;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -164,9 +165,10 @@ namespace IsoRim
 
         // The same turning and stepping for anything else that walks (people). Gives back the
         // way it should face, where it is in its stride and how much of a stride it is in.
-        public static void Track(Pawn pawn, Vector3 drawLoc, bool lying, float stride, out float yaw, out float phase, out float gait)
+        // face: standing, turn toward this (degrees clockwise from north: a person aiming) instead of the game's facing.
+        public static void Track(Pawn pawn, Vector3 drawLoc, bool lying, float stride, out float yaw, out float phase, out float gait, float? face = null)
         {
-            State st = Advance(pawn, drawLoc, lying, stride);
+            State st = Advance(pawn, drawLoc, lying, stride, face);
             yaw = st.yaw;
             phase = st.phase;
             gait = st.gait;
@@ -218,11 +220,14 @@ namespace IsoRim
         }
 
         // Moves one animal's facing and leg swing on by a frame.
-        private static State Advance(Pawn pawn, Vector3 drawLoc, bool lying, float stride)
+        // drawLoc is where it is drawn; its steps and heading are measured without the game's jolts that are not walking
+        // (a melee lunge, a hit's push, leaning out of cover: Moved), which still move it as drawn.
+        private static State Advance(Pawn pawn, Vector3 drawLoc, bool lying, float stride, float? face = null)
         {
             int id = pawn.thingIDNumber;
             int frame = Time.frameCount;
-            float facing = pawn.Rotation.AsAngle;
+            float facing = face ?? pawn.Rotation.AsAngle;
+            drawLoc = Moved(pawn, drawLoc);
 
             State st;
             if (!states.TryGetValue(id, out st))
@@ -279,6 +284,22 @@ namespace IsoRim
             st.last = drawLoc;
             st.frame = frame;
             return st;
+        }
+
+        // The game's drawn position less its jitter (a melee lunge, a hit's push) and its lean out of cover (Pawn_DrawTracker.DrawPos):
+        // where the pawn really is on its way.
+        private static readonly AccessTools.FieldRef<Pawn_DrawTracker, JitterHandler> jitterOf = AccessTools.FieldRefAccess<Pawn_DrawTracker, JitterHandler>("jitterer");
+
+        private static Vector3 Moved(Pawn pawn, Vector3 drawLoc)
+        {
+            Pawn_DrawTracker drawer = pawn.Drawer;
+            if (drawer == null)
+            {
+                return drawLoc;
+            }
+            JitterHandler jitter = jitterOf(drawer);
+            Vector3 jolt = (jitter != null ? jitter.CurrentOffset : Vector3.zero) + (drawer.leaner != null ? drawer.leaner.LeanOffset : Vector3.zero);
+            return new Vector3(drawLoc.x - jolt.x, drawLoc.y, drawLoc.z - jolt.z);
         }
 
         // Forgets animals that have not been drawn for a while (dead, gone, or left behind on another map).

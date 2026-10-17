@@ -399,7 +399,8 @@ namespace IsoRim
         // IsoRim only turns the aim and stands the drawing up with the card (Patches.DrawEquipmentAiming_Prefix, DrawHook).
         // While that runs (BeginTip, EndTip) the weapon's own mesh is caught on its way to Unity (TipDrawn) and the end
         // of the barrel, found in the sprite's pixels (BarrelEnd), is carried through the same matrices. A shot fired
-        // soon after starts there (bullet, flash, tracer); 3D figures, mechs and turrets keep their own muzzles.
+        // soon after starts there (bullet, flash, tracer). A 3D figure records its drawn barrel the same way (FigureTip); mechs and
+        // turrets keep their own muzzles.
 
         private sealed class Tip
         {
@@ -484,6 +485,31 @@ namespace IsoRim
             catch (Exception e)
             {
                 Log.ErrorOnce("[IsoRim] Finding the end of a drawn weapon's barrel failed: " + e, 93611504);
+            }
+        }
+
+        // FigureWeapons: a 3D figure's aimed weapon drawn with this matrix (SpriteSolids' slab, true cells: x, z in the game's
+        // rows, y over the floor). Its barrel's end is where the figure's shots start (Muzzle, as a card's: CardTip).
+        public static void FigureTip(Thing pawn, Thing weapon, Matrix4x4 slab)
+        {
+            try
+            {
+                Vector2 uv;
+                if (!BarrelEnd(weapon, out uv))
+                {
+                    return;
+                }
+                Vector3 at = slab.MultiplyPoint3x4(new Vector3(uv.x - 0.5f, uv.y - 0.5f, 0f));
+                Tip t = tips.GetValue(pawn, k => new Tip());
+                t.at = at;
+                t.gun = weapon.def;
+                t.frame = Time.frameCount;
+                t.yaw = View3D.Yaw;
+                t.pitch = View3D.Pitch;
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Finding the end of a 3D figure's barrel failed: " + e, 93611505);
             }
         }
 
@@ -674,7 +700,7 @@ namespace IsoRim
                 }
                 return turret.def.building != null ? turret.def.building.turretTopDrawSize * 0.4f : 0.5f;
             }
-            // Where a person holds the gun (Patches.DrawHeldWeapon); a mech or an animal fires from about its front.
+            // Where a person holds the gun (before its drawn barrel is known, FigureTip); a mech or an animal fires from about its front.
             float reach = 0.3f;
             Pawn pawn = owner as Pawn;
             if (pawn != null && pawn.RaceProps != null && !pawn.RaceProps.Humanlike)

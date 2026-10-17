@@ -888,7 +888,7 @@ namespace IsoRim
                     // One holding a gun can fire it (attack=, tickuntil=flash).
                     Pawn dp = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDefOf.Colonist, Faction.OfPlayer, PawnGenerationContext.NonPlayer,
                         fixedGender: dageBody.Length > 2 ? (dageBody[2] == "F" ? Gender.Female : Gender.Male) : (Gender?)null,
-                        mustBeCapableOfViolence: a[4].Contains("Gun_"), fixedBiologicalAge: dage, fixedChronologicalAge: dage, developmentalStages: dchild ? DevelopmentalStage.Child : DevelopmentalStage.Adult));
+                        mustBeCapableOfViolence: a[4].Contains("Gun_") || a[4].Contains("MeleeWeapon_"), fixedBiologicalAge: dage, fixedChronologicalAge: dage, developmentalStages: dchild ? DevelopmentalStage.Child : DevelopmentalStage.Adult));
                     dp.apparel.DestroyAll();
                     dp.equipment.DestroyAllEquipment();
                     if (!dchild)
@@ -1469,7 +1469,7 @@ namespace IsoRim
                     break;
                 }
                 default:
-                    if (CutKey(key, a) || MechKey(key, a, map) || EntityKey(key, a, map) || FixKey(key, a, map) || SeatKey(key, a, map) || GshipKey(key, a, map) || SkyKey(key, a, map) || StrikeKey(key, a, map) || SilKey(key, a, map))
+                    if (CutKey(key, a) || MechKey(key, a, map) || EntityKey(key, a, map) || FixKey(key, a, map) || SeatKey(key, a, map) || GshipKey(key, a, map) || SkyKey(key, a, map) || StrikeKey(key, a, map) || SilKey(key, a, map) || WeaponKey(key, a, map))
                     {
                         break;
                     }

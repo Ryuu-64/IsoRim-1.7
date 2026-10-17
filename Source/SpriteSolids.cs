@@ -58,6 +58,28 @@ namespace IsoRim
             return true;
         }
 
+        // The slab of a sprite drawn with this material, placed by m (drawn space, the floor applied): a 3D figure's weapon as the
+        // game draws it (FigureWeapons). False if the sprite cannot be made solid.
+        public static bool DrawSlab(Material mat, Matrix4x4 m)
+        {
+            Material sideMat = R3DMaterials.Solid;
+            if (mat == null || sideMat == null || !mat.HasProperty("_MainTex") || mat.mainTexture == null)
+            {
+                return false;
+            }
+            Solid solid = For(mat);
+            if (solid == null)
+            {
+                return false;
+            }
+            IsoGlow.DrawLit(solid.sides, m, sideMat, 0);
+            if (!ShipCapture.Note(solid.faces, m, mat, null))
+            {
+                Graphics.DrawMesh(solid.faces, m, mat, 0);
+            }
+            return true;
+        }
+
         // The same slab stood up in the map's east-west upright plane (as the game's flat sprite is seen from
         // the south), centred at centre (x, z in map cells, y height in cells), turned clockwise by angle as the
         // game turns its mesh, mirrored as the game's flipped mesh if flip, scale times the figures' size.
