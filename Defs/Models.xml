@@ -4733,7 +4733,7 @@
     <thingDef>Burnbong</thingDef>
     <model>Models/burnbong.obj</model>
     <builtFor>(1, 1)</builtFor>
-    <flameAt>(0, 0.32, 0)</flameAt>        <!-- live ritual flame (Effects): on the fill in its bowl -->
+    <flameAt>(0, 0.98, 0)</flameAt>        <!-- live ritual flame (Effects): out of the bore at its top (1.08) -->
     <flameSize>(0.40, 0.30)</flameSize>
   </IsoRim.ModelDef>
 
