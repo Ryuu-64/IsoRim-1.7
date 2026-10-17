@@ -30,6 +30,19 @@ namespace IsoRim
         public float faceDecalHeight = 0f;  // and how far it is moved up (cells)
         public float faceDecalMouth = 1.6f; // the mouth's own size (Facial Animation's is a thin line)
         public float faceDecalMouthHeight = 0f; // and how far the mouth alone is moved up (cells)
+        public List<FaceAdjust> faceAdjusts = new List<FaceAdjust>();   // the player's own placing per apparel (overrides the above)
+
+        public FaceAdjust FaceAdjustOf(string apparel)
+        {
+            for (int i = 0; i < faceAdjusts.Count; i++)
+            {
+                if (faceAdjusts[i].apparel == apparel)
+                {
+                    return faceAdjusts[i];
+                }
+            }
+            return null;
+        }
         public bool walls3D = true;
         public bool texturedWalls = true;
         public bool autoExtrude = true;
@@ -131,6 +144,11 @@ namespace IsoRim
             Scribe_Values.Look(ref faceDecalHeight, "faceDecalHeight", 0f);
             Scribe_Values.Look(ref faceDecalMouth, "faceDecalMouth", 1.6f);
             Scribe_Values.Look(ref faceDecalMouthHeight, "faceDecalMouthHeight", 0f);
+            Scribe_Collections.Look(ref faceAdjusts, "faceAdjusts", LookMode.Deep);
+            if (faceAdjusts == null)
+            {
+                faceAdjusts = new List<FaceAdjust>();
+            }
             Scribe_Values.Look(ref walls3D, "walls3D", true);
             Scribe_Values.Look(ref texturedWalls, "texturedWalls", true);
             Scribe_Values.Look(ref autoExtrude, "autoExtrude", true);
@@ -417,6 +435,98 @@ namespace IsoRim
             l.Label(text);
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
+        }
+
+        // Per apparel placings of Facial Animation's face: each override with its own sliders, one to add more.
+        private static void FaceAdjustsUI(Listing_Standard l, IsoRimSettings st)
+        {
+            FaceAdjust remove = null;
+            for (int i = 0; i < st.faceAdjusts.Count; i++)
+            {
+                FaceAdjust a = st.faceAdjusts[i];
+                ThingDef def = DefDatabase<ThingDef>.GetNamedSilentFail(a.apparel);
+                Rect row = l.GetRect(24f);
+                Widgets.Label(row.LeftPart(0.7f), "    " + (def != null ? (string)def.LabelCap : a.apparel));
+                if (Widgets.ButtonText(row.RightPart(0.25f), "R3D_Settings_FaceDecalRemove".Translate()))
+                {
+                    remove = a;
+                }
+                a.size = Slider(l, "  " + "R3D_Settings_FaceDecalSize".Translate(), a.size, 0.5f, 1.5f, (a.size * 100f).ToString("0") + "%");
+                a.height = Slider(l, "  " + "R3D_Settings_FaceDecalHeight".Translate(), a.height, -0.15f, 0.15f, a.height.ToString("+0.000;-0.000;0"));
+                a.mouthSize = Slider(l, "  " + "R3D_Settings_FaceDecalMouth".Translate(), a.mouthSize, 0.5f, 3f, (a.mouthSize * 100f).ToString("0") + "%");
+                a.mouthHeight = Slider(l, "  " + "R3D_Settings_FaceDecalMouthHeight".Translate(), a.mouthHeight, -0.1f, 0.1f, a.mouthHeight.ToString("+0.000;-0.000;0"));
+            }
+            if (remove != null)
+            {
+                st.faceAdjusts.Remove(remove);
+            }
+            Rect add = l.GetRect(28f);
+            if (Widgets.ButtonText(add.LeftPart(0.6f), "R3D_Settings_FaceDecalAddApparel".Translate()))
+            {
+                List<FloatMenuOption> options = new List<FloatMenuOption>();
+                foreach (ThingDef def in FaceApparel())
+                {
+                    if (st.FaceAdjustOf(def.defName) != null)
+                    {
+                        continue;
+                    }
+                    ThingDef chosen = def;
+                    options.Add(new FloatMenuOption(def.LabelCap, delegate
+                    {
+                        // Starts from what the face has now with it on: the apparel's own (XML) placing over the global sliders.
+                        FaceAdjust a = new FaceAdjust { apparel = chosen.defName, size = st.faceDecalSize, height = st.faceDecalHeight,
+                            mouthSize = st.faceDecalMouth, mouthHeight = st.faceDecalMouthHeight };
+                        FaceDecalAdjust ext = chosen.GetModExtension<FaceDecalAdjust>();
+                        if (ext != null)
+                        {
+                            ext.Apply(a);
+                        }
+                        st.faceAdjusts.Add(a);
+                    }));
+                }
+                if (options.Count > 0)
+                {
+                    Find.WindowStack.Add(new FloatMenu(options));
+                }
+            }
+            l.Gap(4f);
+        }
+
+        // Apparel that can sit on or around the face: worn on the head, eyes or mouth, or over everything (helmets, hoods).
+        private static List<ThingDef> faceApparel;
+
+        private static List<ThingDef> FaceApparel()
+        {
+            if (faceApparel == null)
+            {
+                faceApparel = new List<ThingDef>();
+                foreach (ThingDef def in DefDatabase<ThingDef>.AllDefsListForReading)
+                {
+                    ApparelProperties ap = def.apparel;
+                    if (ap == null)
+                    {
+                        continue;
+                    }
+                    bool face = ap.layers != null && (ap.layers.Contains(ApparelLayerDefOf.Overhead) || ap.layers.Contains(ApparelLayerDefOf.EyeCover));
+                    if (!face && ap.bodyPartGroups != null)
+                    {
+                        foreach (BodyPartGroupDef g in ap.bodyPartGroups)
+                        {
+                            if (g == BodyPartGroupDefOf.FullHead || g == BodyPartGroupDefOf.UpperHead || g == BodyPartGroupDefOf.Eyes || g.defName == "Teeth" || g.defName == "Mouth")
+                            {
+                                face = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (face)
+                    {
+                        faceApparel.Add(def);
+                    }
+                }
+                faceApparel.Sort((a, b) => string.Compare(a.label, b.label, StringComparison.CurrentCultureIgnoreCase));
+            }
+            return faceApparel;
         }
 
         private static float Slider(Listing_Standard l, string label, float value, float min, float max, string shown, string tip = null)
@@ -840,6 +950,7 @@ namespace IsoRim
                         st.faceDecalHeight = Slider(r, "R3D_Settings_FaceDecalHeight".Translate(), st.faceDecalHeight, -0.15f, 0.15f, st.faceDecalHeight.ToString("+0.000;-0.000;0"));
                         st.faceDecalMouth = Slider(r, "R3D_Settings_FaceDecalMouth".Translate(), st.faceDecalMouth, 0.5f, 3f, (st.faceDecalMouth * 100f).ToString("0") + "%");
                         st.faceDecalMouthHeight = Slider(r, "R3D_Settings_FaceDecalMouthHeight".Translate(), st.faceDecalMouthHeight, -0.1f, 0.1f, st.faceDecalMouthHeight.ToString("+0.000;-0.000;0"));
+                        FaceAdjustsUI(r, st);
                     }
                 }
                 Check(r, "R3D_Settings_Animals3D".Translate(), ref st.animals3D);

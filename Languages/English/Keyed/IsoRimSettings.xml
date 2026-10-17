@@ -252,6 +252,8 @@
   <R3D_Settings_FaceDecalHeight>    Face height (cells)</R3D_Settings_FaceDecalHeight>
   <R3D_Settings_FaceDecalMouth>    Mouth size</R3D_Settings_FaceDecalMouth>
   <R3D_Settings_FaceDecalMouthHeight>    Mouth height (cells)</R3D_Settings_FaceDecalMouthHeight>
+  <R3D_Settings_FaceDecalAddApparel>    Own placing for an apparel...</R3D_Settings_FaceDecalAddApparel>
+  <R3D_Settings_FaceDecalRemove>Remove</R3D_Settings_FaceDecalRemove>
   <R3D_Settings_FullPawnDraw>  Always draw sprites in full</R3D_Settings_FullPawnDraw>
   <R3D_Settings_FullPawnDrawTip>Zoomed out, the game draws people from a cached image, which keeps animations (such as Facial Animation's faces, which turn this on by themselves) from moving. Costs some speed with many people.</R3D_Settings_FullPawnDrawTip>
   <R3D_Settings_ModelStyle>Model style</R3D_Settings_ModelStyle>

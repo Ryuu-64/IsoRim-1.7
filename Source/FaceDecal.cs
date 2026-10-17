@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using RimWorld;
 using UnityEngine;
 using Verse;
 
@@ -187,10 +188,10 @@ namespace IsoRim
                     f.tick = tick;
                     updateMethod.Invoke(f.master, null);
                 }
-                IsoRimSettings st = IsoRimMod.Settings;
-                float size = Mathf.Clamp(st.faceDecalSize, 0.5f, 1.5f);
-                Mesh m = MeshFor(faceMesh, head, size, st.faceDecalHeight, 1f);
-                Mesh mouth = MeshFor(mouthMesh, head, size, st.faceDecalHeight + st.faceDecalMouthHeight, Mathf.Clamp(st.faceDecalMouth, 0.5f, 3f));
+                FaceAdjust a = AdjustFor(pawn);
+                float size = Mathf.Clamp(a.size, 0.5f, 1.5f);
+                Mesh m = MeshFor(head, size, a.height, 1f);
+                Mesh mouth = MeshFor(head, size, a.height + a.mouthHeight, Mathf.Clamp(a.mouthSize, 0.5f, 3f));
                 if (m == null)
                 {
                     return;
@@ -227,6 +228,45 @@ namespace IsoRim
             }
         }
 
+        // The face's placing for this person: the global sliders, then the first worn apparel (outermost first) that
+        // has its own: the player's override from the settings, else the apparel def's FaceDecalAdjust (XML, fields
+        // left out keep the global value).
+        private static readonly FaceAdjust adjust = new FaceAdjust();
+
+        private static FaceAdjust AdjustFor(Pawn pawn)
+        {
+            IsoRimSettings st = IsoRimMod.Settings;
+            adjust.size = st.faceDecalSize;
+            adjust.height = st.faceDecalHeight;
+            adjust.mouthSize = st.faceDecalMouth;
+            adjust.mouthHeight = st.faceDecalMouthHeight;
+            List<Apparel> worn = pawn.apparel != null ? pawn.apparel.WornApparel : null;
+            if (worn == null || worn.Count == 0)
+            {
+                return adjust;
+            }
+            for (int i = worn.Count - 1; i >= 0; i--)
+            {
+                ThingDef def = worn[i].def;
+                FaceAdjust own = st.FaceAdjustOf(def.defName);
+                if (own != null)
+                {
+                    adjust.size = own.size;
+                    adjust.height = own.height;
+                    adjust.mouthSize = own.mouthSize;
+                    adjust.mouthHeight = own.mouthHeight;
+                    return adjust;
+                }
+                FaceDecalAdjust ext = def.GetModExtension<FaceDecalAdjust>();
+                if (ext != null)
+                {
+                    ext.Apply(adjust);
+                    return adjust;
+                }
+            }
+            return adjust;
+        }
+
         // Facial Animation's empty layer (GraphicPool.dummyGraphic, Things/Common/dummy): see-through in the game's
         // shaders, but opaque grey under the head's cut-out material.
         private static bool IsDummy(Graphic g)
@@ -234,39 +274,38 @@ namespace IsoRim
             return g.path != null && g.path.EndsWith("/dummy", StringComparison.OrdinalIgnoreCase);
         }
 
-        // A projected mesh and what it was made for.
-        private class Projection
-        {
-            public Mesh mesh;
-            public Model of;
-            public float size = -1f, shift, zoom;
-        }
-
-        private static readonly Projection faceMesh = new Projection();
-        private static readonly Projection mouthMesh = new Projection();
-
         // Where Facial Animation's mouth is in its texture (u, v from the bottom): the mouth's own size is set around it.
         private static readonly Vector2 MouthCentre = new Vector2(0.5f, 1f - 319.5f / 512f);
+
+        // The projected meshes made so far, by size, height and mouth zoom (a few: the global sliders and any apparel's).
+        private static readonly Dictionary<long, Mesh> meshes = new Dictionary<long, Mesh>();
+        private static Model meshesOf;
 
         // The front of the head model, its texture coordinates projected straight from the front. The .obj files face
         // -Z, but loading flips Z (right- to left-handed), so a loaded figure faces +Z. zoom enlarges the texture round
         // the mouth (1 for the rest of the face).
-        private static Mesh MeshFor(Projection pr, Model head, float size, float shift, float zoom)
+        private static Mesh MeshFor(Model head, float size, float shift, float zoom)
         {
-            if (pr.mesh != null && pr.of == head && pr.size == size && pr.shift == shift && pr.zoom == zoom)
+            if (meshesOf != head || meshes.Count > 64)
             {
-                return pr.mesh;
+                foreach (Mesh old in meshes.Values)
+                {
+                    if (old != null)
+                    {
+                        DynamicModels.Retire(old);
+                    }
+                }
+                meshes.Clear();
+                meshesOf = head;
             }
-            if (pr.mesh != null)
+            long key = ((long)Mathf.RoundToInt(size * 1000f) << 42) ^ ((long)(Mathf.RoundToInt(shift * 1000f) + 100000) << 21) ^ (Mathf.RoundToInt(zoom * 1000f) + 100000);
+            Mesh m;
+            if (!meshes.TryGetValue(key, out m))
             {
-                DynamicModels.Retire(pr.mesh);
+                m = Build(head, size, shift, zoom);
+                meshes[key] = m;
             }
-            pr.of = head;
-            pr.size = size;
-            pr.shift = shift;
-            pr.zoom = zoom;
-            pr.mesh = Build(head, size, shift, zoom);
-            return pr.mesh;
+            return m;
         }
 
         private static Mesh Build(Model head, float size, float shift, float zoom)
@@ -318,6 +357,47 @@ namespace IsoRim
             m.SetTriangles(tris, 0);
             m.RecalculateBounds();
             return m;
+        }
+    }
+}
+
+namespace IsoRim
+{
+    // A placing of Facial Animation's face on 3D heads: the global sliders' values, or one apparel's override (settings).
+    public class FaceAdjust : IExposable
+    {
+        public string apparel;   // the apparel def's defName (overrides only)
+        public float size = 1f;
+        public float height;
+        public float mouthSize = 1.6f;
+        public float mouthHeight;
+
+        public void ExposeData()
+        {
+            Scribe_Values.Look(ref apparel, "apparel");
+            Scribe_Values.Look(ref size, "size", 1f);
+            Scribe_Values.Look(ref height, "height", 0f);
+            Scribe_Values.Look(ref mouthSize, "mouthSize", 1.6f);
+            Scribe_Values.Look(ref mouthHeight, "mouthHeight", 0f);
+        }
+    }
+
+    // For apparel modders: how Facial Animation's face sits on a 3D head while this is worn (a mask, a helmet, a tall
+    // collar). Any field left out keeps the global slider; the player's own override in the settings wins over this.
+    //   <modExtensions><li Class="IsoRim.FaceDecalAdjust"><height>0.03</height><mouthHeight>0.02</mouthHeight></li></modExtensions>
+    public class FaceDecalAdjust : DefModExtension
+    {
+        public float size = float.NaN;
+        public float height = float.NaN;
+        public float mouthSize = float.NaN;
+        public float mouthHeight = float.NaN;
+
+        public void Apply(FaceAdjust a)
+        {
+            if (!float.IsNaN(size)) a.size = size;
+            if (!float.IsNaN(height)) a.height = height;
+            if (!float.IsNaN(mouthSize)) a.mouthSize = mouthSize;
+            if (!float.IsNaN(mouthHeight)) a.mouthHeight = mouthHeight;
         }
     }
 }
