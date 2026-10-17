@@ -32,6 +32,14 @@ namespace IsoRim
 
         // An extra true-space offset for one moving thing on top of its cell's (a pawn on a stair). Zero for most.
         Vector3 ThingOffset(Thing t);
+
+        // Views floor k (0 = the ground; the floors above it are hidden, the pointer works on it) and returns the floor
+        // viewed before; -1 when the layout can't (nothing changed). The gravship cutscene shows every floor of a ship
+        // with upper decks while it runs and puts the player's view back after.
+        int ViewFloor(Map map, int k)
+        {
+            return -1;
+        }
     }
 
     // Hooks for gameplay addons. Everything is off (null) by default and then costs nothing.
@@ -742,6 +750,7 @@ namespace IsoRim
             public Mesh mesh;
             public bool dirty = true;
             public int stamp;
+            public bool held;   // HoldSlab
         }
 
         private const float SlabThickness = 0.12f;
@@ -766,7 +775,7 @@ namespace IsoRim
                 return;
             }
             Slab slab = slabs.GetValue(section, s => new Slab());
-            if (slab.dirty || slab.stamp != View3D.Stamp)
+            if (!slab.held && (slab.dirty || slab.stamp != View3D.Stamp))
             {
                 slab.dirty = false;
                 slab.stamp = View3D.Stamp;
@@ -788,56 +797,14 @@ namespace IsoRim
         {
             Map map = section.map;
             int floor = FloorOfRow(section.botLeft.z);
-            float s = View3D.Squash;
-            float top = 0f;
-            float bottom = -SlabThickness / s;
             List<Vector3> verts = new List<Vector3>();
             List<Color32> cols = new List<Color32>();
             List<int> tris = new List<int>();
-            CellRect rect = section.CellRect;
             float floorH, belowH;
             int unusedShift;
             ColumnFloor(map, section.botLeft, out floorH, out unusedShift);
             ColumnFloor(map, Stacked(map, section.botLeft, -1), out belowH, out unusedShift);
-            foreach (IntVec3 c in rect)
-            {
-                if (!Floored(map, c, floor))
-                {
-                    continue;
-                }
-                // The column (design section 5): a wall here standing on a wall below is one wall through both storeys and
-                // fills the cell; over a wall below, the slab's edge starts at that wall's top (no face over its face).
-                float wallHere, wallBelow;
-                bool blockBelow = FullBlock(map, Stacked(map, c, -1), out wallBelow);
-                if (blockBelow && FullBlock(map, c, out wallHere))
-                {
-                    continue;
-                }
-                float sideBottom = blockBelow ? Mathf.Min(top, Mathf.Max(bottom, (belowH + wallBelow - floorH) / s)) : bottom;
-                Color32 col = map.terrainGrid.TerrainAt(c).DrawColor;
-                col.a = 255;
-                float x0 = c.x, x1 = c.x + 1, z0 = c.z, z1 = c.z + 1;
-                Quad(verts, cols, tris, col, new Vector3(x0, top, z0), new Vector3(x0, top, z1), new Vector3(x1, top, z1), new Vector3(x1, top, z0));
-                float bottomHere = bottom;
-                bottom = sideBottom;
-                if (!Floored(map, c + IntVec3.South, floor))
-                {
-                    Quad(verts, cols, tris, col, new Vector3(x0, bottom, z0), new Vector3(x0, top, z0), new Vector3(x1, top, z0), new Vector3(x1, bottom, z0));
-                }
-                if (!Floored(map, c + IntVec3.North, floor))
-                {
-                    Quad(verts, cols, tris, col, new Vector3(x0, bottom, z1), new Vector3(x0, top, z1), new Vector3(x1, top, z1), new Vector3(x1, bottom, z1));
-                }
-                if (!Floored(map, c + IntVec3.West, floor))
-                {
-                    Quad(verts, cols, tris, col, new Vector3(x0, bottom, z0), new Vector3(x0, top, z0), new Vector3(x0, top, z1), new Vector3(x0, bottom, z1));
-                }
-                if (!Floored(map, c + IntVec3.East, floor))
-                {
-                    Quad(verts, cols, tris, col, new Vector3(x1, bottom, z0), new Vector3(x1, top, z0), new Vector3(x1, top, z1), new Vector3(x1, bottom, z1));
-                }
-                bottom = bottomHere;
-            }
+            SlabGeometry(map, section.CellRect, floorH, belowH, c => Floored(map, c, floor), verts, cols, tris);
             if (verts.Count == 0)
             {
                 slab.mesh = null;
@@ -856,6 +823,76 @@ namespace IsoRim
             slab.mesh.SetTriangles(tris, 0);
             slab.mesh.RecalculateBounds();
             MeshGuard.Check(slab.mesh, "floor slab");
+        }
+
+        // The slab of some cells of one upper floor (in the map's own coordinates, as the floor's blocks are), for the
+        // floor's blocks and for the gravship cutscene's copy of a ship's upper decks: floored says which cells have
+        // the floor built (the cells given and their neighbours: a side stands where the floor ends).
+        internal static void SlabGeometry(Map map, IEnumerable<IntVec3> cells, float floorH, float belowH, Predicate<IntVec3> floored,
+            List<Vector3> verts, List<Color32> cols, List<int> tris)
+        {
+            float s = View3D.Squash;
+            float top = 0f;
+            float bottom = -SlabThickness / s;
+            foreach (IntVec3 c in cells)
+            {
+                if (!floored(c))
+                {
+                    continue;
+                }
+                // The column (design section 5): a wall here standing on a wall below is one wall through both storeys and
+                // fills the cell; over a wall below, the slab's edge starts at that wall's top (no face over its face).
+                float wallHere, wallBelow;
+                bool blockBelow = FullBlock(map, Stacked(map, c, -1), out wallBelow);
+                if (blockBelow && FullBlock(map, c, out wallHere))
+                {
+                    continue;
+                }
+                float sideBottom = blockBelow ? Mathf.Min(top, Mathf.Max(bottom, (belowH + wallBelow - floorH) / s)) : bottom;
+                Color32 col = map.terrainGrid.TerrainAt(c).DrawColor;
+                col.a = 255;
+                float x0 = c.x, x1 = c.x + 1, z0 = c.z, z1 = c.z + 1;
+                Quad(verts, cols, tris, col, new Vector3(x0, top, z0), new Vector3(x0, top, z1), new Vector3(x1, top, z1), new Vector3(x1, top, z0));
+                float bottomHere = bottom;
+                bottom = sideBottom;
+                if (!floored(c + IntVec3.South))
+                {
+                    Quad(verts, cols, tris, col, new Vector3(x0, bottom, z0), new Vector3(x0, top, z0), new Vector3(x1, top, z0), new Vector3(x1, bottom, z0));
+                }
+                if (!floored(c + IntVec3.North))
+                {
+                    Quad(verts, cols, tris, col, new Vector3(x0, bottom, z1), new Vector3(x0, top, z1), new Vector3(x1, top, z1), new Vector3(x1, bottom, z1));
+                }
+                if (!floored(c + IntVec3.West))
+                {
+                    Quad(verts, cols, tris, col, new Vector3(x0, bottom, z0), new Vector3(x0, top, z0), new Vector3(x0, top, z1), new Vector3(x0, bottom, z1));
+                }
+                if (!floored(c + IntVec3.East))
+                {
+                    Quad(verts, cols, tris, col, new Vector3(x1, bottom, z0), new Vector3(x1, top, z0), new Vector3(x1, top, z1), new Vector3(x1, bottom, z1));
+                }
+                bottom = bottomHere;
+            }
+        }
+
+        // The gravship landing (ShipFreeze): a block's slab is kept as it is while held (built now if it is not yet), so
+        // the upper decks placed under the frozen picture do not show early; let go, it is built again.
+        internal static void HoldSlab(Section section, bool hold)
+        {
+            Slab slab = slabs.GetValue(section, s => new Slab());
+            if (!hold)
+            {
+                slab.held = false;
+                slab.dirty = true;
+                return;
+            }
+            if (On && ReferenceEquals(frameMap, section.map) && (slab.dirty || slab.stamp != View3D.Stamp))
+            {
+                slab.dirty = false;
+                slab.stamp = View3D.Stamp;
+                BuildSlab(section, slab);
+            }
+            slab.held = true;
         }
 
         // A quad drawn from both sides (the shader turns each face toward the camera).
@@ -1230,6 +1267,37 @@ namespace IsoRim
             {
                 return 0;
             }
+        }
+
+        // All floors of a map as the layout gives them (not this frame's state; works with the 3D view off): the ground's
+        // rows (0 without floors) and the number of floors above it; heights[k] (true cells) and shifts[k] (rows) of
+        // floor k, index 0 the ground (0, 0). Without floors: 0 and the ground only.
+        public static int Bands(Map map, out int groundRows, out float[] heights, out int[] shifts)
+        {
+            groundRows = GroundRowsOf(map);
+            int n = 0;
+            if (groundRows > 0)
+            {
+                try
+                {
+                    n = Mathf.Clamp(Api.Floors.FloorCount(map), 0, MaxFloors);
+                }
+                catch (Exception)
+                {
+                    n = 0;
+                }
+            }
+            heights = new float[n + 1];
+            shifts = new int[n + 1];
+            for (int k = 1; k <= n; k++)
+            {
+                Api.Floors.Floor(map, k, out heights[k], out shifts[k]);
+            }
+            if (n == 0)
+            {
+                groundRows = 0;
+            }
+            return n;
         }
 
         // The floor of a cell (0 the ground, -1 between floors or without floors), its height and its row shift.

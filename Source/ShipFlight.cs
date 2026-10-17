@@ -119,6 +119,10 @@ namespace IsoRim
                 try
                 {
                     cells = ShipCells.Of(engine);
+                    if (cells.top > 0)
+                    {
+                        ShowAllFloors(engine.Map);   // before the recording: hidden floors draw nothing to record
+                    }
                     ShipCapture.Start(cells, false);
                 }
                 catch (Exception e)
@@ -129,9 +133,77 @@ namespace IsoRim
             }
         }
 
-        public static void InitiateLanding_Postfix()
+        public static void InitiateLanding_Postfix(Gravship gravship, Map map)
         {
             Begin(false);
+            if (!mode3D)
+            {
+                return;
+            }
+            try
+            {
+                landingTop = TopOf(gravship);
+                if (landingTop > 0)
+                {
+                    ShowAllFloors(map);
+                }
+            }
+            catch (Exception e)
+            {
+                landingTop = 0;
+                Log.ErrorOnce("[IsoRim] Reading the landing gravship's floors failed: " + e, 93611509);
+            }
+        }
+
+        // The highest floor of a flying ship: its cells carry their floor in y (the floor layout's ship encoding; 0 on
+        // maps without floors).
+        private static int TopOf(Gravship g)
+        {
+            int top = 0;
+            if (g != null && Api.Floors != null)
+            {
+                foreach (IntVec3 c in g.Foundations.Keys)
+                {
+                    top = Mathf.Max(top, c.y);
+                }
+            }
+            return top;
+        }
+
+        // ---- the floor view (decision: a ship with upper decks is seen whole): every floor is shown while the cutscene
+        // runs (the map's top floor viewed, through the floor layout), the player's own view comes back after it.
+        private static int savedView = -1;
+        private static int landingTop;
+
+        private static void ShowAllFloors(Map map)
+        {
+            IFloorLayout layout = Api.Floors;
+            if (layout == null || map == null || Floors.GroundRowsOf(map) <= 0)
+            {
+                return;
+            }
+            int was = layout.ViewFloor(map, layout.FloorCount(map));
+            if (was >= 0 && savedView < 0)
+            {
+                savedView = was;
+            }
+        }
+
+        private static void RestoreView()
+        {
+            int k = savedView;
+            savedView = -1;
+            if (k >= 0 && Api.Floors != null)
+            {
+                try
+                {
+                    Api.Floors.ViewFloor(Find.CurrentMap, k);
+                }
+                catch (Exception e)
+                {
+                    Log.ErrorOnce("[IsoRim] Putting the floor view back after the gravship cutscene failed: " + e, 93611510);
+                }
+            }
         }
 
         private static void Begin(bool isTakeoff)
@@ -191,6 +263,8 @@ namespace IsoRim
             posed = false;
             camSaved = false;
             camFollowing = false;
+            landingTop = 0;
+            RestoreView();
         }
 
         // ---- the snapshot: the ship is still on the map here, the game takes it off right after
@@ -252,7 +326,7 @@ namespace IsoRim
             }
             try
             {
-                ShipFreeze.Freeze(Find.CurrentMap, landingBounds);
+                ShipFreeze.Freeze(Find.CurrentMap, landingBounds, landingTop);
             }
             catch (Exception e)
             {
@@ -377,8 +451,7 @@ namespace IsoRim
                 cutOut = true;
                 ShipFreeze.CutOut(cells);   // what stood on the landing place leaves the frozen ground as the ship comes down
             }
-            snap.Draw(ground, height, turn);
-            Effects(r, g, rEnginePos(r) + approach, p, num, false);
+            DrawFlight(r, g, rEnginePos(r) + approach, p, num, false);
         }
 
         // Raw cutscene progress of the swap: vanilla's ship is at rest from 0.95 (UpdateLanding remaps 0-0.95).
@@ -419,8 +492,25 @@ namespace IsoRim
             height = HeightFor(slide);
             turn = quaternion;
             posed = true;
-            snap.Draw(ground, height, turn);
-            Effects(r, g, rEnginePos(r) + rOffset(r), progress, num, true);
+            DrawFlight(r, g, rEnginePos(r) + rOffset(r), progress, num, true);
+        }
+
+        // The ship and everything round it this frame. All of it is worked out in drawn space (upper floors already moved
+        // over the ground and raised): the floors' mapping of single draws is off meanwhile, so a ship flown over the
+        // north edge of the ground is not read as standing on a floor there.
+        private static void DrawFlight(GravshipRenderer r, Gravship g, Vector3 enginePos, float progress, float heightShare, bool isTakeoff)
+        {
+            bool was = Floors.InDrawnSpace;
+            Floors.InDrawnSpace = true;
+            try
+            {
+                snap.Draw(ground, height, turn);
+                Effects(r, g, enginePos, progress, heightShare, isTakeoff);
+            }
+            finally
+            {
+                Floors.InDrawnSpace = was;
+            }
         }
 
         // Vanilla's fake height is a slide up the screen by that many cells; a point raised h cells moves h cos(pitch)
@@ -456,7 +546,7 @@ namespace IsoRim
 
             float nozzle = View3D.WallHeight * NozzleShare;
             Vector3 engineAt = Turned(enginePos + g.Engine.def.Size.ToVector3() * 0.25f);
-            Vector3 orb = new Vector3(engineAt.x, height + OrbHeight, engineAt.z);
+            Vector3 orb = new Vector3(engineAt.x, height + snap.FloorHeight(snap.EngineFloor) + OrbHeight, engineAt.z);
             MaterialPropertyBlock distortion = rDistortionBlock(r);
             if (matDistortion != null && distortion != null)
             {
@@ -495,7 +585,8 @@ namespace IsoRim
                 Vector3 offset = thing.Rotation.AsQuat * props.flameOffsetsPerDirection[thing.Rotation.AsInt];
                 Vector3 local = GenThing.TrueCenter(data.local, thing.Rotation, thing.def.size, 0f) - thing.Rotation.AsIntVec3.ToVector3() * (thing.def.size.z * 0.5f + size * 0.5f) + offset;
                 Vector3 pos = Turned(enginePos + local).SetToAltitude(AltitudeLayer.Skyfaller).WithYOffset(0.07317074f);
-                Vector3 at = new Vector3(pos.x, height + nozzle, pos.z);
+                float up = snap.FloorHeight(data.local.y);   // an upper deck's thruster: its floor (ship cells carry it in y)
+                Vector3 at = new Vector3(pos.x, height + up + nozzle, pos.z);
                 MaterialRequest req = new MaterialRequest(props.FlameShaderType.Shader);
                 req.renderQueue = 3201;
                 Material mat = MaterialPool.MatFrom(req);
@@ -526,7 +617,7 @@ namespace IsoRim
                     q.Push(Time.deltaTime);
                     while (q.Pop())
                     {
-                        Exhaust(r, props.exhaustSettings, pos, data.rotation.AsQuat, height + nozzle);
+                        Exhaust(r, props.exhaustSettings, pos, data.rotation.AsQuat, height + up + nozzle);
                     }
                 }
             }
@@ -536,7 +627,7 @@ namespace IsoRim
                 foreach (IntVec3 c in g.GravFieldExtenderPositions)
                 {
                     Vector3 p = Turned(enginePos + c.ToVector3() + ThingDefOf.GravFieldExtender.graphicData.drawSize.ToVector3() * 0.5f);
-                    Glow(new Vector3(p.x, height + ExtenderHeight, p.z), 8f, matExtenderGlow);
+                    Glow(new Vector3(p.x, height + snap.FloorHeight(c.y) + ExtenderHeight, p.z), 8f, matExtenderGlow);
                 }
             }
             if (matEngineGlow != null)
@@ -706,6 +797,16 @@ namespace IsoRim
         private readonly List<bool> depths = new List<bool>();
         private readonly List<ShipCapture.Rec> items = new List<ShipCapture.Rec>();   // moving parts (matrix relative to the pivot)
         private Vector3 pivot;
+        private float[] heights;    // the ship's floors' heights (true cells), [0] the ground
+        private int upperSlab;      // vertices of the upper decks' slab (log)
+
+        // The floor the engine stands on, and floor k's height over the ground (true cells; 0 the ground and without floors).
+        public int EngineFloor { get; private set; }
+
+        public float FloorHeight(int k)
+        {
+            return heights != null && k > 0 && k < heights.Length ? heights[k] : 0f;
+        }
         private Vector3 min, max;   // drawn x, z relative to the pivot; y in true cells
         private Texture2D shadowTex;
         private Mesh slab;
@@ -740,6 +841,7 @@ namespace IsoRim
             public Material mat;
             public int layer;
             public bool depth;   // the deck's terrain: its depth is written first (DepthMat)
+            public bool upper;   // an upper deck's terrain: kept apart, no depth pass (its slab under it writes the depth, as on the map)
             public readonly List<Chunk> chunks = new List<Chunk>();
         }
 
@@ -752,7 +854,12 @@ namespace IsoRim
             Map map = engine.Map;
             HashSet<IntVec3> deck = engine.ValidSubstructure;
             CellRect bounds = cells.bounds;
-            ShipSnapshot s = new ShipSnapshot { pivot = cells.pivot };
+            ShipSnapshot s = new ShipSnapshot { pivot = cells.pivot, EngineFloor = cells.engineFloor };
+            s.heights = new float[cells.top + 1];
+            for (int k = 1; k <= cells.top; k++)
+            {
+                s.heights[k] = cells.Height(k);
+            }
             Func<float, float, byte> cellAt = cells.At;
             s.MakeShadow(cells);
             s.MakeSlab(cells);
@@ -773,16 +880,33 @@ namespace IsoRim
             {
                 return s;
             }
-            CellRect over = bounds.ExpandedBy(1).ClipInsideMap(map);
+            // On each of the ship's floors: the same ground area in that floor's rows (its blocks line up with the ground's).
             List<Section> list = new List<Section>();
-            for (int sx = over.minX / Section.Size; sx <= over.maxX / Section.Size && sx < sections.GetLength(0); sx++)
+            List<int> floorOf = new List<int>();
+            for (int k = 0; k <= cells.top; k++)
             {
-                for (int sz = over.minZ / Section.Size; sz <= over.maxZ / Section.Size && sz < sections.GetLength(1); sz++)
+                CellRect over = bounds.ExpandedBy(1).ClipInsideMap(map);
+                if (k > 0)
                 {
-                    if (sections.GetValue(sx, sz) is Section sec)
+                    over = bounds.ExpandedBy(1);
+                    over.minZ = Mathf.Max(over.minZ, 0) + cells.shifts[k];
+                    over.maxZ = Mathf.Min(over.maxZ, cells.groundRows - 1) + cells.shifts[k];
+                    over = over.ClipInsideMap(map);
+                    if (over.maxZ < over.minZ)
                     {
-                        sec.RegenerateAllLayers();
-                        list.Add(sec);
+                        continue;
+                    }
+                }
+                for (int sx = over.minX / Section.Size; sx <= over.maxX / Section.Size && sx < sections.GetLength(0); sx++)
+                {
+                    for (int sz = over.minZ / Section.Size; sz <= over.maxZ / Section.Size && sz < sections.GetLength(1); sz++)
+                    {
+                        if (sections.GetValue(sx, sz) is Section sec && !list.Contains(sec))
+                        {
+                            sec.RegenerateAllLayers();
+                            list.Add(sec);
+                            floorOf.Add(k);
+                        }
                     }
                 }
             }
@@ -794,8 +918,12 @@ namespace IsoRim
             List<Group> groups = new List<Group>();
             List<string> skipped = new List<string>();
             int[] remap = new int[0];
-            foreach (Section sec in list)
+            for (int si = 0; si < list.Count; si++)
             {
+                Section sec = list[si];
+                // An upper floor's block is moved over the ground and raised by the floor's height (drawn space, as
+                // Floors.RowMatrix draws it); its triangles are told apart by that floor's classes (cells.At by row).
+                Vector3 from = floorOf[si] > 0 ? s.pivot - cells.Lift(floorOf[si]).MultiplyPoint3x4(Vector3.zero) : s.pivot;
                 foreach (SectionLayer layer in sectionLayers(sec))
                 {
                     int kind = Kind(layer);
@@ -827,8 +955,9 @@ namespace IsoRim
                         List<Vector3> v = sm.verts;
                         List<int> t = sm.tris;
                         List<Vector3> tag = sm.uvsChannelTwo.Count == v.Count ? sm.uvsChannelTwo : null;
-                        Group grp = GroupFor(groups, sm.material, sm.renderLayer);
-                        grp.depth |= lname == "SectionLayer_Terrain";
+                        bool upperTerrain = floorOf[si] > 0 && lname == "SectionLayer_Terrain";
+                        Group grp = GroupFor(groups, sm.material, sm.renderLayer, upperTerrain);
+                        grp.depth |= lname == "SectionLayer_Terrain" && !upperTerrain;
                         Chunk ch = grp.chunks[grp.chunks.Count - 1];
                         if (remap.Length < v.Count)
                         {
@@ -875,13 +1004,19 @@ namespace IsoRim
                                     remap[i] = -1;
                                 }
                             }
-                            ch.tris.Add(Vertex(sm, ch, a, remap, s.pivot));
-                            ch.tris.Add(Vertex(sm, ch, b, remap, s.pivot));
-                            ch.tris.Add(Vertex(sm, ch, c, remap, s.pivot));
+                            ch.tris.Add(Vertex(sm, ch, a, remap, from));
+                            ch.tris.Add(Vertex(sm, ch, b, remap, from));
+                            ch.tris.Add(Vertex(sm, ch, c, remap, from));
                             stat[1]++;
                         }
                     }
                 }
+            }
+
+            // ---- the slab under each upper deck (Floors draws one under every upper floor; the ship's part of it)
+            for (int k = 1; k <= cells.top; k++)
+            {
+                s.AddUpperSlab(groups, map, cells, k);
             }
 
             // ---- meshes
@@ -934,7 +1069,7 @@ namespace IsoRim
             {
                 parts.Add(kv.Key.Replace("SectionLayer_", "") + " " + kv.Value[1] + "/" + kv.Value[0]);
             }
-            ModLog.Note("[IsoRim] Gravship snapshot: " + deck.Count + " deck cells, " + list.Count + " sections (regenerated in " + regenMs + " ms), "
+            ModLog.Note("[IsoRim] Gravship snapshot: " + deck.Count + " deck cells" + (cells.top > 0 ? " on floors 0-" + cells.top + " (upper deck slab " + s.upperSlab + " vertices)" : "") + ", " + list.Count + " sections (regenerated in " + regenMs + " ms), "
                 + s.meshes.Count + " meshes + " + s.items.Count + " moving parts, " + verts + " vertices, " + tris + " triangles, about " + ((verts * 40L + tris * 12L) / 1024) + " KB, built in "
                 + watch.ElapsedMilliseconds + " ms; triangles kept per layer: " + string.Join(", ", parts)
                 + "; box " + s.min.ToString("F1") + " to " + s.max.ToString("F1"));
@@ -1001,19 +1136,73 @@ namespace IsoRim
             return false;
         }
 
-        private static Group GroupFor(List<Group> groups, Material mat, int layer)
+        private static Group GroupFor(List<Group> groups, Material mat, int layer, bool upper = false)
         {
             for (int i = 0; i < groups.Count; i++)
             {
-                if (groups[i].mat == mat && groups[i].layer == layer)
+                if (groups[i].mat == mat && groups[i].layer == layer && groups[i].upper == upper)
                 {
                     return groups[i];
                 }
             }
-            Group g = new Group { mat = mat, layer = layer };
+            Group g = new Group { mat = mat, layer = layer, upper = upper };
             g.chunks.Add(new Chunk());
             groups.Add(g);
             return g;
+        }
+
+        // Floor k's deck cells' slab, as Floors builds it for the floor's blocks (same colours, thickness and sides), in
+        // drawn space round the pivot, lit like IsoRim's models.
+        private void AddUpperSlab(List<Group> groups, Map map, ShipCells cells, int k)
+        {
+            Material mat = R3DMaterials.LitModel;
+            if (mat == null)
+            {
+                return;
+            }
+            int shift = cells.shifts[k];
+            List<IntVec3> deckCells = new List<IntVec3>();
+            foreach (IntVec3 g in cells.DeckCells(k))
+            {
+                deckCells.Add(new IntVec3(g.x, 0, g.z + shift));
+            }
+            if (deckCells.Count == 0)
+            {
+                return;
+            }
+            List<Vector3> v = new List<Vector3>();
+            List<Color32> col = new List<Color32>();
+            List<int> t = new List<int>();
+            Predicate<IntVec3> floored = c => c.InBounds(map) && cells.FloorOfRow(c.z) == k && !map.terrainGrid.TerrainAt(c).dontRender;
+            Floors.SlabGeometry(map, deckCells, cells.Height(k), cells.Height(k - 1), floored, v, col, t);
+            if (v.Count == 0)
+            {
+                return;
+            }
+            Vector3 from = pivot - cells.Lift(k).MultiplyPoint3x4(Vector3.zero);
+            upperSlab += v.Count;
+            Group grp = GroupFor(groups, mat, 0);
+            Chunk ch = grp.chunks[grp.chunks.Count - 1];
+            if (ch.verts.Count + v.Count > MaxVerts)
+            {
+                ch = new Chunk();
+                grp.chunks.Add(ch);
+            }
+            int n = ch.verts.Count;
+            for (int i = 0; i < v.Count; i++)
+            {
+                ch.verts.Add(v[i] - from);
+                ch.colors.Add(col[i]);
+                ch.uvs.Add(Vector3.zero);
+                if (ch.hasNormals)
+                {
+                    ch.normals.Add(Vector3.up);
+                }
+            }
+            foreach (int i in t)
+            {
+                ch.tris.Add(n + i);
+            }
         }
 
         private static int Vertex(LayerSubMesh sm, Chunk ch, int i, int[] remap, Vector3 pivot)
