@@ -558,15 +558,41 @@ namespace IsoRim
             return new Vector3(sx, Mathf.Sqrt(sx * sz), sz);
         }
 
-        // How much the model is stretched: the footprint fit above, and up to the walls for a model with wallFit.
+        // How much the model is stretched: the footprint fit above, and up to the walls for a model that follows them
+        // (WallFit).
         public Vector3 Fit(ThingDef thing)
         {
             Vector3 f = FootprintFit(thing);
-            if (def.wallFit > 0f)
+            float fit = WallFit(thing);
+            if (fit > 0f)
             {
-                f.y *= View3D.WallHeight / def.wallFit;
+                f.y *= View3D.WallHeight / fit;
             }
             return f;
+        }
+
+        // Height of the walls the library's models are built against (the default wall height, cells).
+        public const float BuiltForWalls = 1.2f;
+
+        // The wall height a thing's model was built to meet, in cells: its height follows the walls drawn now (Fit).
+        // wallFit if the def sets it; else, for a building that stands in for a wall (it holds the roof up as walls do,
+        // the game's holdsRoof: columns, wide doors; or it is built into a wall line, building.canPlaceOverWall: coolers,
+        // vents) and whose model reaches the top of the walls it was built against, those walls, so it meets the roof
+        // and the walls beside it at any wall height. 0: the model keeps its own height.
+        public float WallFit(ThingDef thing)
+        {
+            if (def.wallFit > 0f)
+            {
+                return def.wallFit;
+            }
+            if (thing == null || !(thing.holdsRoof || (thing.building != null && thing.building.canPlaceOverWall)) || def.flat || !HasModel)
+            {
+                return 0f;
+            }
+            // Its top at the wall top, not over it: a model built taller on purpose (stairs up to an upper floor)
+            // keeps its height.
+            float top = Tallest() * def.scale * FootprintFit(thing).y + def.offset.y;
+            return Mathf.Abs(top - BuiltForWalls) <= 0.06f ? BuiltForWalls : 0f;
         }
 
         // The turn (degrees) a thing's model is drawn at for the thing's rotation: the rotation (none with
@@ -688,6 +714,17 @@ namespace IsoRim
             {
                 return 0f;
             }
+            float h = Tallest() * def.scale * Fit(thing).y;
+            if (this.top != null)
+            {
+                h = Mathf.Max(h, def.topHeight + this.top.maxY * def.scale);
+            }
+            return Mathf.Max(0f, h + def.offset.y);
+        }
+
+        // Top of the tallest model (variants, per-stuff and per-style models), in model space.
+        private float Tallest()
+        {
             float tallest = 0f;
             for (int i = 0; i < variants.Length; i++)
             {
@@ -707,12 +744,7 @@ namespace IsoRim
                     tallest = Mathf.Max(tallest, m != null ? m.maxY : 0f);
                 }
             }
-            float h = tallest * def.scale * Fit(thing).y;
-            if (this.top != null)
-            {
-                h = Mathf.Max(h, def.topHeight + this.top.maxY * def.scale);
-            }
-            return Mathf.Max(0f, h + def.offset.y);
+            return tallest;
         }
     }
 

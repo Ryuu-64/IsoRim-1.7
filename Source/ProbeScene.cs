@@ -677,6 +677,23 @@ namespace IsoRim
                     ritualTargets.Add(rb);
                     break;
                 }
+                case "wallfitcheck":
+                    // Every building that holds the roof or is drawn from a model at least 1 cell tall: whether its model
+                    // follows the walls (ModelEntry.WallFit), its drawn height now and what Api.ModelHeight reports.
+                    Log.Message("[IsoRim probe] wallfitcheck wall height " + View3D.WallHeight.ToString("0.00"));
+                    foreach (ThingDef wd in DefDatabase<ThingDef>.AllDefs.Where(x => x.category == ThingCategory.Building && !x.IsFrame && !x.IsBlueprint))
+                    {
+                        ModelEntry we;
+                        bool hasModel = ModelLibrary.TryGet(wd, out we) && we.HasModel && !we.def.flat;
+                        float drawn = hasModel ? we.DrawnHeight(wd) : 0f;
+                        if (wd.holdsRoof || drawn >= 1f)
+                        {
+                            Log.Message("[IsoRim probe] wallfitcheck " + wd.defName + " holdsRoof=" + (wd.holdsRoof ? 1 : 0) + " model=" + (hasModel ? we.def.defName : "-")
+                                + " wallFit=" + (hasModel ? we.WallFit(wd).ToString("0.00") : "-") + " drawn=" + drawn.ToString("0.00") + " apiHeight=" + Api.ModelHeight(wd).ToString("0.00")
+                                + " fill=" + wd.fillPercent.ToString("0.00"));
+                        }
+                    }
+                    break;
                 case "spincheck":
                     foreach (Thing st in map.listerThings.AllThings.Where(x => x.def.category == ThingCategory.Building).ToList())
                     {

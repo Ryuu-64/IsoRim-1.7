@@ -74,12 +74,13 @@ namespace IsoRim
         }
 
         // How tall a thing of this kind is drawn from its model, in cells (ModelEntry.DrawnHeight: the tallest model
-        // times scale and footprint fit); 0 for things not drawn from a model (walls, doors and automatic shapes
-        // follow the wall height).
+        // times scale and footprint fit); 0 for things that follow the wall height as walls do: walls, doors, automatic
+        // shapes, and models whose height follows the walls (ModelEntry.WallFit: columns, gravship thrusters, fleshmass),
+        // which only ever reach the top of the walls.
         public static float ModelHeight(ThingDef def)
         {
             ModelEntry entry;
-            if (def == null || !ModelLibrary.TryGet(def, out entry) || entry.def.flat || !entry.HasModel)
+            if (def == null || !ModelLibrary.TryGet(def, out entry) || entry.def.flat || !entry.HasModel || entry.WallFit(def) > 0f)
             {
                 return 0f;
             }
