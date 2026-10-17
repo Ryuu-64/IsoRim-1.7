@@ -309,6 +309,24 @@
     </shaderProgram>
   </ShaderDef>
 
+  <!-- Space maps with the planet below (Sky.PlanetBelow): the same program darkens the game's planet
+       backdrop below the horizon by the map's sky light, with the game's light-overlay blend (2 x src x dst). -->
+  <ShaderDef>
+    <defName>IsoRimSkyDim</defName>
+    <shaderProgram>
+      <vertexShaderFileName>IsoRimSky.vert.glsl</vertexShaderFileName>
+      <fragmentShaderFileName>IsoRimSky.frag.glsl</fragmentShaderFileName>
+      <useTexture>false</useTexture>
+      <flipTextureST>false</flipTextureST>
+      <blendMode>Custom</blendMode>
+      <blendSrcFactor>DstColor</blendSrcFactor>
+      <blendDstFactor>SrcColor</blendDstFactor>
+      <depthWrite>false</depthWrite>
+      <cullMode>None</cullMode>
+      <renderQueue>3196</renderQueue>
+    </shaderProgram>
+  </ShaderDef>
+
   <!-- Anti-aliasing (AntiAlias.cs): FXAA as one full-screen pass over the map view drawn so far
        (scene grab IsoRimAA), just before the colour grade. The interface is drawn later and untouched. -->
   <ShaderDef>

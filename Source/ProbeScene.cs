@@ -136,6 +136,7 @@ namespace IsoRim
     //   spacemap=<size>              a new empty space map (orbit tile, fog cleared) made the current map: later keys and the
     //                                harness shots work on it (layout shot coords are then plain map cells, see layout_space_edges)
     //   spaceedges=0|1               space platform sides in 3D (SpaceEdges, default 1) or the game flat strips (before/after)
+    //   spaceplanet=0|1              perspective sky in space: the game's planet backdrop below the horizon (Sky.PlanetBelow) or stars all round
     //   spaceedgecheck=1             logs the space-edge sets on the map (loop texture sizes, colour) and both edge layers sizes
     //   ui=1                         map overlays the screenshot mode hides (selection, temperature,
     //                                roof, fertility, areas) are drawn in the shots; overlay=home
@@ -1381,6 +1382,9 @@ namespace IsoRim
                     Log.Message("[IsoRim probe] spacemap " + sm.Size + " tile " + tile + " space " + SpaceEdges.DrawsOn(sm) + " clippers " + sm.DrawMapClippers);
                     break;
                 }
+                case "spaceplanet":
+                    Sky.PlanetBelow = a[0] == "1";
+                    break;
                 case "spaceedges":
                     // spaceedges=0|1: platform sides in 3D (SpaceEdges, default 1) or the game's flat strips (before/after).
                     SpaceEdges.Enabled = a[0] == "1";

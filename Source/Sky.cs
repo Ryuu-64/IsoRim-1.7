@@ -1,4 +1,5 @@
 using System;
+using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
@@ -17,6 +18,13 @@ namespace IsoRim
     //
     // Colours follow the game: the sun's glow picks night, dusk or day, rain, snow and fog grey it,
     // and the sun and moon sit where IsoRim's light comes from.
+    //
+    // In space (SpaceEdges.IsSpaceMap) the sky is black with the night sky at full strength whatever the
+    // hour, the sun is white, and there is no distance fog: the game's planet backdrop (drawn behind the
+    // map, as in 2D) shows through the space cells and, with PlanetBelow, below the horizon, darkened by
+    // the map's sky light as the game's light overlay darkens it on the map. The game's own dark ring
+    // round space maps (MapDrawLayer_ExteriorLightingOverlay, for the flat view) is hidden meanwhile: in
+    // perspective it stops short of the view and would leave a lit band.
     [StaticConstructorOnStartup]
     public static class Sky
     {
@@ -24,10 +32,13 @@ namespace IsoRim
 
         private static bool tried;
         private static Material skyMat;
+        private static Material dimMat;
         private static Material fogMat;
         private static Material planeMat;
         private static Mesh plane;
         private static IntVec3 planeSize;
+        private static Mesh spacePlane;
+        private static CellRect spacePlaneRect;
         private static Mesh quad;
         private static Mesh fogMesh;
 
@@ -48,6 +59,45 @@ namespace IsoRim
         private static readonly int fogColorId = Shader.PropertyToID("_FogColor");
         private static readonly int fogDepthId = Shader.PropertyToID("_FogDepth");
         private static readonly int fogShapeId = Shader.PropertyToID("_FogShape");
+        private static readonly int spaceId = Shader.PropertyToID("_SkySpace");
+        private static readonly int dimId = Shader.PropertyToID("_SkyDim");
+
+        // Space maps (SpaceEdges.IsSpaceMap): the planet the game draws behind the map shows below the horizon
+        // (true), or black space with stars all round (false). Harness: probe key spaceplanet=0|1.
+        public static bool PlanetBelow = true;
+
+        // The last frame the sky darkened the planet backdrop itself (the game's dark ring is hidden then).
+        private static int dimFrame = -10;
+
+        static Sky()
+        {
+            if (!ModsConfig.OdysseyActive)
+            {
+                return;
+            }
+            try
+            {
+                var target = AccessTools.PropertyGetter(typeof(MapDrawLayer_ExteriorLightingOverlay), "Visible");
+                if (target == null)
+                {
+                    ModLog.Warn("[IsoRim] MapDrawLayer_ExteriorLightingOverlay.Visible not found: the space sky may show a lit band past the map at night.");
+                    return;
+                }
+                new Harmony("isorim.sky").Patch(target, postfix: new HarmonyMethod(typeof(Sky), nameof(ExteriorVisible_Postfix)));
+            }
+            catch (Exception e)
+            {
+                ModLog.Warn("[IsoRim] Could not hook the game's dark ring round space maps: " + e.Message);
+            }
+        }
+
+        public static void ExteriorVisible_Postfix(ref bool __result)
+        {
+            if (__result && Time.frameCount - dimFrame <= 1)
+            {
+                __result = false;
+            }
+        }
 
         // The colour the fog fades into this frame (the sky's horizon).
         public static Color Horizon { get; private set; }
@@ -58,6 +108,8 @@ namespace IsoRim
         private static readonly Color DuskHorizon = new Color(0.93f, 0.60f, 0.40f);
         private static readonly Color DayZenith = new Color(0.30f, 0.52f, 0.86f);
         private static readonly Color DayHorizon = new Color(0.72f, 0.82f, 0.92f);
+        private static readonly Color SpaceBlack = new Color(0.004f, 0.005f, 0.01f);
+        private static readonly Color SpaceSun = new Color(1f, 0.97f, 0.92f);
 
         // Called from View3D.ApplyCamera's frame, with the perspective camera's basis.
         // tanX and tanY are the tangents of half the field of view across and up the screen.
@@ -82,17 +134,18 @@ namespace IsoRim
             {
                 Color zenith, horizon;
                 float sunShow, moonShow, grey;
-                Colours(map, out zenith, out horizon, out sunShow, out moonShow, out grey);
+                bool space = SpaceEdges.IsSpaceMap(map);
+                Colours(map, space, out zenith, out horizon, out sunShow, out moonShow, out grey);
                 Horizon = horizon;
 
                 // The game's terrain writes no depth: give the ground its depth first, or the fog and the
                 // sky would cover it as if it were empty.
                 if (planeMat != null)
                 {
-                    Graphics.DrawMesh(PlaneFor(map), Matrix4x4.identity, planeMat, 0, cam);
+                    Graphics.DrawMesh(space ? SpacePlane(map) : PlaneFor(map), Matrix4x4.identity, planeMat, 0, cam);
                 }
 
-                if (st.distanceFog && fogMat != null)
+                if (st.distanceFog && fogMat != null && !space)
                 {
                     fogMat.SetVector(fogColorId, new Vector4(horizon.r, horizon.g, horizon.b, 1f));
                     fogMat.SetVector(fogDepthId, new Vector4(near, far, fogStart, Mathf.Max(fogEnd, fogStart + 1f)));
@@ -112,7 +165,7 @@ namespace IsoRim
                     }
                     // The sun only shows while it is up.
                     sunShow *= Mathf.Clamp01(sun.y * 6f + 0.3f);
-                    Color sunColor = Color.Lerp(new Color(1f, 0.55f, 0.3f), new Color(1f, 0.95f, 0.82f), Mathf.Clamp01(sun.y * 2.5f));
+                    Color sunColor = space ? SpaceSun : Color.Lerp(new Color(1f, 0.55f, 0.3f), new Color(1f, 0.95f, 0.82f), Mathf.Clamp01(sun.y * 2.5f));
 
                     skyMat.SetVector(fwdId, fwd);
                     skyMat.SetVector(rightId, right * tanX);
@@ -122,8 +175,21 @@ namespace IsoRim
                     skyMat.SetVector(sunId, new Vector4(sun.x, sun.y, sun.z, sunShow));
                     skyMat.SetVector(sunColorId, (Vector4)sunColor);
                     skyMat.SetVector(moonId, new Vector4(moon.x, moon.y, moon.z, moonShow));
-                    NightSky(map, hour, grey);
+                    NightSky(map, hour, grey, space);
+                    // x: space, y: the planet backdrop below the horizon, z: its thin blue rim of air (lit by day).
+                    float rim = space && PlanetBelow ? Mathf.Lerp(0.15f, 1f, Mathf.InverseLerp(0.1f, 0.6f, GenCelestial.CurCelestialSunGlow(map))) : 0f;
+                    skyMat.SetVector(spaceId, new Vector4(space ? 1f : 0f, space && PlanetBelow ? 1f : 0f, rim, 0f));
+                    skyMat.SetVector(dimId, new Vector4(1f, 1f, 1f, 0f));
                     Graphics.DrawMesh(quad, Matrix4x4.identity, skyMat, 0, cam);
+                    if (space && PlanetBelow && dimMat != null)
+                    {
+                        // The planet backdrop past the drawn map, as dark as the game's light overlay makes it on the map.
+                        dimMat.CopyPropertiesFromMaterial(skyMat);
+                        Color sky = IsoGlow.SkyFor(map);
+                        dimMat.SetVector(dimId, new Vector4(Mathf.Min(sky.r, 1.5f), Mathf.Min(sky.g, 1.5f), Mathf.Min(sky.b, 1.5f), 1f));
+                        Graphics.DrawMesh(quad, Matrix4x4.identity, dimMat, 0, cam);
+                        dimFrame = Time.frameCount;
+                    }
                 }
             }
             catch (Exception e)
@@ -133,7 +199,7 @@ namespace IsoRim
         }
 
         // C3: the celestial sphere (stars, Milky Way, planets, gas giant) and the moon's phase.
-        private static void NightSky(Map map, float hour, float grey)
+        private static void NightSky(Map map, float hour, float grey, bool space)
         {
             IsoRimSettings st = IsoRimMod.Settings;
             float days = Find.TickManager.TicksAbs / 60000f;
@@ -158,13 +224,14 @@ namespace IsoRim
 
             float glow = GenCelestial.CurCelestialSunGlow(map);
             float clear = 1f - grey;
-            float dark = Smooth(Mathf.InverseLerp(0.45f, 0.12f, glow));
+            // In space: no air, so the night sky at full strength at any hour.
+            float dark = space ? 1f : Smooth(Mathf.InverseLerp(0.45f, 0.12f, glow));
             float bright = st.starBrightness;
             float stars = st.stars ? dark * clear * bright : 0f;
             float milky = st.milkyWay ? dark * dark * clear * bright : 0f;
-            float planets = st.planets ? Smooth(Mathf.InverseLerp(0.55f, 0.25f, glow)) * clear * bright : 0f;
+            float planets = st.planets ? (space ? 1f : Smooth(Mathf.InverseLerp(0.55f, 0.25f, glow))) * clear * bright : 0f;
             float giant = st.gasGiant ? 1f - grey * 0.85f : 0f;
-            float daylight = Mathf.InverseLerp(0.3f, 0.75f, glow);
+            float daylight = space ? 0f : Mathf.InverseLerp(0.3f, 0.75f, glow);
             float phase = st.moonPhases ? Mathf.Repeat(days / 15f + 0.5f, 1f) : 0.5f;
             Vector3 sun = TrueSun(hour);
 
@@ -208,10 +275,20 @@ namespace IsoRim
             return t * t * (3f - 2f * t);
         }
 
-        // Night, dusk or day by the sun's glow; greyed by rain, snow and fog.
-        private static void Colours(Map map, out Color zenith, out Color horizon, out float sunShow, out float moonShow, out float grey)
+        // Night, dusk or day by the sun's glow; greyed by rain, snow and fog. In space: black, no weather.
+        private static void Colours(Map map, bool space, out Color zenith, out Color horizon, out float sunShow, out float moonShow, out float grey)
         {
             float glow = GenCelestial.CurCelestialSunGlow(map);
+            if (space)
+            {
+                zenith = SpaceBlack;
+                horizon = SpaceBlack;
+                float dim = R3DMaterials.NightWeight(glow);
+                sunShow = 1f - dim;
+                moonShow = dim;
+                grey = 0f;
+                return;
+            }
             if (glow < 0.45f)
             {
                 float t = Mathf.InverseLerp(0.1f, 0.45f, glow);
@@ -274,6 +351,35 @@ namespace IsoRim
             return plane;
         }
 
+        // Space maps: the ground's depth only under the sections the game draws (MapDrawer.VisibleSections:
+        // the view rect widened by a cell, in whole sections), so past them the sky's dim pass reaches the
+        // planet backdrop as on the rest of the void (the game draws no light overlay there).
+        private static Mesh SpacePlane(Map map)
+        {
+            CellRect view = Find.CameraDriver.CurrentViewRect.ExpandedBy(1).ClipInsideMap(map);
+            int s = Section.Size;
+            int x0 = view.minX / s * s;
+            int z0 = view.minZ / s * s;
+            int x1 = Mathf.Min(map.Size.x, (view.maxX / s + 1) * s);
+            int z1 = Mathf.Min(map.Size.z, (view.maxZ / s + 1) * s);
+            CellRect r = new CellRect(x0, z0, Mathf.Max(0, x1 - x0), Mathf.Max(0, z1 - z0));
+            if (spacePlane != null && r == spacePlaneRect)
+            {
+                return spacePlane;
+            }
+            spacePlaneRect = r;
+            if (spacePlane == null)
+            {
+                spacePlane = new Mesh();
+                spacePlane.name = "IsoRim_DepthPlaneSpace";
+            }
+            spacePlane.vertices = new Vector3[] { new Vector3(x0, 0f, z0), new Vector3(x0, 0f, z1), new Vector3(x1, 0f, z1), new Vector3(x1, 0f, z0) };
+            spacePlane.triangles = new int[] { 0, 1, 2, 0, 2, 3 };
+            spacePlane.RecalculateBounds();
+            MeshGuard.Check(spacePlane, "sky depth plane (space)");
+            return spacePlane;
+        }
+
         private static void Init()
         {
             tried = true;
@@ -285,10 +391,16 @@ namespace IsoRim
             }
             Shader sky = R3DMaterials.ShaderOf("IsoRimSky");
             Shader fog = R3DMaterials.ShaderOf("IsoRimDistFog");
+            Shader dim = R3DMaterials.ShaderOf("IsoRimSkyDim");
             if (sky != null)
             {
                 skyMat = new Material(sky);
                 skyMat.name = "IsoRim_Sky";
+            }
+            if (dim != null)
+            {
+                dimMat = new Material(dim);
+                dimMat.name = "IsoRim_SkyDim";
             }
             if (fog != null)
             {

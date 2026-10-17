@@ -99,6 +99,23 @@ namespace IsoRim
             return !tile.Valid || (tile.LayerDef != null && tile.LayerDef.isSpace);
         }
 
+        // A map out in space (orbit, space platforms, asteroids): on a space layer of the world, or made by a map
+        // generator the game draws the planet behind (MapGeneratorDef.renderWorld: the Space maps, pocket ones included).
+        // The one test for "is space" in IsoRim's own looks (the sky); DrawsOn above stays the game's edge-layer gate.
+        public static bool IsSpaceMap(Map map)
+        {
+            if (map == null)
+            {
+                return false;
+            }
+            if (map.generatorDef != null && map.generatorDef.renderWorld)
+            {
+                return true;
+            }
+            PlanetTile tile = map.Tile;
+            return tile.Valid && tile.LayerDef != null && tile.LayerDef.isSpace;
+        }
+
         // After the game rebuilds its edge layer: while the 3D sides are drawn, its flat loop strips
         // (LoopLeft/Right/Single/Loop of every edge set) are emptied; the rim border on the top cells stays.
         public static void Regenerate_Postfix(SectionLayer_TerrainEdges __instance)

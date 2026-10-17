@@ -6,6 +6,11 @@
 // At night (C3): stars, the Milky Way, a few planets and a ringed gas giant, all on a celestial
 // sphere that turns with the hour round a pole set by the map's latitude. Everything is made
 // here from hashes and noise, no textures.
+// In space (_SkySpace.x): black with the night sky all round, below the horizon too; or, with
+// _SkySpace.y, nothing below the horizon, so the game's planet backdrop behind the map shows there,
+// under a thin blue rim of air (_SkySpace.z). The same program as IsoRimSkyDim (_SkyDim.w = 1, the
+// game's light-overlay blend, 2 x src x dst) then darkens that backdrop below the horizon by the map's
+// sky light (_SkyDim.rgb), as the game's light overlay darkens it on the map's own space cells.
 
 layout(location = 0) in vec3 vRay;
 
@@ -27,6 +32,8 @@ layout(set = 2, binding = 0) uniform MaterialUniforms
     vec4 _SkyNight;    // @default = vec4(0.0, 0.0, 0.0, 0.0)
     vec4 _SkyMisc;     // @default = vec4(0.0, 0.5, 0.0, 1.0)
     vec4 _SkyTrueSun;  // @default = vec4(0.0, 1.0, 0.0, 1.0)
+    vec4 _SkySpace;    // @default = vec4(0.0, 0.0, 0.0, 0.0)
+    vec4 _SkyDim;      // @default = vec4(1.0, 1.0, 1.0, 0.0)
 } u;
 
 // ------------------------------------------------------------------ noise
@@ -118,6 +125,15 @@ void main()
 {
     vec3 r = normalize(vRay);
     float e = r.y;
+    if (u._SkyDim.w > 0.5)
+    {
+        if (e >= 0.0)
+        {
+            discard;
+        }
+        outColor = vec4(u._SkyDim.rgb * 0.5, 1.0);
+        return;
+    }
     vec3 c = u._SkyHorizon.rgb;
     if (e > 0.0)
     {
@@ -126,6 +142,23 @@ void main()
 
     float pix = max(length(dFdx(r)), length(dFdy(r)));
     float above = smoothstep(-0.01, 0.12, e);
+    if (u._SkySpace.x > 0.5)
+    {
+        if (u._SkySpace.y > 0.5)
+        {
+            if (e < 0.0)
+            {
+                discard;
+            }
+            above = 1.0;
+            // The planet's air seen edge on: a thin blue band along the horizon.
+            c += vec3(0.25, 0.5, 1.0) * (exp(-e * 90.0) * 0.55 + exp(-e * 18.0) * 0.12) * u._SkySpace.z;
+        }
+        else
+        {
+            above = 1.0;
+        }
+    }
     float days = u._SkyMisc.x;
     float time = u._SkyMisc.z;
     float day = u._SkyMisc.w;

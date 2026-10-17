@@ -25,6 +25,8 @@ layout(set = 2, binding = 0) uniform MaterialUniforms
     vec4 _SkyNight;    // @default = vec4(0.0, 0.0, 0.0, 0.0)   stars, Milky Way, planets, gas giant (how much each shows)
     vec4 _SkyMisc;     // @default = vec4(0.0, 0.5, 0.0, 1.0)   days passed, gas giant size, seconds (twinkle), daylight
     vec4 _SkyTrueSun;  // @default = vec4(0.0, 1.0, 0.0, 1.0)   the sun's real direction (below the horizon at night), w = moon phase
+    vec4 _SkySpace;    // @default = vec4(0.0, 0.0, 0.0, 0.0)   x = space map, y = planet backdrop below the horizon, z = its rim of air
+    vec4 _SkyDim;      // @default = vec4(1.0, 1.0, 1.0, 0.0)   the map's sky light colour, w = 1 in the dim pass (IsoRimSkyDim)
 } u;
 
 void main()
