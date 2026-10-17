@@ -150,6 +150,10 @@ namespace IsoRim
         }
 
         private static float nearNow = 0.5f;
+        // How high the camera stands over the ground (cells): the eye in perspective and first person; for the flat camera
+        // the height a 40-degree perspective camera would have at the same zoom and pitch (Silhouettes3D's trigger).
+        public static float Altitude { get; private set; }
+        public const float DefaultTanHalf = 0.36397f;   // tan(20 deg)
 
         // How steeply the camera looks down, in degrees: 90 is straight down.
         public static float Pitch
@@ -373,6 +377,7 @@ namespace IsoRim
                 ActivityGlow.DrawAll();
                 Glass.DrawAll();
                 WorkPanels.DrawAll();
+                Silhouettes3D.DrawAll();
                 Probe.Lap(7);
                 try
                 {
@@ -703,6 +708,7 @@ namespace IsoRim
             }
 
             nearNow = near;
+            Altitude = persp ? eye.y : orthoSize / DefaultTanHalf * Mathf.Sin(p);
             Matrix4x4 view = Matrix4x4.Scale(new Vector3(1f, 1f, -1f))
                 * Matrix4x4.TRS(eye, look, Vector3.one).inverse;
             Matrix4x4 worldToCamera = view * Matrix4x4.Scale(new Vector3(1f, s, 1f));

@@ -239,6 +239,20 @@
     </shaderProgram>
   </ShaderDef>
 
+  <!-- Zoomed-out silhouettes in 3D (Silhouettes3D): the game's own silhouette fragment shader, drawn over everything
+       (no depth test) after the light overlay, so trees, mountains, walls, roofs and the fog lid never hide them. -->
+  <ShaderDef>
+    <defName>IsoRimSilhouette</defName>
+    <shaderProgram>
+      <fragmentShaderFileName>Silhouette.frag.glsl</fragmentShaderFileName>
+      <transparent>true</transparent>
+      <depthTest>false</depthTest>
+      <depthWrite>false</depthWrite>
+      <cullMode>None</cullMode>
+      <renderQueue>3640</renderQueue>
+    </shaderProgram>
+  </ShaderDef>
+
   <!-- Water ripples and flow streaks: the game's own Transparent shader with the texture repeating
        instead of clamped (the game's Transparent def clamps it). Their texture slides on without end
        (the material's texture offset), so with a clamped texture they were invisible. -->

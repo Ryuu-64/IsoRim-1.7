@@ -246,6 +246,8 @@ namespace IsoRim
             {
                 Patch("no flat silhouettes in 3D", silhouettes, prefix: nameof(DrawSilhouettes_Prefix));
             }
+            // The same for turrets, the shuttle and other things with a silhouette; Silhouettes3D draws all of them upright.
+            Patch("no flat thing silhouettes in 3D", AccessTools.Method(typeof(SilhouetteUtility), nameof(SilhouetteUtility.DrawGraphicSilhouette)), prefix: nameof(DrawSilhouettes_Prefix));
 
             // Parts the game draws every frame on top of a building (fire, charge bars, turret
             // heads) and the status icons over things have to move up with the raised sprite.
