@@ -7958,6 +7958,47 @@
     <builtFor>(5, 5)</builtFor>
   </IsoRim.ModelDef>
 
+  <!-- Ancient exostrider remains (Biotech, 2026-10-16, Blender round 1): the four wreck pieces of the GenStep
+       AncientExostriderRemains. Models\buildings_exostrider.mtl (exo_* fixed colours, glow_exo_red unlit on the
+       midsection's incendiary cell, under the game's red pulse). Exact thingDef entries; no match word catches these
+       defs today, so they were extruded sprites. AncientExostriderLeg is rotatable Graphic_Random: models in the sprite
+       order A, B, C. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientExostriderRemains</defName>
+    <thingDef>AncientExostriderRemains</thingDef>
+    <model>Models/exostrider_midsection.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientExostriderHead</defName>
+    <thingDef>AncientExostriderHead</thingDef>
+    <model>Models/exostrider_head.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientExostriderCannon</defName>
+    <thingDef>AncientExostriderCannon</thingDef>
+    <model>Models/exostrider_cannon.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientExostriderLeg</defName>
+    <thingDef>AncientExostriderLeg</thingDef>
+    <models>
+      <li>Models/exostrider_leg_a.obj</li>
+      <li>Models/exostrider_leg_b.obj</li>
+      <li>Models/exostrider_leg_c.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 1)</builtFor>
+  </IsoRim.ModelDef>
+
   <!-- Odyssey mechanoid structures. Graphic_Random defs list their models in the sprite order A, B, C. -->
   <IsoRim.ModelDef>
     <defName>R3D_MechanoidProcessor</defName>
