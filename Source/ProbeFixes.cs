@@ -101,6 +101,84 @@ namespace IsoRim
         {
             switch (key)
             {
+                case "zoomlimit":
+                {
+                    // zoomlimit=set,<min>: another mod (or the game) sets the camera's closest zoom;
+                    // zoomlimit=check,<min>: what the limit is now (Patches.ZoomLimit has had frames since).
+                    CameraMapConfig cfg = Find.CameraDriver.config;
+                    if (a[0] == "set")
+                    {
+                        cfg.sizeRange.min = F(a[1]);
+                        Log.Message("[IsoRim probe] zoomlimit set " + a[1]);
+                    }
+                    else
+                    {
+                        Check("closest zoom", Mathf.Abs(cfg.sizeRange.min - F(a[1])) < 0.01f, "min " + cfg.sizeRange.min.ToString("0.00") + ", want " + a[1]
+                            + ", size " + Find.CameraDriver.RootSize.ToString("0.00") + ", 3D " + View3D.Ready);
+                    }
+                    return true;
+                }
+                case "condition":
+                {
+                    // condition=<GameConditionDef>: started on the map for a day (VolcanicAsh: Odyssey's ash sheets).
+                    GameConditionDef gd = DefDatabase<GameConditionDef>.GetNamedSilentFail(a[0]);
+                    if (gd == null)
+                    {
+                        Log.Warning("[IsoRim probe] condition: no " + a[0]);
+                        return true;
+                    }
+                    map.gameConditionManager.RegisterCondition(GameConditionMaker.MakeCondition(gd, 60000));
+                    Log.Message("[IsoRim probe] condition " + a[0] + " started");
+                    return true;
+                }
+                case "weather":
+                {
+                    // weather=<WeatherDef>: set at once, no transition.
+                    WeatherDef wd = DefDatabase<WeatherDef>.GetNamedSilentFail(a[0]);
+                    if (wd == null)
+                    {
+                        Log.Warning("[IsoRim probe] weather: no " + a[0]);
+                        return true;
+                    }
+                    map.weatherManager.curWeather = wd;
+                    map.weatherManager.lastWeather = wd;
+                    map.weatherManager.curWeatherAge = 100000;
+                    Log.Message("[IsoRim probe] weather " + a[0]);
+                    return true;
+                }
+                case "weathercheck":
+                {
+                    // How each overlay showing now is drawn in 3D (Falling): kind, sheet and the drops' hue.
+                    List<SkyOverlay> overlays = new List<SkyOverlay>(map.weatherManager.curWeather.Worker.overlays);
+                    foreach (GameCondition gc in map.gameConditionManager.ActiveConditions)
+                    {
+                        List<SkyOverlay> more = gc.SkyOverlays(map);
+                        if (more != null)
+                        {
+                            overlays.AddRange(more);
+                        }
+                    }
+                    foreach (SkyOverlay o in overlays)
+                    {
+                        Material m = Falling.MaterialOf(o);
+                        Log.Message("[IsoRim probe] weathercheck " + o.GetType().Name + ": " + Falling.KindOf(o) + ", sheet " + (m != null ? m.name : "-")
+                            + " colour " + (m != null ? m.color.ToString() : "-") + ", tint " + Falling.TintOf(m)
+                            + (m != null && m.HasProperty("_TuningColor") ? ", tuning " + m.GetColor("_TuningColor") : "")
+                            + (m != null && m.HasProperty("_MainTexColor") ? ", maintex " + m.GetColor("_MainTexColor") : ""));
+                        Texture tx = m != null ? m.mainTexture : null;
+                        Color32[] px = tx != null ? SpritePixels.Sample(tx, Vector2.one, Vector2.zero, 16) : null;
+                        Log.Message("[IsoRim probe] weathercheck texture " + (tx != null ? tx.name + " " + tx.GetType().Name + " " + tx.width + "x" + tx.height : "-")
+                            + ": pixels " + (px != null ? px.Length + ", first " + px[0] + ", mid " + px[px.Length / 2] : "none") + " (" + SpritePixels.LastInfo + ")");
+                    }
+                    return true;
+                }
+                case "settingscheck":
+                {
+                    IsoRimSettings st = IsoRimMod.Settings;
+                    Log.Message("[IsoRim probe] settings: weather3D " + st.weather3D + ", faceDecal " + st.faceDecal + ", fullPawnDraw " + st.fullPawnDraw
+                        + ", minZoom " + st.minZoom + ", thingLabels " + st.thingLabels + ", plantCardSize " + st.plantCardSize);
+                    return true;
+                }
                 case "wipe":
                 {
                     CellRect r = CellRect.FromLimits(I(a[0]), I(a[1]), I(a[2]), I(a[3]));

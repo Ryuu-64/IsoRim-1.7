@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Reflection;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -18,9 +21,15 @@ namespace IsoRim
         // screen at weatherSize 1 (about the game's middle zoom).
         private const float TilesUpScreen = 15f;
 
+        // The option (weather3D, off at first): off, every weather overlay is the game's own, as without the mod.
+        public static bool On
+        {
+            get { return View3D.Ready && IsoRimMod.Settings.weather3D; }
+        }
+
         public static bool DrawWorldOverlay_Prefix(Map __0, Material __1, int __3)
         {
-            if (!View3D.Ready || __0 == null || __1 == null)
+            if (!On || __0 == null || __1 == null)
             {
                 return true;
             }
@@ -43,7 +52,7 @@ namespace IsoRim
 
         public static bool DrawScreenOverlay_Prefix(Material __0, int __2)
         {
-            if (!View3D.Ready || __0 == null)
+            if (!On || __0 == null)
             {
                 return true;
             }
@@ -90,6 +99,7 @@ namespace IsoRim
     // the game's textured sheet (which, seen from the side, showed as wide blurred columns). Drops sit
     // at fixed places in the world (repeating every box width), so they do not slide as the camera
     // moves, and none fall under a roof.
+    [StaticConstructorOnStartup]
     public static class Falling
     {
         public enum Kind { None, Rain, Snow }
@@ -103,11 +113,52 @@ namespace IsoRim
         private static int drawnFrame = -1;
         private static readonly int colorId = Shader.PropertyToID("_Color");
 
-        // From the overlay's class (WeatherOverlay_Rain, _TorrentialRain, _ToxRain, _BloodRain, the snow,
-        // ash and fallout ones) or its material's name. Fog, haze and the rest stay on the curtain.
+        // From the overlay's class. The game's own by name and base class (WeatherOverlay_Rain, _TorrentialRain,
+        // _ToxRain, _BloodRain; the snow, fallout and ashes as flakes); its other overlays (fog, haze, sand, Odyssey's
+        // volcanic ash) stay the game's sheets on the curtain. Other mods' overlays by their class name.
+        private static readonly Dictionary<Type, Kind> kinds = new Dictionary<Type, Kind>();
+
         public static Kind KindOf(SkyOverlay o)
         {
-            return o == null ? Kind.None : KindOf(o.GetType().Name);
+            if (o == null)
+            {
+                return Kind.None;
+            }
+            Type t = o.GetType();
+            Kind k;
+            if (!kinds.TryGetValue(t, out k))
+            {
+                k = Classify(t);
+                kinds[t] = k;
+            }
+            return k;
+        }
+
+        private static Kind Classify(Type t)
+        {
+            for (Type b = t; b != null && b != typeof(SkyOverlay); b = b.BaseType)
+            {
+                switch (b.FullName)
+                {
+                    case "RimWorld.WeatherOverlay_Rain":
+                    case "RimWorld.WeatherOverlay_TorrentialRain":
+                    case "RimWorld.WeatherOverlay_ToxRain":
+                    case "RimWorld.WeatherOverlay_BloodRain":
+                        return Kind.Rain;
+                    case "RimWorld.WeatherOverlay_SnowGentle":
+                    case "RimWorld.WeatherOverlay_SnowHard":
+                    case "RimWorld.WeatherOverlay_SnowBlizzard":
+                    case "RimWorld.WeatherOverlay_Fallout":
+                    case "RimWorld.WeatherOverlay_DeathpallAshes":
+                    case "RimWorld.WeatherOverlay_GrayPallAsh":
+                        return Kind.Snow;
+                }
+            }
+            if (t.Assembly == typeof(SkyOverlay).Assembly)
+            {
+                return Kind.None;
+            }
+            return KindOf(t.Name);
         }
 
         public static Kind KindOf(Material m)
@@ -117,17 +168,17 @@ namespace IsoRim
 
         private static Kind KindOf(string n)
         {
-            if (string.IsNullOrEmpty(n))
+            if (string.IsNullOrEmpty(n) || n.IndexOf("Volcanic", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return Kind.None;
             }
-            if (n.IndexOf("Rain", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            if (n.IndexOf("Rain", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return Kind.Rain;
             }
-            if (n.IndexOf("Snow", System.StringComparison.OrdinalIgnoreCase) >= 0
-                || n.IndexOf("Ash", System.StringComparison.OrdinalIgnoreCase) >= 0
-                || n.IndexOf("Fallout", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            if (n.IndexOf("Snow", StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("Ash", StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("Fallout", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return Kind.Snow;
             }
@@ -137,7 +188,7 @@ namespace IsoRim
         // In place of a weather overlay's own drawing (Patches.SkyOverlayDraw_Prefix).
         public static bool DrawOverlay_Prefix(SkyOverlay o, Map map)
         {
-            if (!View3D.Ready || map == null)
+            if (!Weather.On || map == null)
             {
                 return true;
             }
@@ -149,9 +200,111 @@ namespace IsoRim
             float amount = Amount(o, map);
             if (amount > 0.01f)
             {
-                Draw(map, o.GetType().Name, kind, amount);
+                Draw(map, o.GetType().Name, kind, amount, TintOf(MaterialOf(o)));
             }
             return false;
+        }
+
+        // The overlay's sheet, whose colour the drops take (blood rain red, tox rain green, ashes dark).
+        private static readonly Dictionary<Type, FieldInfo[]> matFields = new Dictionary<Type, FieldInfo[]>();
+
+        internal static Material MaterialOf(SkyOverlay o)
+        {
+            WeatherOverlayDualPanner dual = o as WeatherOverlayDualPanner;
+            if (dual != null && dual.worldOverlayMat != null)
+            {
+                return dual.worldOverlayMat;
+            }
+            Type t = o.GetType();
+            FieldInfo[] fields;
+            if (!matFields.TryGetValue(t, out fields))
+            {
+                // Overlays with their own layers (torrential rain, blizzard): the particle layer first.
+                List<FieldInfo> found = new List<FieldInfo>();
+                foreach (FieldInfo f in t.GetFields(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+                {
+                    if (f.FieldType == typeof(Material))
+                    {
+                        if (f.Name.IndexOf("Particle", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            found.Insert(0, f);
+                        }
+                        else
+                        {
+                            found.Add(f);
+                        }
+                    }
+                }
+                fields = found.ToArray();
+                matFields[t] = fields;
+            }
+            for (int i = 0; i < fields.Length; i++)
+            {
+                Material m = fields[i].GetValue(fields[i].IsStatic ? null : o) as Material;
+                if (m != null)
+                {
+                    return m;
+                }
+            }
+            return null;
+        }
+
+        // The hue of a sheet: its colour (the sky's, or the weather's own, as the game sets it) times its texture's
+        // average, brightest channel 1. Grey sheets (plain rain, snow) give white: the drops keep their own colour.
+        private static readonly Dictionary<Texture, Color> texAverage = new Dictionary<Texture, Color>();
+        private static readonly int[] tintIds = { Shader.PropertyToID("_TuningColor") };
+
+        internal static Color TintOf(Material m)
+        {
+            if (m == null)
+            {
+                return Color.white;
+            }
+            Color c = m.color;
+            // The game's RainOverlay shader also tints by these (tox rain is green by its _TuningColor).
+            for (int i = 0; i < tintIds.Length; i++)
+            {
+                if (m.HasProperty(tintIds[i]))
+                {
+                    Color t = m.GetColor(tintIds[i]);
+                    c = new Color(c.r * t.r, c.g * t.g, c.b * t.b);
+                }
+            }
+            Texture tex = m.mainTexture;
+            if (tex != null)
+            {
+                Color avg;
+                if (!texAverage.TryGetValue(tex, out avg))
+                {
+                    avg = Color.white;
+                    Color32[] px = SpritePixels.Sample(tex, Vector2.one, Vector2.zero, 16);
+                    if (px != null)
+                    {
+                        float r = 0f, g = 0f, b = 0f, w = 0f;
+                        for (int i = 0; i < px.Length; i++)
+                        {
+                            float k = px[i].a / 255f * Mathf.Max(px[i].r, Mathf.Max(px[i].g, px[i].b)) / 255f;
+                            r += px[i].r * k;
+                            g += px[i].g * k;
+                            b += px[i].b * k;
+                            w += k;
+                        }
+                        if (w > 0.001f)
+                        {
+                            avg = new Color(r / w / 255f, g / w / 255f, b / w / 255f);
+                        }
+                    }
+                    texAverage[tex] = avg;
+                }
+                c = new Color(c.r * avg.r, c.g * avg.g, c.b * avg.b);
+            }
+            float top = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
+            if (top < 0.02f)
+            {
+                return Color.white;
+            }
+            c = new Color(c.r / top, c.g / top, c.b / top);
+            return Mathf.Min(c.r, Mathf.Min(c.g, c.b)) > 0.85f ? Color.white : c;
         }
 
         // How much of a weather is showing: the game keeps drawing the last weather after it has gone
@@ -183,10 +336,10 @@ namespace IsoRim
 
         public static void Draw(Map map, Material overlay, Kind kind)
         {
-            Draw(map, overlay.name, kind, 1f);
+            Draw(map, overlay.name, kind, 1f, TintOf(overlay));
         }
 
-        public static void Draw(Map map, string n, Kind kind, float amount)
+        public static void Draw(Map map, string n, Kind kind, float amount, Color tint)
         {
             if (Time.frameCount == drawnFrame)
             {
@@ -287,10 +440,10 @@ namespace IsoRim
             mesh.vertices = verts;
             mesh.RecalculateBounds();
 
-            // Lit by the daylight: pale grey-blue by day, dim at night.
+            // Lit by the daylight: pale grey-blue by day, dim at night, in the hue of the weather's own sheet.
             float glow = map.skyManager != null ? map.skyManager.CurSkyGlow : 1f;
             float l = Mathf.Lerp(0.22f, 0.85f, glow);
-            mat.SetColor(colorId, new Color(l * 0.92f, l * 0.96f, l, rain ? 0.35f : 0.8f));
+            mat.SetColor(colorId, new Color(l * 0.92f * tint.r, l * 0.96f * tint.g, l * tint.b, rain ? 0.35f : 0.8f));
             Graphics.DrawMesh(mesh, Matrix4x4.identity, mat, 0);
         }
 

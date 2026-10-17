@@ -32,6 +32,7 @@ namespace IsoRim
 
         private class Face
         {
+            public Pawn pawn;
             public PawnRenderNode root;
             public PawnRenderNode master;
             public readonly List<PawnRenderNode> parts = new List<PawnRenderNode>();
@@ -41,6 +42,35 @@ namespace IsoRim
         }
 
         private static readonly Dictionary<int, Face> faces = new Dictionary<int, Face>();
+        private static readonly object south = Rot4.South;   // boxed once (overrideHeadRot is set every frame)
+
+        // Faces of people no longer on a map (gone, dead) are let go now and then; one drawn again is read anew.
+        private const int PruneEvery = 2500;
+        private static int prunedAt = -PruneEvery;
+        private static readonly List<int> gone = new List<int>();
+
+        private static void Prune()
+        {
+            int now = Find.TickManager != null ? Find.TickManager.TicksGame : 0;
+            if (now >= prunedAt && now - prunedAt < PruneEvery)
+            {
+                return;
+            }
+            prunedAt = now;
+            foreach (KeyValuePair<int, Face> e in faces)
+            {
+                Pawn p = e.Value.pawn;
+                if (p == null || p.Destroyed || p.Dead || !p.Spawned)
+                {
+                    gone.Add(e.Key);
+                }
+            }
+            for (int i = 0; i < gone.Count; i++)
+            {
+                faces.Remove(gone[i]);
+            }
+            gone.Clear();
+        }
 
         private static bool Available
         {
@@ -111,12 +141,13 @@ namespace IsoRim
                 {
                     return null;
                 }
+                Prune();
                 Face f;
                 if (faces.TryGetValue(pawn.thingIDNumber, out f) && f.root == tree.rootNode)
                 {
                     return f;
                 }
-                f = new Face { root = tree.rootNode };
+                f = new Face { pawn = pawn, root = tree.rootNode };
                 List<KeyValuePair<float, int>> order = new List<KeyValuePair<float, int>>();
                 Stack<PawnRenderNode> open = new Stack<PawnRenderNode>();
                 open.Push(tree.rootNode);
@@ -154,7 +185,7 @@ namespace IsoRim
                 }
                 // Drawn bottom layer first, each a little further out.
                 order.Sort((a, b) => a.Key != b.Key ? a.Key.CompareTo(b.Key) : a.Value.CompareTo(b.Value));
-                Face sorted = new Face { root = f.root, master = f.master };
+                Face sorted = new Face { pawn = pawn, root = f.root, master = f.master };
                 foreach (KeyValuePair<float, int> o in order)
                 {
                     sorted.parts.Add(f.parts[o.Value]);
@@ -204,7 +235,7 @@ namespace IsoRim
                 for (int i = 0; i < f.parts.Count; i++)
                 {
                     PawnRenderNode node = f.parts[i];
-                    overrideRotField.SetValue(node, Rot4.South);
+                    overrideRotField.SetValue(node, south);
                     Graphic g = node.GraphicFor(pawn);
                     Material gm = g != null ? g.MatSouth : null;
                     if (gm == null || gm.mainTexture == null || IsDummy(g))

@@ -92,11 +92,12 @@ namespace IsoRim
                 prefix: nameof(DrawWorldOverlayShort_Prefix));
             Patch("weather", AccessTools.Method(typeof(SkyOverlay), "DrawScreenOverlay", new[] { typeof(Material), typeof(int), typeof(Camera) }),
                 prefix: nameof(DrawScreenOverlayShort_Prefix));
-            // Rain and snow fall in 3D (Falling): each weather overlay's own DrawOverlay is replaced.
+            // Rain and snow fall in 3D (Falling): each weather overlay's own DrawOverlay is replaced. Only the classes that
+            // declare one: the many that inherit WeatherOverlayDualPanner's are hooked once there.
             HashSet<MethodInfo> overlayDraws = new HashSet<MethodInfo>();
             foreach (Type t in GenTypes.AllSubclassesNonAbstract(typeof(SkyOverlay)))
             {
-                MethodInfo m = AccessTools.Method(t, "DrawOverlay", new[] { typeof(Map) });
+                MethodInfo m = AccessTools.DeclaredMethod(t, "DrawOverlay", new[] { typeof(Map) });
                 if (m != null && !m.IsAbstract && overlayDraws.Add(m))
                 {
                     Patch("weather", m, prefix: nameof(SkyOverlayDraw_Prefix));
@@ -171,9 +172,9 @@ namespace IsoRim
             {
                 missed.Add("upright pawn sprites facing the camera (PawnRenderer.ParallelGetPreRenderResults)");
             }
-            // People drawn in full rather than from the game's cached pawn image (option, or with Facial Animation):
+            // People drawn in full rather than from the game's cached pawn image (option, with Facial Animation only):
             // the cached image skips the render tree, so animated faces stood still.
-            if (preRenderResults != null && Array.Exists(preRenderResults.GetParameters(), p => p.Name == "disableCache" && p.ParameterType == typeof(bool)))
+            if (preRenderResults != null && ModsConfig.IsActive("Nals.FacialAnimation") && Array.Exists(preRenderResults.GetParameters(), p => p.Name == "disableCache" && p.ParameterType == typeof(bool)))
             {
                 Patch("sprites drawn in full", preRenderResults, prefix: nameof(PreRenderCache_Prefix));
             }
@@ -922,8 +923,10 @@ namespace IsoRim
         }
 
         // The game will not zoom in past 11; in the 3D view the mod lets the camera come closer (minZoom).
-        // The game's own limit comes back when the 3D view is off.
-        private static float gameMinZoom = -1f;
+        // The game's own limit comes back when the 3D view is off. Each config (map type) keeps the limit found under
+        // ours, read again whenever someone else sets it (another mod, the harness), so theirs is kept; a closer limit
+        // than ours is left as it is.
+        private static readonly Dictionary<CameraMapConfig, Vector2> zoomLimits = new Dictionary<CameraMapConfig, Vector2>();   // x: theirs, y: ours
 
         private static void ZoomLimit(CameraDriver driver)
         {
@@ -932,11 +935,14 @@ namespace IsoRim
             {
                 return;
             }
-            if (gameMinZoom < 0f)
+            Vector2 lim;
+            if (!zoomLimits.TryGetValue(config, out lim) || config.sizeRange.min != lim.y)
             {
-                gameMinZoom = config.sizeRange.min;
+                lim.x = config.sizeRange.min;
             }
-            config.sizeRange.min = View3D.Ready ? Mathf.Clamp(IsoRimMod.Settings.minZoom, 2f, gameMinZoom) : gameMinZoom;
+            lim.y = View3D.Ready ? Mathf.Min(lim.x, Mathf.Max(2f, IsoRimMod.Settings.minZoom)) : lim.x;
+            zoomLimits[config] = lim;
+            config.sizeRange.min = lim.y;
         }
 
         private static void StopGameDrag(CameraDriver driver)
@@ -1987,7 +1993,7 @@ namespace IsoRim
         // Above a zoom the game draws a person from a cached image of it (GlobalTextureAtlasManager) instead of its
         // render tree, which then neither runs nor asks for new materials: Facial Animation's faces stop moving, and
         // in the 3D view the zoom says little about how close a person is seen. Drawn in full while the 3D view is
-        // on, if the option is set or Facial Animation is active.
+        // on, with Facial Animation active and the option set.
         private static bool? facialAnimation;
 
         public static void PreRenderCache_Prefix(ref bool disableCache)
@@ -2000,7 +2006,7 @@ namespace IsoRim
             {
                 facialAnimation = ModsConfig.IsActive("Nals.FacialAnimation");
             }
-            if (IsoRimMod.Settings.fullPawnDraw || facialAnimation.Value)
+            if (IsoRimMod.Settings.fullPawnDraw && facialAnimation.Value)
             {
                 disableCache = true;
             }

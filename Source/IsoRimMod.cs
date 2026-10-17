@@ -76,6 +76,7 @@ namespace IsoRim
         public float fov = 40f;          // perspective: vertical field of view, degrees
         public float viewDistance = 160f; // perspective: how far past the screen centre the map is drawn, cells
         public bool thingLabels = true;  // labels on things lying on the map (stack counts, quality)
+        public bool weather3D = false;   // rain and snow falling in 3D, fog and haze stood up before the camera (Weather); off: the game's flat sheets
         public float weatherSize = 1f;   // how big rain and snow look on screen
         public float minZoom = 4f;       // how close the camera can zoom in (the game stops at 11)
         public float labelFade = 1.4f;   // perspective: labels fade out past this many times the distance to the screen centre (4 = never)
@@ -183,6 +184,7 @@ namespace IsoRim
             Scribe_Values.Look(ref fov, "fov", 40f);
             Scribe_Values.Look(ref viewDistance, "viewDistance", 160f);
             Scribe_Values.Look(ref thingLabels, "thingLabels", true);
+            Scribe_Values.Look(ref weather3D, "weather3D", false);
             Scribe_Values.Look(ref minZoom, "minZoom", 4f);
             Scribe_Values.Look(ref weatherSize, "weatherSize", 1f);
             Scribe_Values.Look(ref labelFade, "labelFade", 1.4f);
@@ -649,7 +651,11 @@ namespace IsoRim
                     "R3D_Settings_FpFovTip".Translate(R3DKeyDefOf.R3D_FirstPerson != null ? R3DKeyDefOf.R3D_FirstPerson.MainKeyLabel : "F5", DragButtonLabel(st)));
                 st.fpEyeHeight = Slider(l, "R3D_Settings_FpEyeHeight".Translate(), st.fpEyeHeight, 0.5f, 2f, Cells(st.fpEyeHeight, "0.00"));
                 st.minZoom = Slider(l, "R3D_Settings_MinZoom".Translate(), st.minZoom, 2f, 11f, st.minZoom.ToString("0.0"), "R3D_Settings_MinZoomTip".Translate());
-                st.weatherSize = Slider(l, "R3D_Settings_WeatherSize".Translate(), st.weatherSize, 0.25f, 3f, "×" + st.weatherSize.ToString("0.00"), "R3D_Settings_WeatherSizeTip".Translate());
+                Check(l, "R3D_Settings_Weather3D".Translate(), ref st.weather3D, "R3D_Settings_Weather3DTip".Translate());
+                if (st.weather3D)
+                {
+                    st.weatherSize = Slider(l, "R3D_Settings_WeatherSize".Translate(), st.weatherSize, 0.25f, 3f, "×" + st.weatherSize.ToString("0.00"), "R3D_Settings_WeatherSizeTip".Translate());
+                }
                 Check(l, "R3D_Settings_ThingLabels".Translate(), ref st.thingLabels, "R3D_Settings_ThingLabelsTip".Translate());
                 Check(l, "R3D_Settings_AntiAlias".Translate(), ref st.antiAlias, "R3D_Settings_AntiAliasTip".Translate());
                 if (st.antiAlias)
@@ -961,7 +967,7 @@ namespace IsoRim
                 Check(r, "R3D_Settings_Damage3D".Translate(), ref st.damage3D);
                 Check(r, "R3D_Settings_Effects3D".Translate(), ref st.effects3D);
                 Check(r, "R3D_Settings_UprightPawns".Translate(), ref st.uprightPawns, "R3D_Settings_UprightPawnsTip".Translate());
-                if (st.uprightPawns)
+                if (st.uprightPawns && ModsConfig.IsActive("Nals.FacialAnimation"))
                 {
                     Check(r, "R3D_Settings_FullPawnDraw".Translate(), ref st.fullPawnDraw, "R3D_Settings_FullPawnDrawTip".Translate());
                 }
