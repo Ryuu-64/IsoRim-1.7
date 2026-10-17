@@ -328,11 +328,12 @@ namespace IsoRim
             }
         }
 
-        private static bool SectionVisible(Section section, Vector3 shift)
+        // A section's measured box, or null when it must be drawn anyway (being rebuilt, or moved by an unknown shader).
+        private static SectionBox BoxOf(Section section)
         {
             if (anyDirtyOf(section))
             {
-                return true;   // drawn, which rebuilds it (its new shape is not known yet)
+                return null;   // drawn, which rebuilds it (its new shape is not known yet)
             }
             SectionBox box = boxes.GetValue(section, s => new SectionBox());
             int settings = SettingsKey();
@@ -345,6 +346,54 @@ namespace IsoRim
             if (box.unknown)
             {
                 sectionsUnknown++;
+                return null;
+            }
+            return box;
+        }
+
+        // The sun shadow sub-meshes of a box moved by shift (drawn space), slid along the cast vector from lo to hi cast
+        // lengths (the vertex alpha adds 0..1 on top).
+        private static bool ShadowBoxVisible(SectionBox box, Vector3 shift, float lo, float hi)
+        {
+            Vector4 cast;
+            if (!Shader.TryGetGlobalVector(ShaderPropertyIDs.MapSunLightDirection, out cast))
+            {
+                return true;
+            }
+            Vector3 v = new Vector3(cast.x, cast.y, cast.z);
+            Vector3 a = v * lo, b = v * (hi + 1f);
+            Vector3 min = Vector3.Min(box.shadowMin + a, box.shadowMin + b) + shift;
+            Vector3 max = Vector3.Max(box.shadowMax + a, box.shadowMax + b) + shift;
+            return BoxVisible(min - Vector3.one * 0.05f, max + Vector3.one * 0.05f);
+        }
+
+        // Whether the sun shadow of a block of an upper floor (Floors.ShadowSlide: drawn on the ground under the column,
+        // slid by the floor's height) can be on screen. Also for blocks of hidden floors, which cast all the same.
+        public static bool ColumnShadowVisible(Section section)
+        {
+            Vector3 ground;
+            float lo, hi;
+            if (!On || !Floors.ShadowSlide(section, out ground, out lo, out hi))
+            {
+                return true;
+            }
+            try
+            {
+                SectionBox box = BoxOf(section);
+                return box == null || box.shadow && ShadowBoxVisible(box, ground, lo, hi);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Culling the sun shadow of an upper floor failed: " + e, 93611302);
+                return true;
+            }
+        }
+
+        private static bool SectionVisible(Section section, Vector3 shift)
+        {
+            SectionBox box = BoxOf(section);
+            if (box == null)
+            {
                 return true;
             }
             if (box.any && BoxVisible(box.min + shift, box.max + shift))
@@ -362,16 +411,16 @@ namespace IsoRim
             }
             if (box.shadow)
             {
-                // Slid by the cast vector times the vertex alpha (0..1): the box and the box slid all the way.
-                Vector4 cast;
-                if (!Shader.TryGetGlobalVector(ShaderPropertyIDs.MapSunLightDirection, out cast))
+                // Slid by the cast vector times the vertex alpha (0..1): the box and the box slid all the way. Where it is
+                // drawn (shadows of things on the block's own floor), and for an upper floor also on the ground under the
+                // column, slid by the floor's height (its building shadows, Floors.ShadowSlide).
+                if (ShadowBoxVisible(box, shift, 0f, 0f))
                 {
                     return true;
                 }
-                Vector3 v = new Vector3(cast.x, cast.y, cast.z);
-                Vector3 lo = Vector3.Min(box.shadowMin, box.shadowMin + v) + shift;
-                Vector3 hi = Vector3.Max(box.shadowMax, box.shadowMax + v) + shift;
-                if (BoxVisible(lo - Vector3.one * 0.05f, hi + Vector3.one * 0.05f))
+                Vector3 ground;
+                float lo, hi;
+                if (Floors.ShadowSlide(section, out ground, out lo, out hi) && ShadowBoxVisible(box, ground, lo, hi))
                 {
                     return true;
                 }

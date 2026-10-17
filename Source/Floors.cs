@@ -118,6 +118,11 @@ namespace IsoRim
                     prefix: new HarmonyMethod(typeof(Floors), nameof(ThingPhase_Prefix)), finalizer: new HarmonyMethod(typeof(Floors), nameof(ThingPhase_Finalizer)));
                 h.Patch(AccessTools.Method(typeof(SectionLayer_Terrain), nameof(SectionLayer_Terrain.Regenerate)),
                     postfix: new HarmonyMethod(typeof(Floors), nameof(TerrainRegenerate_Postfix)));
+                if (SunShadowsType != null)
+                {
+                    h.Patch(AccessTools.DeclaredMethod(SunShadowsType, "ShouldDrawDynamic"),
+                        prefix: new HarmonyMethod(typeof(Floors), nameof(SunShadowsShouldDraw_Prefix)));
+                }
                 PatchDrawing(h);
                 ModLog.Note("[IsoRim] Floor layout registered: stacked floors are drawn.");
             }
@@ -503,6 +508,8 @@ namespace IsoRim
             bool visible = RowMatrix(__instance.botLeft.z, out m);
             if (!visible)
             {
+                // A hidden floor is not drawn, but its walls still cast their sun shadow on the ground (user 2026-10-16).
+                DrawHiddenShadow(__instance);
                 return false;
             }
             if (__instance.botLeft.z >= groundRows)
@@ -553,10 +560,16 @@ namespace IsoRim
                 // darken the ground under it a second time at night. Damage: IsoRim's own marks are on the shapes.
                 return false;
             }
-            if (layer is SectionLayer_EdgeShadows || layer.GetType().Name == "SectionLayer_SunShadows")
+            if (layer is SectionLayer_EdgeShadows)
             {
-                // The game's shadows round walls lie flat on the ground beside them; up here that is the open air,
-                // where they would hang as a dark sheet across the wall below.
+                // The game's soft band round walls lies flat on the floor beside them; up here that is the open air,
+                // where it would hang as a dark sheet across the wall below.
+                return false;
+            }
+            if (layer.GetType() == SunShadowsType)
+            {
+                // Sun shadows fall on the ground under the column, not in the open air beside the wall (DrawSunShadow).
+                DrawSunShadow(layer, layerSection(layer));
                 return false;
             }
             if (kind == 0)
@@ -578,6 +591,146 @@ namespace IsoRim
                     Graphics.DrawMesh(sm.mesh, sectionMatrix, mat, sm.renderLayer);
                 }
             }
+            return false;
+        }
+
+        // ---- sun shadows of upper floors (design isorim-pz-tall-shadows.md). The game builds each upper block's
+        // SectionLayer_SunShadows from that floor's own walls: a footprint whose edges slide along the cast vector by up to
+        // one wall (SunShadow.vert: + SunDir * vertex alpha). Drawn on the ground under the column (moved down by the
+        // floor's rows) and slid along the cast by the floor's height, it is that storey's part of the column's shadow:
+        // a wall over a wall joins into one shadow, a wall on a slab throws a band from the right place. The stencil of
+        // the SunShadow shader darkens each pixel once, so the parts never darken twice where they overlap. Each part
+        // covers its whole storey, from the top of the walls below to the top of its own (StoreyHeight is a little more
+        // than a wall): no light line between the parts at dawn and dusk. Roofs and slabs cast nothing (as the game's
+        // roofs); the receiver is the ground. Hidden floors still cast (user 2026-10-16).
+        internal static readonly Type SunShadowsType = AccessTools.TypeByName("Verse.SectionLayer_SunShadows");
+
+        // Harness A/B switch (ProjectZ test talltower): off, each part is only one wall long (a light line between them).
+        public static bool ShadowGapFill = true;
+
+        // A block of an upper floor (shown or hidden): how its sun shadow is moved to the ground (drawn space) and the
+        // slides, in cast lengths, its part covers: drawn at lo and hi (and between, a wall apart, if a storey is more
+        // than two walls), each draw covering one wall more. False for the ground, rows between floors and without floors.
+        public static bool ShadowSlide(Section section, out Vector3 groundShift, out float lo, out float hi)
+        {
+            groundShift = Vector3.zero;
+            lo = hi = 0f;
+            if (!On || section == null || section.botLeft.z < groundRows)
+            {
+                return false;
+            }
+            int k = FloorOfRow(section.botLeft.z);
+            if (k <= 0)
+            {
+                return false;
+            }
+            float wall = View3D.WallHeight;
+            hi = heights[k] / wall;
+            lo = ShadowGapFill ? Mathf.Min(hi, (k > 1 ? heights[k - 1] : 0f) / wall + 1f) : hi;
+            groundShift = new Vector3(0f, 0f, -shifts[k]);
+            return true;
+        }
+
+        private static void DrawSunShadow(SectionLayer layer, Section section)
+        {
+            Vector3 shift;
+            float lo, hi;
+            Vector4 cast;
+            if (layer == null || !ShadowSlide(section, out shift, out lo, out hi) || !Shader.TryGetGlobalVector(ShaderPropertyIDs.MapSunLightDirection, out cast))
+            {
+                return;
+            }
+            // The same global the shader slides by (_CastVect: IsoRim's mirrored sun, Patches.GetLightSourceInfo_Postfix).
+            Vector3 v = new Vector3(cast.x, 0f, cast.z);
+            List<LayerSubMesh> subs = layer.subMeshes;
+            float t = hi;
+            while (true)
+            {
+                Matrix4x4 m = Matrix4x4.Translate(shift + v * t);
+                for (int i = 0; i < subs.Count; i++)
+                {
+                    LayerSubMesh sm = subs[i];
+                    if (sm.finalized && !sm.disabled && sm.mesh != null && sm.mesh.vertexCount > 0)
+                    {
+                        Graphics.DrawMesh(sm.mesh, m, sm.material, sm.renderLayer);
+                    }
+                }
+                if (t <= lo + 0.0005f)
+                {
+                    break;
+                }
+                t = Mathf.Max(lo, t - 1f);
+            }
+        }
+
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Section, SectionLayer> sunLayers = new System.Runtime.CompilerServices.ConditionalWeakTable<Section, SectionLayer>();
+        private static readonly AccessTools.FieldRef<Section, List<SectionLayer>> sectionLayers = AccessTools.FieldRefAccess<Section, List<SectionLayer>>("layers");
+
+        private static SectionLayer SunLayerOf(Section section)
+        {
+            SectionLayer found;
+            if (sunLayers.TryGetValue(section, out found))
+            {
+                return found;
+            }
+            List<SectionLayer> layers = sectionLayers(section);
+            for (int i = 0; layers != null && i < layers.Count; i++)
+            {
+                if (layers[i].GetType() == SunShadowsType)
+                {
+                    found = layers[i];
+                    break;
+                }
+            }
+            sunLayers.Add(section, found);
+            return found;
+        }
+
+        // A block of a hidden floor: only its sun shadow, rebuilt here when its walls changed (the game rebuilds a block's
+        // layers when it is drawn, and a hidden one is not).
+        private static void DrawHiddenShadow(Section section)
+        {
+            Vector3 unusedShift;
+            float unusedLo, unusedHi;
+            if (SunShadowsType == null || !ShadowSlide(section, out unusedShift, out unusedLo, out unusedHi))
+            {
+                return;
+            }
+            SectionLayer layer = SunLayerOf(section);
+            if (layer == null || !layer.Visible)
+            {
+                return;
+            }
+            if (layer.Dirty)
+            {
+                layer.Dirty = false;
+                try
+                {
+                    layer.Regenerate();
+                }
+                catch (Exception e)
+                {
+                    Log.ErrorOnce("[IsoRim] Rebuilding the sun shadow of a hidden floor failed: " + e, 93611404);
+                }
+            }
+            if (Cull.ColumnShadowVisible(section))
+            {
+                DrawSunShadow(layer, section);
+            }
+        }
+
+        // The game's test for a block's sun shadow outside the view (Section.DrawDynamicSections): for an upper floor,
+        // where it falls on the ground.
+        public static bool SunShadowsShouldDraw_Prefix(SectionLayer __instance, ref bool __result)
+        {
+            Section section = layerSection(__instance);
+            Vector3 unusedShift;
+            float unusedLo, unusedHi;
+            if (!ShadowSlide(section, out unusedShift, out unusedLo, out unusedHi))
+            {
+                return true;
+            }
+            __result = Cull.ColumnShadowVisible(section);
             return false;
         }
 
