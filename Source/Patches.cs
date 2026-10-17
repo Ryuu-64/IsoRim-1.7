@@ -283,7 +283,7 @@ namespace IsoRim
             {
                 aiming = null;
             }
-            Patch("3D weapons in hand", aiming, prefix: nameof(DrawEquipmentAiming_Prefix));
+            Patch("3D weapons in hand", aiming, prefix: nameof(DrawEquipmentAiming_Prefix), finalizer: nameof(DrawEquipmentAiming_Finalizer));
 
             // Wind turbines: the blades are a turning 3D model.
             Type wind = AccessTools.TypeByName("RimWorld.CompPowerPlantWind");
@@ -2140,6 +2140,8 @@ namespace IsoRim
                         Vector3 off = (__1 - centre).RotatedBy(turn);
                         __1 = new Vector3(centre.x + off.x, __1.y, centre.z + off.z);
                         __2 = Mathf.Repeat(__2 + turn, 360f);
+                        // Where the barrel ends as drawn: shots start there (Projectiles.CardTip).
+                        Projectiles.BeginTip(uprightPawn, __0, pawnFeet.y);
                     }
                     return true;
                 }
@@ -2159,6 +2161,12 @@ namespace IsoRim
                 Log.ErrorOnce("[IsoRim] Drawing a held weapon failed: " + e, 93611016);
                 return true;
             }
+        }
+
+        // The weapon has been drawn (or a mod drew it its own way): no longer looking for its barrel tip.
+        public static void DrawEquipmentAiming_Finalizer()
+        {
+            Projectiles.EndTip();
         }
 
         // A projectile drawn at its height in 3D (Projectiles). __0 is where the game would draw it.

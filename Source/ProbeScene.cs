@@ -123,6 +123,8 @@ namespace IsoRim
     //   tickuntil=bursting|intercept|burst,N  game ticks until some turret fires a burst / some shield stops a projectile /
     //                                some slow fleck emitter (toxic spewer) throws its puffs (at most N <= 900)
     //   tickuntil=flash,N[,x,z]      game ticks until a shot's muzzle flash was made (by the shooter in that cell), at most N
+    //   tipmarks=0|1                 2D pawns aiming on cards: a magenta dot where their shots start (the drawn barrel tip) and a cyan dot
+    //                                where they started before (Projectiles.TipMarks), for measuring against the drawn barrel
     //   muzzle=0|1                   shots leave from the muzzle (Projectiles.Muzzle, default 1): the flash standing there and the
     //                                bullet drawn from there; 0: the game's flat flash and the bullet from the middle (before/after)
     //   clearflashes=1               the shot flashes in the air removed, no tick (the same frame without them, for diffs)
@@ -1441,6 +1443,9 @@ namespace IsoRim
                     }
                     break;
                 }
+                case "tipmarks":
+                    HarmonyLib.AccessTools.Field(typeof(Projectiles), "TipMarks")?.SetValue(null, a[0] == "1");   // (by reflection: builds without it too)
+                    break;
                 case "muzzle":
                     Projectiles.FromMuzzle = a[0] == "1";
                     break;

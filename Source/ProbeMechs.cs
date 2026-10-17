@@ -15,6 +15,8 @@ namespace IsoRim
     //   attack=x0,z0,x1,z1            the pawn in the first cell given the job to fire at the thing (or cell) in the second
     //   undrafted=x,z,wait|tx,tz      the colonist in (x,z) undrafted and given a job that shows its weapon (the game's alwaysShowWeapon):
     //                                 wait = standing guard (Wait_Combat, the carry pose), or fire at the thing in (tx,tz) (AttackStatic)
+    //   tipcheck=1                    logs where each aiming colonist's shots start (Projectiles.Muzzle), its drawn barrel tip and every
+    //                                 projectile's drawn start (Projectiles.DrawnStart)
     //   rotupdate=1                   every colonist turned as the game turns it after a tick (toward what it aims at)
     //   aimcheck=1                    logs every standing colonist: aiming as the game draws it, the game's aim and the aim on a card
     //                                 (Patches.CardAim), map facing and the sprite facing seen
@@ -190,6 +192,52 @@ namespace IsoRim
                             + " yaw " + View3D.Yaw.ToString("0") + " pitch " + View3D.Pitch.ToString("0.0"));
                     }
                     return true;
+                case "tipcheck":
+                {
+                    // Each standing colonist that aims: the muzzle shots start from (Projectiles.Muzzle) and, where the build has
+                    // it, the barrel tip as last drawn (Projectiles.LastTip, by reflection for builds without it), in cells; and
+                    // every projectile in flight: where its drawn flight starts (Projectiles.DrawnStart).
+                    System.Reflection.MethodInfo lastTip = HarmonyLib.AccessTools.Method(typeof(Projectiles), "LastTip");
+                    foreach (Pawn p in map.mapPawns.FreeColonistsSpawned)
+                    {
+                        Stance_Busy busy = p.stances != null ? p.stances.curStance as Stance_Busy : null;
+                        if (busy == null || !busy.focusTarg.IsValid || p.equipment == null || p.equipment.Primary == null)
+                        {
+                            continue;
+                        }
+                        Vector3 to = busy.focusTarg.HasThing ? busy.focusTarg.Thing.DrawPos : busy.focusTarg.Cell.ToVector3Shifted();
+                        Vector3 d = Floors.FlatDelta(p.DrawPos, to);
+                        d = d.sqrMagnitude > 0.001f ? d.normalized : Vector3.zero;
+                        Vector3 m = Projectiles.Muzzle(p, p.equipment.Primary.def, p.DrawPos, d);
+                        string tip = "-";
+                        if (lastTip != null)
+                        {
+                            object[] args = { p, Vector3.zero, 0 };
+                            if ((bool)lastTip.Invoke(null, args))
+                            {
+                                Vector3 t = (Vector3)args[1];
+                                tip = t.x.ToString("0.000") + "," + t.y.ToString("0.000") + "," + t.z.ToString("0.000") + " age " + args[2];
+                            }
+                        }
+                        // The muzzle on screen (pixels from the top left) with the camera as it is now, and where the camera is.
+                        Vector3 w = new Vector3(m.x, p.DrawPos.y + m.y / View3D.Squash, m.z);
+                        Floors.Drawn(ref w);
+                        Vector3 sp = Find.Camera.WorldToScreenPoint(w);
+                        Log.Message("[IsoRim probe] tipcheck " + p.LabelShort + " at " + p.Position + " muzzle " + m.x.ToString("0.000") + "," + m.y.ToString("0.000") + "," + m.z.ToString("0.000")
+                            + " drawn tip " + tip + " yaw " + View3D.Yaw.ToString("0") + " px " + sp.x.ToString("0.0") + "," + (Screen.height - sp.y).ToString("0.0")
+                            + " cam " + Find.CameraDriver.MapPosition + " frame " + Time.frameCount);
+                    }
+                    foreach (Thing t in map.listerThings.ThingsInGroup(ThingRequestGroup.Projectile))
+                    {
+                        if (t is Projectile pr)
+                        {
+                            Vector3 st = Projectiles.DrawnStart(pr);
+                            Log.Message("[IsoRim probe] tipcheck projectile " + pr.def.defName + " from " + (pr.Launcher != null ? pr.Launcher.LabelShort : "-") + " drawn start "
+                                + st.x.ToString("0.000") + "," + st.y.ToString("0.000") + "," + st.z.ToString("0.000"));
+                        }
+                    }
+                    return true;
+                }
                 case "haul":
                 {
                     Pawn p = PawnAt(map, I(a[0]), I(a[1]));

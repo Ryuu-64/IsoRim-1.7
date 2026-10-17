@@ -277,11 +277,232 @@ namespace IsoRim
 
         // The muzzle, the one point both a shot's flash and its bullet's drawn flight start from: from (where the game
         // launches the shot, the shooter's middle) moved MuzzleReach along dir (flat), at MuzzleHeight (in y, cells
-        // above the ground). gun is the weapon's def (null if unknown).
+        // above the ground). gun is the weapon's def (null if unknown). A 2D pawn on a card fires from the end of its
+        // barrel as the weapon was last drawn (CardTip).
         public static Vector3 Muzzle(Thing owner, ThingDef gun, Vector3 from, Vector3 dir)
         {
+            Vector3 tip;
+            if (CardTip(owner, gun, out tip))
+            {
+                return tip;
+            }
             Vector3 at = from + dir * MuzzleReach(owner, gun);
             return new Vector3(at.x, MuzzleHeight(owner), at.z);
+        }
+
+        // ---- The barrel tip of a 2D pawn's weapon on its card. The game draws the aimed weapon itself
+        // (PawnRenderUtility.DrawEquipmentAiming: its offsets, flip and recoil, and whatever other mods change there);
+        // IsoRim only turns the aim and stands the drawing up with the card (Patches.DrawEquipmentAiming_Prefix, DrawHook).
+        // While that runs (BeginTip, EndTip) the weapon's own mesh is caught on its way to Unity (TipDrawn) and the end
+        // of the barrel, found in the sprite's pixels (BarrelEnd), is carried through the same matrices. A shot fired
+        // soon after starts there (bullet, flash, tracer); 3D figures, mechs and turrets keep their own muzzles.
+
+        private sealed class Tip
+        {
+            public Vector3 at;        // x, z in the game's rows; y cells above the ground
+            public ThingDef gun;
+            public int frame;
+            public float yaw, pitch;  // the camera it was drawn for (a turned camera draws the card, and its tip, elsewhere)
+        }
+
+        private static readonly ConditionalWeakTable<Thing, Tip> tips = new ConditionalWeakTable<Thing, Tip>();
+        private static readonly Dictionary<int, Vector2> barrelEnds = new Dictionary<int, Vector2>();
+
+        private const int TipFrames = 30;     // how long a drawn tip is good for (a pawn on screen is drawn every frame)
+        private const float TipLow = 0.05f;   // cells: a drawn tip lower than this is lifted along the line of sight
+
+        private static Thing tipPawn;
+        private static Thing tipWeapon;
+        private static float tipGround;      // the drawn y of the pawn's ground (DrawHook space)
+
+        // Patches.DrawEquipmentAiming_Prefix, for an upright 2D pawn that is aiming: the next mesh drawn is its weapon.
+        public static void BeginTip(Thing pawn, Thing weapon, float ground)
+        {
+            tipPawn = pawn;
+            tipWeapon = weapon;
+            tipGround = ground;
+        }
+
+        public static void EndTip()
+        {
+            tipPawn = null;
+            tipWeapon = null;
+        }
+
+        public static bool CatchingTip
+        {
+            get { return tipPawn != null; }
+        }
+
+        // DrawHook: the weapon's mesh with the game's matrix (before the card's xform).
+        public static void TipDrawn(Mesh mesh, Matrix4x4 matrix)
+        {
+            Thing pawn = tipPawn;
+            Thing weapon = tipWeapon;
+            tipPawn = null;   // one mesh: the weapon's
+            tipWeapon = null;
+            if (pawn == null || weapon == null)
+            {
+                return;
+            }
+            try
+            {
+                Vector2 uv;
+                if (!BarrelEnd(weapon, out uv))
+                {
+                    return;
+                }
+                bool flipped = mesh == MeshPool.plane10Flip;
+                // The plane's corners are at -0.5..0.5 (x, z), u = x + 0.5 (the flipped plane: 0.5 - x), v = z + 0.5.
+                Vector3 local = new Vector3(flipped ? 0.5f - uv.x : uv.x - 0.5f, 0f, uv.y - 0.5f);
+                Vector3 drawn = DrawHook.xform.MultiplyPoint3x4(matrix.MultiplyPoint3x4(local));
+                Vector3 at = new Vector3(drawn.x, (drawn.y - tipGround) * View3D.Squash, drawn.z);
+                if (at.y < TipLow)
+                {
+                    // A barrel drawn pointing down the card ends below the feet, under the ground: the point is slid along
+                    // the camera's line of sight (it stays on the same pixel) up to just above the ground.
+                    float pitch = View3D.Pitch * Mathf.Deg2Rad;
+                    float t0 = (TipLow - at.y) / Mathf.Max(0.05f, Mathf.Sin(pitch));
+                    Vector3 back = View3D.GroundForward * (t0 * Mathf.Cos(pitch));
+                    at = new Vector3(at.x - back.x, TipLow, at.z - back.z);
+                }
+                Tip t = tips.GetValue(pawn, k => new Tip());
+                t.at = at;
+                if (TipMarks)
+                {
+                    TipMarksDraw(pawn, weapon, at);
+                }
+                t.gun = weapon.def;
+                t.frame = Time.frameCount;
+                t.yaw = View3D.Yaw;
+                t.pitch = View3D.Pitch;
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Finding the end of a drawn weapon's barrel failed: " + e, 93611504);
+            }
+        }
+
+        // Harness only (probe tipmarks=1): a magenta dot where a 2D pawn's shots start (the drawn tip) and a cyan one where
+        // they started before (MuzzleReach along the aim at MuzzleHeight), for measuring both against the drawn barrel.
+        public static bool TipMarks;
+        private static Material markTip, markOld;
+
+        private static void TipMarksDraw(Thing pawn, Thing weapon, Vector3 at)
+        {
+            if (markTip == null)
+            {
+                markTip = new Material(SolidColorMaterials.SimpleSolidColorMaterial(new Color(1f, 0f, 1f)));
+                markTip.renderQueue = 4000;
+                markOld = new Material(SolidColorMaterials.SimpleSolidColorMaterial(new Color(0f, 1f, 1f)));
+                markOld.renderQueue = 4000;
+            }
+            Quaternion face = Quaternion.Euler(View3D.Pitch - 90f, View3D.Yaw, 0f);
+            Vector3 w = new Vector3(at.x, tipGround + at.y / View3D.Squash, at.z);
+            Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(w, face, new Vector3(0.05f, 1f, 0.05f)), markTip, 0);
+            Pawn p = pawn as Pawn;
+            Stance_Busy busy = p != null && p.stances != null ? p.stances.curStance as Stance_Busy : null;
+            if (busy != null && busy.focusTarg.IsValid)
+            {
+                Vector3 d = Floors.FlatDelta(p.DrawPos, busy.focusTarg.HasThing ? busy.focusTarg.Thing.DrawPos : busy.focusTarg.Cell.ToVector3Shifted());
+                d = d.sqrMagnitude > 0.001f ? d.normalized : Vector3.zero;
+                Vector3 old = p.DrawPos + d * MuzzleReach(p, weapon.def);
+                Vector3 wo = new Vector3(old.x, tipGround + MuzzleHeight(p) / View3D.Squash, old.z);
+                Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(wo, face, new Vector3(0.05f, 1f, 0.05f)), markOld, 0);
+            }
+        }
+
+        // The drawn barrel tip of a 2D pawn's aimed weapon, if it was drawn just now with that gun.
+        public static bool CardTip(Thing owner, ThingDef gun, out Vector3 at)
+        {
+            at = Vector3.zero;
+            Tip t;
+            if (!(owner is Pawn) || !tips.TryGetValue(owner, out t) || Time.frameCount - t.frame > TipFrames || (gun != null && t.gun != gun)
+                || Mathf.Abs(Mathf.DeltaAngle(t.yaw, View3D.Yaw)) > 2f || Mathf.Abs(t.pitch - View3D.Pitch) > 1f)
+            {
+                return false;
+            }
+            at = t.at;
+            return true;
+        }
+
+        // Harness (probe aimcheck): a pawn's last drawn tip and how many frames ago it was drawn.
+        public static bool LastTip(Thing owner, out Vector3 at, out int age)
+        {
+            at = Vector3.zero;
+            age = -1;
+            Tip t;
+            if (owner == null || !tips.TryGetValue(owner, out t))
+            {
+                return false;
+            }
+            at = t.at;
+            age = Time.frameCount - t.frame;
+            return true;
+        }
+
+        // The end of a weapon sprite's barrel in texture coordinates (u, v): of its opaque pixels, the middle of those
+        // furthest along the way the game points the sprite (+u turned back by equippedAngleOffset, the angle the game
+        // adds for art drawn at a slant), measured at the drawn size so a long sprite is not squeezed.
+        private static bool BarrelEnd(Thing weapon, out Vector2 uv)
+        {
+            uv = new Vector2(1f, 0.5f);
+            Graphic g = weapon.Graphic;
+            Material mat = g != null ? g.MatSingleFor(weapon) : null;
+            if (mat == null || mat.mainTexture == null)
+            {
+                return false;
+            }
+            int key = mat.GetInstanceID();
+            if (barrelEnds.TryGetValue(key, out uv))
+            {
+                return uv.x >= 0f;
+            }
+            const int n = 128;
+            Color32[] px = SpritePixels.Sample(mat.mainTexture, Vector2.one, Vector2.zero, n);
+            if (px == null && !SpritePixels.IsSheet(mat.mainTexture))
+            {
+                px = SpritePixels.GpuSample(mat.mainTexture, n);
+            }
+            uv = new Vector2(-1f, -1f);
+            if (px != null && px.Length >= n * n)
+            {
+                Vector3 d3 = Quaternion.AngleAxis(-weapon.def.equippedAngleOffset, Vector3.up) * Vector3.right;
+                Vector2 size = g.drawSize;
+                Vector2 dir = new Vector2(d3.x * size.x, d3.z * size.y);   // along the art, texture units scaled to cells
+                float best = float.MinValue;
+                for (int j = 0; j < n; j++)
+                {
+                    for (int i = 0; i < n; i++)
+                    {
+                        if (px[j * n + i].a > 128)
+                        {
+                            best = Mathf.Max(best, (i + 0.5f) / n * dir.x + (j + 0.5f) / n * dir.y);
+                        }
+                    }
+                }
+                if (best > float.MinValue)
+                {
+                    // The pixels within a pixel and a half of the furthest: the mouth of the barrel.
+                    float near = best - 1.5f / n * dir.magnitude;
+                    Vector2 sum = Vector2.zero;
+                    int count = 0;
+                    for (int j = 0; j < n; j++)
+                    {
+                        for (int i = 0; i < n; i++)
+                        {
+                            if (px[j * n + i].a > 128 && (i + 0.5f) / n * dir.x + (j + 0.5f) / n * dir.y >= near)
+                            {
+                                sum += new Vector2((i + 0.5f) / n, (j + 0.5f) / n);
+                                count++;
+                            }
+                        }
+                    }
+                    uv = sum / count;
+                }
+            }
+            barrelEnds[key] = uv;
+            return uv.x >= 0f;
         }
 
         // Who the shot leaves from: the turret, when its gun was fired by the pawn manning it (a mortar: the game

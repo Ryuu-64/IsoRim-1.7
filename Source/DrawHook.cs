@@ -97,6 +97,10 @@ namespace IsoRim
             }
             if (active)
             {
+                if (Projectiles.CatchingTip)
+                {
+                    Projectiles.TipDrawn(mesh, matrix);   // a 2D pawn's aimed weapon: where its barrel ends (shots start there)
+                }
                 matrix = Transform(matrix);
             }
             if (floor)
