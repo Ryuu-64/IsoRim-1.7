@@ -1548,6 +1548,7 @@ namespace IsoRim
                 IsoRimSettings st = IsoRimMod.Settings;
                 Pawn pawn = pawnOfRenderer != null ? pawnOfRenderer(__instance) : null;
                 float spriteHeight = 1.5f;
+                Cards.Drawn(pawn);   // not a card this frame unless stood up below (Api.IsCard)
 
                 if (pawn != null && pawn == FirstPerson.Pawn)
                 {
@@ -1662,6 +1663,7 @@ namespace IsoRim
                 pawnFeet = feet;
                 pawnSize = spriteHeight / 1.5f;
                 cardAiming = pawn != null && CardAim(pawn, __2, out cardAimGame, out cardAimSeen);
+                Cards.Upright(pawn);   // where its card stands this frame (Api.DrawOnCard)
             }
             catch (Exception e)
             {

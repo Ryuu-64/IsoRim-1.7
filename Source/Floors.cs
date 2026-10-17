@@ -43,7 +43,7 @@ namespace IsoRim
     }
 
     // Hooks for gameplay addons. Everything is off (null) by default and then costs nothing.
-    public static class Api
+    public static partial class Api
     {
         private static IFloorLayout floors;
 
