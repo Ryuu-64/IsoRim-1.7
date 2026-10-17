@@ -8461,4 +8461,123 @@
   <!-- VoidmetalWall (and Odyssey BurrowWall): no model, they stay procedural blocks; their colours come from code 6
        (WallBoxes.BlockTones: own atlas, sides + cap). -->
 
+  <!-- Surface junk clusters (Core Things/Building/Ruins defs scattered by Ideology's surface-junk GenStep; 2026-10-17,
+       Blender block-out v1): one model per def, close to the vanilla sprite, Models\junk_surface.mtl (junk_* fixed
+       colours; stuffless defs, no stuff* faces). Exact thingDef entries; no match word caught these defs before, so they
+       were extruded sprites. The Graphic_Random defs (washing machine, shopping cart, wheel, giant wheel) use the one
+       model for every sprite variant. Only AncientLargeContainer is rotatable: built facing north with its doors at the
+       south end, which is what vanilla shows for North (it has no north sprite, so North falls back to the south one);
+       its east/west sprite is the same at both ends. Engines and the pod car are not rotatable (fixed east-west). -->
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientRefrigerator</defName>
+    <thingDef>AncientRefrigerator</thingDef>
+    <model>Models/junk_refrigerator.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientOven</defName>
+    <thingDef>AncientOven</thingDef>
+    <model>Models/junk_oven.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientMicrowave</defName>
+    <thingDef>AncientMicrowave</thingDef>
+    <model>Models/junk_microwave.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientWashingMachine</defName>
+    <thingDef>AncientWashingMachine</thingDef>
+    <model>Models/junk_washing_machine.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientVendingMachine</defName>
+    <thingDef>AncientVendingMachine</thingDef>
+    <model>Models/junk_vending_machine.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientKitchenSink</defName>
+    <thingDef>AncientKitchenSink</thingDef>
+    <model>Models/junk_kitchen_sink.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientPostbox</defName>
+    <thingDef>AncientPostbox</thingDef>
+    <model>Models/junk_postbox.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientShoppingCart</defName>
+    <thingDef>AncientShoppingCart</thingDef>
+    <model>Models/junk_shopping_cart.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientWheel</defName>
+    <thingDef>AncientWheel</thingDef>
+    <model>Models/junk_wheel.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientGiantWheel</defName>
+    <thingDef>AncientGiantWheel</thingDef>
+    <model>Models/junk_giant_wheel.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientJetEngine</defName>
+    <thingDef>AncientJetEngine</thingDef>
+    <model>Models/junk_jet_engine.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientDropshipEngine</defName>
+    <thingDef>AncientDropshipEngine</thingDef>
+    <model>Models/junk_dropship_engine.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientPodCar</defName>
+    <thingDef>AncientPodCar</thingDef>
+    <model>Models/junk_pod_car.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientLargeContainer</defName>
+    <thingDef>AncientLargeContainer</thingDef>
+    <model>Models/junk_large_container.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 5)</builtFor>
+  </IsoRim.ModelDef>
+
 </Defs>
