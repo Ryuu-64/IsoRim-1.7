@@ -986,9 +986,13 @@ namespace IsoRim
             return sb.ToString();
         }
 
+        // While set, single meshes are drawn as given: the caller worked out drawn space itself (SkyStrikes: a column
+        // from the sky whose matrix may reach far past its impact cell's rows, which must not be read as another floor).
+        public static bool InDrawnSpace;
+
         public static bool Single_Prefix(ref Matrix4x4 matrix)
         {
-            return !On || Drawn(ref matrix);
+            return !On || InDrawnSpace || Drawn(ref matrix);
         }
 
         private static Matrix4x4[] instanceBuffer = new Matrix4x4[256];

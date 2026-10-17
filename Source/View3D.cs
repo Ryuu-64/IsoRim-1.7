@@ -1176,6 +1176,17 @@ namespace IsoRim
                 * Matrix4x4.Translate(-pivot);
         }
 
+        // Stands a flat quad up vertically over pivot, turned toward the camera about the world vertical only (no lean
+        // back by the pitch): the game's "up the screen" (+z of a flat drawing) becomes straight up, its east stays to
+        // the right on screen. For columns from the sky (SkyStrikes), which must not tip over when the camera pitches.
+        public static Matrix4x4 VerticalMatrix(Vector3 pivot)
+        {
+            return Matrix4x4.Translate(pivot)
+                * Matrix4x4.Scale(new Vector3(1f, 1f / Squash, 1f))
+                * Matrix4x4.Rotate(Quaternion.Euler(-90f, Yaw, 0f))
+                * Matrix4x4.Translate(-pivot);
+        }
+
         // Turns a movement given in screen terms (x to the right, y up the screen) into one along
         // the ground. With exact set, a movement up the screen is also stretched to make up for
         // the ground being seen at a slant, so that a dragged map stays under the pointer.

@@ -94,6 +94,10 @@ namespace IsoRim
                 }
                 row = Floors.RowOffset(p.Position.z);
             }
+            if (SkyStrikes.Enabled && p.def.projectile.flyOverhead && p.def.projectile.arcHeightFactor < 0.5f && p.def.graphicData != null)
+            {
+                return DrawLobbed(p, drawLoc, row);
+            }
             float arc = arcHeight(p) * GenMath.InverseParabola(arcFraction(p));
             float h = Height(p, drawLoc) + arc;
             // Drawn leaving from the muzzle, not the shooter's middle, and back on the game's path by the target (only
@@ -122,6 +126,50 @@ namespace IsoRim
                 {
                     Graphics.DrawMesh(MeshPool.GridPlane(p.def.graphicData.drawSize), at, rotation, p.DrawMat, 0);
                 }
+                postDraw(p);
+            }
+            finally
+            {
+                DrawHook.floor = wasFloor;
+            }
+            return false;
+        }
+
+        // Mortar and artillery shells (flyOverhead, no arc of their own: vanilla flies them straight, which in 3D skimmed
+        // the ground through walls): a drawn ballistic arc from the muzzle up into the sky and down onto the target, its
+        // top SkyStrikes.ShellArc of the flat flight length (capped). It lands on the top of the target's column (a shell
+        // from the sky hits the highest floor built there, as ProjectZ lands it). The sprite is a card facing the camera,
+        // its nose along the arc as seen on screen; the shadow lies on what is under the shell. Only the drawing changes:
+        // the flight, its timing and the hit are the game's.
+        private static bool DrawLobbed(Projectile p, Vector3 drawLoc, Vector3 row)
+        {
+            Flight f = flights.GetValue(p, Begin);
+            Vector3 o = originRef(p);
+            Vector3 d = destinationRef(p);
+            float length = new Vector2(d.x - o.x, d.z - o.z).magnitude;
+            float t = Flown(p, drawLoc);
+            float apex = Mathf.Min(SkyStrikes.ShellArc * length, SkyStrikes.ShellArcMax);
+            float start = f.start + FloorHeight(f.launcherRow);
+            float end = SkyStrikes.LandingHeight(p.Map, d.ToIntVec3(), f.end + FloorHeight(f.targetRow));
+            float up = 4f * t * (1f - t);
+            float h = Mathf.Lerp(start, end, t) + apex * up;
+            Vector3 flat = length > 0.001f ? new Vector3(d.x - o.x, 0f, d.z - o.z) : Vector3.zero;
+            Vector3 along = flat + Vector3.up * (end - start + apex * 4f * (1f - 2f * t));
+            drawLoc += f.lead * (1f - t);
+            bool wasFloor = DrawHook.floor;
+            DrawHook.floor = false;
+            try
+            {
+                float sq = View3D.Squash;
+                if (p.def.projectile.shadowSize > 0f)
+                {
+                    SkyStrikes.Impact under = SkyStrikes.ImpactAt(p.Map, p.Position);
+                    DrawShadow(p, drawLoc + new Vector3(0f, under.height / sq, row.z), up);
+                }
+                Vector3 at = drawLoc + new Vector3(0f, h / sq, row.z);
+                Vector2 size = p.def.graphicData.drawSize;
+                Matrix4x4 m = SkyStrikes.Card(at, SkyStrikes.ScreenSpin(along)) * Matrix4x4.Scale(new Vector3(size.x, 1f, size.y));
+                Graphics.DrawMesh(MeshPool.plane10, m, p.DrawMat, 0);
                 postDraw(p);
             }
             finally

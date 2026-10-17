@@ -417,6 +417,12 @@ namespace IsoRim
                 prefix: nameof(SkyfallerDrawAt_Prefix));
             Patch("skyfallers from the sky", AccessTools.DeclaredMethod(typeof(Skyfaller_FlyingPawn), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
                 prefix: nameof(SkyfallerDrawAt_Prefix));
+            // Power beams, bombardments (and the orbital strike permits) and lightning stand up from where they hit into
+            // the sky, not lie on the ground running north (SkyStrikes).
+            Patch("strikes from the sky", AccessTools.DeclaredMethod(typeof(CompOrbitalBeam), "PostDraw"), prefix: nameof(OrbitalBeamPostDraw_Prefix));
+            Patch("strikes from the sky", AccessTools.DeclaredMethod(typeof(Bombardment), "DrawAt", new[] { typeof(Vector3), typeof(bool) }), prefix: nameof(BombardmentDrawAt_Prefix));
+            Patch("strikes from the sky", AccessTools.DeclaredMethod(typeof(WeatherEvent_LightningStrike), "WeatherEventDraw"), prefix: nameof(LightningDraw_Prefix));
+            Patch("strikes from the sky", AccessTools.DeclaredMethod(typeof(WeatherEvent_LightningStrikeDelayed), "WeatherEventDraw"), prefix: nameof(LightningDraw_Prefix));
             // A shot's flash at the muzzle, standing up, not flat in the middle of the shooter (Projectiles.ShotFlash).
             Patch("muzzle flashes at the muzzle", AccessTools.DeclaredMethod(typeof(Verb), "TryCastNextBurstShot"), transpiler: nameof(ShotFlash_Transpiler));
 
@@ -2781,6 +2787,45 @@ namespace IsoRim
             }
         }
 
+        public static bool OrbitalBeamPostDraw_Prefix(CompOrbitalBeam __instance)
+        {
+            try
+            {
+                return SkyStrikes.BeamPostDraw(__instance);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Drawing an orbital beam in 3D failed: " + e, 93611521);
+                return true;
+            }
+        }
+
+        public static bool BombardmentDrawAt_Prefix(Bombardment __instance)
+        {
+            try
+            {
+                return SkyStrikes.BombardmentDrawAt(__instance);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Drawing a bombardment in 3D failed: " + e, 93611522);
+                return true;
+            }
+        }
+
+        public static bool LightningDraw_Prefix(WeatherEvent_LightningFlash __instance)
+        {
+            try
+            {
+                return SkyStrikes.LightningDraw(__instance);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Drawing a lightning bolt in 3D failed: " + e, 93611523);
+                return true;
+            }
+        }
+
         public static bool StatueDrawAt_Prefix(CompStatue __instance, Vector3 __0)
         {
             return Statues.DrawAt_Prefix(__instance, __0);
@@ -2906,6 +2951,14 @@ namespace IsoRim
                 // over its cell at the top of the walls, as the game draws it over the cell. Stood up like the icons
                 // below, it showed as striped boards round anyone building a roof.
                 BeginFlat(ref __state, View3D.WallHeight + RoofTileLift);
+                return;
+            }
+            // The power beam's and the bombardment's huge ground glow lies flat on what the strike hits (SkyStrikes);
+            // stood up as an overhead icon it was a 90-cell card across the screen.
+            float glowLift;
+            if (mote != null && SkyStrikes.FlatGlow(mote, out glowLift))
+            {
+                BeginFlat(ref __state, glowLift);
                 return;
             }
             // Speech bubbles and icons over people's heads stand up and float above them.
