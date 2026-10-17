@@ -676,7 +676,8 @@ namespace IsoRim
     // A ship roof cell (lid kind 3 in SectionLayer_IsoRimRoofs) is a built roof whose cell has Substructure
     // as its foundation (TerrainGrid.FoundationAt(c).IsSubstructure, the test the game's hull layer uses),
     // or a wall, door or vac barrier standing on Substructure beside one (the edge of the roof). Every other
-    // built roof keeps the pitched house roof. A corner piece cell gets a triangle when either of its two
+    // built roof keeps the pitched house roof (an upper-floor opening in a ship's deck, IFloorLayout.ShipCell, counts
+    // as Substructure here). A corner piece cell gets a triangle when either of its two
     // hull neighbours carries the ship roof.
     [StaticConstructorOnStartup]
     public static class ShipRoofs
@@ -703,7 +704,17 @@ namespace IsoRim
                 return false;
             }
             TerrainDef f = map.terrainGrid.FoundationAt(c);
-            return f != null && f.IsSubstructure;
+            if (f != null && f.IsSubstructure)
+            {
+                return true;
+            }
+            // (an upper-floor opening in a ship's deck, the floor layout's say: IFloorLayout.ShipCell)
+            if (f != null || Api.Floors == null)
+            {
+                return false;
+            }
+            int ground = Api.Floors.GroundRows(map);
+            return ground > 0 && c.z >= ground && Api.Floors.ShipCell(map, c);
         }
 
         // The deck's material: plain colours, shaded by the sun like the house roof's slates, sky light only.
