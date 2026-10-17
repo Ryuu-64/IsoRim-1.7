@@ -875,12 +875,16 @@
   <IsoRim.ModelDef>
     <defName>R3D_Plant_TreeGauranlen</defName>
     <thingDef>Plant_TreeGauranlen</thingDef>
-    <model>Models/tree_gauranlen.obj</model>
+    <models>
+      <li>Models/tree_gauranlen_a.obj</li>
+      <li>Models/tree_gauranlen_b.obj</li>
+    </models>
     <surfaceHeight>0.00</surfaceHeight>
     <randomRotation>true</randomRotation>
     <scaleJitter>0.12</scaleJitter>
     <growthScale>true</growthScale>
     <outline>0.55</outline>
+    <keepLeaves>true</keepLeaves>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
