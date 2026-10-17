@@ -40,6 +40,13 @@ namespace IsoRim
         {
             return -1;
         }
+
+        // A cell of a gravship's upper floor that has no Substructure but belongs to the ship (an opening in a deck,
+        // such as a stairwell): its built roof is drawn as the ship's roof. False for most.
+        bool ShipCell(Map map, IntVec3 c)
+        {
+            return false;
+        }
     }
 
     // Hooks for gameplay addons. Everything is off (null) by default and then costs nothing.
