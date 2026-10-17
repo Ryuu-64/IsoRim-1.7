@@ -30,6 +30,7 @@ namespace IsoRim
     //                                 running at normal speed meanwhile (renders\<harness tag>\walk_<tag>_<frame>.png), camera held at (x,z,size);
     //                                 with a 7th part "follow", centred on the pawns walking on a forced job instead
     //   facecheck=1                   logs every pawn: map facing, step it is walking, sprite facing seen (View3D.SeenFacing), 3D model
+    //   drawcheck=1                   logs every standing person: map facing, step, the facing its sprite is drawn with (all mods' patches)
     //   turrettarget=x,z,tx,tz        the turret comp of the pawn in (x,z) given the pawn (or cell) at (tx,tz) as its target
     //   mechcheck=1                   logs every mech and carrying pawn on the map (Mechs.Report)
     //   rot=x,z,rotting|dessicated    every corpse in the cell (and one held by the building there) rotted that far (CompRottable.RotImmediately)
@@ -401,6 +402,35 @@ namespace IsoRim
                             + " model " + Patches.DrawnAsModel(p));
                     }
                     return true;
+                case "drawcheck":
+                {
+                    // Each standing person: map facing, the way it is walking, and the facing its sprite is drawn with as the game works
+                    // it out ahead of drawing (ParallelGetPreRenderResults, with every mod's patches and IsoRim's camera turn).
+                    System.Reflection.MethodInfo pre = HarmonyLib.AccessTools.Method(typeof(PawnRenderer), "ParallelGetPreRenderResults");
+                    foreach (Pawn p in map.mapPawns.AllPawnsSpawned.ToList())
+                    {
+                        if (pre == null || p.RaceProps == null || !p.RaceProps.Humanlike || p.Dead || p.GetPosture() != PawnPosture.Standing)
+                        {
+                            continue;
+                        }
+                        IntVec3 step = p.pather != null && p.pather.MovingNow ? p.pather.nextCell - p.Position : IntVec3.Zero;
+                        object drawn;
+                        try
+                        {
+                            p.Drawer.renderer.EnsureGraphicsInitialized();
+                            object res = pre.Invoke(p.Drawer.renderer, new object[] { p.DrawPos, null, false, true });
+                            object parms = HarmonyLib.Traverse.Create(res).Field("parms").GetValue();
+                            drawn = parms != null ? HarmonyLib.Traverse.Create(parms).Field("facing").GetValue() : null;
+                        }
+                        catch (Exception)
+                        {
+                            drawn = "(not drawn yet)";
+                        }
+                        Log.Message("[IsoRim probe] drawcheck " + p.LabelShort + " at " + p.Position + " yaw " + View3D.Yaw.ToString("0") + " rot " + p.Rotation
+                            + " step " + step.x + "," + step.z + " drawn " + drawn + " seen " + View3D.SeenFacing(p.Rotation) + " model " + Patches.DrawnAsModel(p));
+                    }
+                    return true;
+                }
                 case "rot":
                 {
                     // Every corpse in the cell, and one held by the building there (gibbet cage), rotted that far the game's way.

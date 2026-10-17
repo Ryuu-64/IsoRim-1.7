@@ -143,6 +143,7 @@ namespace IsoRim
             MethodInfo preRenderResults = FindMethod(typeof(PawnRenderer), "ParallelGetPreRenderResults");
             if (preRenderResults != null && preRenderResults.GetParameters().Length > 1 && preRenderResults.GetParameters()[1].ParameterType == typeof(Rot4?))
             {
+                Patch("upright pawn sprites facing the camera", preRenderResults, prefix: nameof(PreRenderResultsCaller_Prefix));
                 Patch("upright pawn sprites facing the camera", preRenderResults, prefix: nameof(PreRenderResults_Prefix));
             }
             else
@@ -1908,12 +1909,24 @@ namespace IsoRim
         // The game chooses a standing pawn's sprites by its facing on the map (pawn.Rotation), assuming north is up
         // the screen. Stood upright square to a turned camera (RenderPawnAt_Prefix) the sprite must instead show the
         // facing as the camera sees it (View3D.SeenFacing), or a pawn walking away from the camera shows its side.
-        // __1 is rotOverride: given only for set poses (statues, entities on a holding platform, the order ghost),
-        // which keep theirs. Lying and dead pawns stay flat on the ground and keep the map facing. Runs on the
-        // game's worker threads, ahead of drawing.
+        // __1 is rotOverride. Given by the caller only for set poses (statues, entities on a holding platform, the order
+        // ghost), which keep theirs. Other mods may set it in their own prefixes to change the facing drawn (Yayo's
+        // Animation does, for every animated pawn, walking included): that is a map facing too, so the camera turn is
+        // applied last, after every other prefix, to whatever facing the game and those mods decided, and exactly once.
+        // Lying and dead pawns stay flat on the ground and keep the map facing. Runs on the game's worker threads,
+        // ahead of drawing.
+        [ThreadStatic] private static bool rotFromCaller;
+
+        [HarmonyPriority(Priority.First)]
+        public static void PreRenderResultsCaller_Prefix(Rot4? __1)
+        {
+            rotFromCaller = __1.HasValue;
+        }
+
+        [HarmonyPriority(Priority.Last)]
         public static void PreRenderResults_Prefix(PawnRenderer __instance, ref Rot4? __1, bool __2)
         {
-            if (__1.HasValue || !View3D.Ready || !IsoRimMod.Settings.uprightPawns)
+            if (rotFromCaller || !View3D.Ready || !IsoRimMod.Settings.uprightPawns)
             {
                 return;
             }
@@ -1924,10 +1937,12 @@ namespace IsoRim
                 {
                     return;
                 }
-                // Aiming, the sprite faces the way its gun points on screen (CardAim), so body and gun agree as in the game.
+                Rot4 facing = __1 ?? pawn.Rotation;
+                // Aiming, the sprite faces the way its gun points on screen (CardAim), so body and gun agree as in the game
+                // (unless another mod turned the body away from the game's facing).
                 float aimGame, aimSeen;
-                Rot4 seen = CardAim(pawn, __2, out aimGame, out aimSeen) ? Rot4.FromAngleFlat(aimSeen) : View3D.SeenFacing(pawn.Rotation);
-                if (seen != pawn.Rotation)
+                Rot4 seen = facing == pawn.Rotation && CardAim(pawn, __2, out aimGame, out aimSeen) ? Rot4.FromAngleFlat(aimSeen) : View3D.SeenFacing(facing);
+                if (seen != facing || __1.HasValue)
                 {
                     __1 = seen;
                 }
