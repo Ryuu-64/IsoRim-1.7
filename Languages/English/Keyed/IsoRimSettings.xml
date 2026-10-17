@@ -48,7 +48,9 @@
   <R3D_Settings_FpEyeHeight>First person eye height</R3D_Settings_FpEyeHeight>
   <R3D_Settings_MinZoom>Closest zoom</R3D_Settings_MinZoom>
   <R3D_Settings_MinZoomTip>How close the mouse wheel can bring the camera. The game's own limit is 11.</R3D_Settings_MinZoomTip>
-  <R3D_Settings_WeatherSize>Rain and snow size</R3D_Settings_WeatherSize>
+  <R3D_Settings_Weather3D>3D rain and snow</R3D_Settings_Weather3D>
+  <R3D_Settings_Weather3DTip>Rain and snow fall as drops and flakes round the camera, fog and haze stand in front of it.</R3D_Settings_Weather3DTip>
+  <R3D_Settings_WeatherSize>  Rain and snow size</R3D_Settings_WeatherSize>
   <R3D_Settings_WeatherSizeTip>How big the drops and flakes look on screen. They no longer grow as the camera zooms in.</R3D_Settings_WeatherSizeTip>
   <R3D_Settings_ThingLabels>Item labels</R3D_Settings_ThingLabels>
   <R3D_Settings_ThingLabelsTip>Labels on things lying on the map (stack counts, quality). Names over people are not affected.</R3D_Settings_ThingLabelsTip>
@@ -255,7 +257,7 @@
   <R3D_Settings_FaceDecalAddApparel>    Own placing for an apparel...</R3D_Settings_FaceDecalAddApparel>
   <R3D_Settings_FaceDecalRemove>Remove</R3D_Settings_FaceDecalRemove>
   <R3D_Settings_FullPawnDraw>  Always draw sprites in full</R3D_Settings_FullPawnDraw>
-  <R3D_Settings_FullPawnDrawTip>Zoomed out, the game draws people from a cached image, which keeps animations (such as Facial Animation's faces, which turn this on by themselves) from moving. Costs some speed with many people.</R3D_Settings_FullPawnDrawTip>
+  <R3D_Settings_FullPawnDrawTip>Zoomed out, the game draws people from a cached image, which keeps Facial Animation's faces still. Costs some speed with many people.</R3D_Settings_FullPawnDrawTip>
   <R3D_Settings_ModelStyle>Model style</R3D_Settings_ModelStyle>
   <R3D_Settings_TexturedModels>Textures on models</R3D_Settings_TexturedModels>
   <R3D_Settings_Outlines>Dark outlines on models</R3D_Settings_Outlines>
