@@ -1144,6 +1144,23 @@ namespace IsoRim
             return new Rot4((facing.AsInt - turns + 4) & 3);
         }
 
+        // The direction a map-space aim shows on screen, as an angle on a card stood up square to the camera (degrees
+        // clockwise from up the card, the game's convention for a flat sprite seen with north up). flat is the aim along
+        // the ground, rise how far the target is above the shooter (cells, between floors). At yaw 0 looking straight
+        // down this is the map angle itself. Orthographic: the ground is foreshortened by sin(pitch), height by cos(pitch).
+        public static float ScreenAim(Vector3 flat, float rise)
+        {
+            float y = Yaw * Mathf.Deg2Rad;
+            float p = Pitch * Mathf.Deg2Rad;
+            float sx = flat.x * Mathf.Cos(y) - flat.z * Mathf.Sin(y);
+            float sy = (flat.x * Mathf.Sin(y) + flat.z * Mathf.Cos(y)) * Mathf.Sin(p) + rise * Mathf.Cos(p);
+            if (sx * sx + sy * sy < 1e-8f)
+            {
+                return 0f;
+            }
+            return Mathf.Repeat(Mathf.Atan2(sx, sy) * Mathf.Rad2Deg, 360f);
+        }
+
         // Stands a flat sprite up so that it faces the camera, hinged at pivot.
         public static Matrix4x4 UprightMatrix(Vector3 pivot)
         {

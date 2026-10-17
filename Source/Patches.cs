@@ -1507,7 +1507,7 @@ namespace IsoRim
         // model has been drawn in its place: the game's sprite pipeline for a person is costly,
         // and skipping it rather than throwing its output away is most of what keeps a big
         // colony fast. Portraits and other off-map drawing are left to the game.
-        public static bool RenderPawnAt_Prefix(PawnRenderer __instance, Vector3 __0)
+        public static bool RenderPawnAt_Prefix(PawnRenderer __instance, Vector3 __0, bool __2)
         {
             DrawHook.active = false;
             DrawHook.billboard = false;
@@ -1515,6 +1515,7 @@ namespace IsoRim
             pawnUpright = false;
             pawnLift = 0f;
             pawnFigure = false;
+            cardAiming = false;
             if (!View3D.Ready)
             {
                 return true;
@@ -1651,6 +1652,7 @@ namespace IsoRim
                 uprightPawn = pawn;
                 pawnFeet = feet;
                 pawnSize = spriteHeight / 1.5f;
+                cardAiming = pawn != null && CardAim(pawn, __2, out cardAimGame, out cardAimSeen);
             }
             catch (Exception e)
             {
@@ -1901,7 +1903,7 @@ namespace IsoRim
         // __1 is rotOverride: given only for set poses (statues, entities on a holding platform, the order ghost),
         // which keep theirs. Lying and dead pawns stay flat on the ground and keep the map facing. Runs on the
         // game's worker threads, ahead of drawing.
-        public static void PreRenderResults_Prefix(PawnRenderer __instance, ref Rot4? __1)
+        public static void PreRenderResults_Prefix(PawnRenderer __instance, ref Rot4? __1, bool __2)
         {
             if (__1.HasValue || !View3D.Ready || !IsoRimMod.Settings.uprightPawns)
             {
@@ -1914,7 +1916,9 @@ namespace IsoRim
                 {
                     return;
                 }
-                Rot4 seen = View3D.SeenFacing(pawn.Rotation);
+                // Aiming, the sprite faces the way its gun points on screen (CardAim), so body and gun agree as in the game.
+                float aimGame, aimSeen;
+                Rot4 seen = CardAim(pawn, __2, out aimGame, out aimSeen) ? Rot4.FromAngleFlat(aimSeen) : View3D.SeenFacing(pawn.Rotation);
                 if (seen != pawn.Rotation)
                 {
                     __1 = seen;
@@ -2052,13 +2056,72 @@ namespace IsoRim
             DrawHook.skip = false;
             pawnFigure = false;
             pawnUpright = false;
+            cardAiming = false;
         }
 
-        // The weapon in a standing pawn's hands. __0 is the weapon and __2 the direction it
-        // points, in degrees clockwise from north. If the weapon has a model it is drawn as a
-        // real object lying level and pointing that way, at the place on the pawn's sprite
-        // where its hands are; otherwise the game draws its usual sprite.
-        public static bool DrawEquipmentAiming_Prefix(Thing __0, float __2)
+        // Aiming on a 2D card (the game's own weapon sprite, stood up with the card by DrawHook).
+        private static bool cardAiming;     // the upright pawn being drawn is aiming (CardAim)
+        private static float cardAimGame;   // the aim angle the game uses (map space)
+        private static float cardAimSeen;   // where that aim points on screen (View3D.ScreenAim)
+
+        // Whether the game draws this pawn aiming its weapon (PawnRenderUtility.DrawEquipmentAndApparelExtras: same
+        // tests), with the game's aim angle (map space, or the verb's override) and the angle that aim shows on a
+        // camera-facing card, from the drawn positions (an aim between floors tilts up or down the screen).
+        // Thread-safe reads only: also called from PreRenderResults_Prefix on the game's worker threads.
+        internal static bool CardAim(Pawn pawn, bool neverAim, out float game, out float seen)
+        {
+            game = 0f;
+            seen = 0f;
+            if (neverAim || pawn.equipment == null || pawn.equipment.Primary == null)
+            {
+                return false;
+            }
+            Verse.AI.Job job = pawn.CurJob;
+            if (job == null || job.def == null || job.def.neverShowWeapon)
+            {
+                return false;
+            }
+            Stance_Busy busy = pawn.stances != null ? pawn.stances.curStance as Stance_Busy : null;
+            if (busy == null || busy.neverAimWeapon || !busy.focusTarg.IsValid)
+            {
+                return false;
+            }
+            Vector3 from = pawn.DrawPos;
+            Vector3 to = busy.focusTarg.HasThing ? busy.focusTarg.Thing.DrawPos : busy.focusTarg.Cell.ToVector3Shifted();
+            bool apart = (to - from).MagnitudeHorizontalSquared() > 0.001f;
+            if (apart)
+            {
+                game = (to - from).AngleFlat();
+            }
+            Verb verb = pawn.CurrentEffectiveVerb;
+            if (verb != null && verb.AimAngleOverride.HasValue)
+            {
+                game = verb.AimAngleOverride.Value;
+                apart = false;
+            }
+            if (!apart)
+            {
+                seen = View3D.ScreenAim(Quaternion.AngleAxis(game, Vector3.up) * Vector3.forward, 0f);
+                return true;
+            }
+            Vector3 a = from, b = to;
+            Floors.Drawn(ref a);
+            Floors.Drawn(ref b);
+            float rise = ((b.y - to.y) - (a.y - from.y)) * View3D.Squash;   // the floors' height between them, in cells
+            Vector3 d = b - a;
+            d.y = 0f;
+            seen = View3D.ScreenAim(d, rise);
+            return true;
+        }
+
+        // The weapon in a standing pawn's hands. __0 is the weapon, __1 where it is drawn and __2 the direction it
+        // points, in degrees clockwise from north.
+        // On a 2D card the game draws its own sprite (DrawHook stands it up with the card, with the game's offsets,
+        // flip, recoil and layer); only an aim is turned, about the pawn, from its map angle to the angle it shows on
+        // screen, before any other mod's prefix sees it (they then work on the turned pose).
+        // A 3D figure's weapon is drawn as a real object at its side.
+        [HarmonyPriority(Priority.First)]
+        public static bool DrawEquipmentAiming_Prefix(Thing __0, ref Vector3 __1, ref float __2)
         {
             if ((!pawnUpright && !pawnFigure) || __0 == null || !View3D.Ready)
             {
@@ -2066,6 +2129,20 @@ namespace IsoRim
             }
             try
             {
+                if (pawnUpright)
+                {
+                    if (cardAiming && uprightPawn != null)
+                    {
+                        float turn = Mathf.DeltaAngle(cardAimGame, cardAimSeen);
+                        float factor = uprightPawn.ageTracker != null ? uprightPawn.ageTracker.CurLifeStage.equipmentDrawDistanceFactor : 1f;
+                        Vector3 reach = new Vector3(0f, 0f, 0.4f + __0.def.equippedDistanceOffset).RotatedBy(cardAimGame) * factor;
+                        Vector3 centre = __1 - reach;
+                        Vector3 off = (__1 - centre).RotatedBy(turn);
+                        __1 = new Vector3(centre.x + off.x, __1.y, centre.z + off.z);
+                        __2 = Mathf.Repeat(__2 + turn, 360f);
+                    }
+                    return true;
+                }
                 IsoRimSettings st = IsoRimMod.Settings;
                 if (!st.heldWeapons3D)
                 {
@@ -2073,11 +2150,8 @@ namespace IsoRim
                 }
                 float yaw = __2 - 90f;
                 Vector3 aim = Quaternion.AngleAxis(yaw, Vector3.up) * Vector3.right;
-                // A flat sprite holds it part of the way up the sprite; a 3D figure at its side.
-                Vector3 hand = pawnFigure
-                    ? new Vector3(0f, pawnHandHeight, 0f) + aim * 0.30f
-                    : View3D.CardUp * (HandHeight * pawnSize) + aim * HandReach;
-                Vector3 position = new Vector3(pawnFeet.x + hand.x, hand.y + (pawnFigure ? 0f : pawnLift), pawnFeet.z + hand.z);
+                Vector3 hand = new Vector3(0f, pawnHandHeight, 0f) + aim * 0.30f;
+                Vector3 position = new Vector3(pawnFeet.x + hand.x, hand.y, pawnFeet.z + hand.z);
                 return !HeldWeapon3D(__0, position, __2);
             }
             catch (Exception e)

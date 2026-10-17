@@ -13,6 +13,11 @@ namespace IsoRim
     //   mech=x,z,<PawnKindDef>,<player|enemy>,<age>,<rot 0-3>[,<state>]  a new mech of that kind, faction and age facing rot
     //                                 (no overseer: the jobs below are started directly, as forced jobs); state: raid (an enemy in an assault lord), draft, down (damaged until downed), dead (killed), shutdown (self-shutdown job)
     //   attack=x0,z0,x1,z1            the pawn in the first cell given the job to fire at the thing (or cell) in the second
+    //   undrafted=x,z,wait|tx,tz      the colonist in (x,z) undrafted and given a job that shows its weapon (the game's alwaysShowWeapon):
+    //                                 wait = standing guard (Wait_Combat, the carry pose), or fire at the thing in (tx,tz) (AttackStatic)
+    //   rotupdate=1                   every colonist turned as the game turns it after a tick (toward what it aims at)
+    //   aimcheck=1                    logs every standing colonist: aiming as the game draws it, the game's aim and the aim on a card
+    //                                 (Patches.CardAim), map facing and the sprite facing seen
     //   haul=x,z,<ThingDef>,<count>,ix,iz  a new stack at (ix,iz) and the pawn in (x,z) given the job to haul it to storage
     //                                 (a real job; a stockpile must exist: zone=)
     //   order=x,z,<work>,tx,tz        the pawn in (x,z) given a real work job on (tx,tz): cut (a plant), mine, deconstruct,
@@ -128,6 +133,63 @@ namespace IsoRim
                     Log.Message("[IsoRim probe] attack: " + p.LabelShort + " fires at " + (target != null ? target.def.defName : tc.ToString()) + ": " + ok);
                     return true;
                 }
+                case "undrafted":
+                {
+                    Pawn p = PawnAt(map, I(a[0]), I(a[1]));
+                    if (p == null)
+                    {
+                        return true;
+                    }
+                    if (p.drafter != null)
+                    {
+                        p.drafter.Drafted = false;
+                    }
+                    Job job;
+                    if (a[2] == "wait")
+                    {
+                        job = JobMaker.MakeJob(JobDefOf.Wait_Combat);
+                        job.expiryInterval = 100000;
+                    }
+                    else
+                    {
+                        IntVec3 tc = new IntVec3(I(a[2]), 0, I(a[3]));
+                        Thing target = tc.GetFirstBuilding(map) ?? (Thing)tc.GetThingList(map).OfType<Pawn>().FirstOrDefault();
+                        job = JobMaker.MakeJob(JobDefOf.AttackStatic, target != null ? new LocalTargetInfo(target) : new LocalTargetInfo(tc));
+                    }
+                    job.playerForced = true;
+                    p.jobs.StartJob(job, JobCondition.InterruptForced);
+                    Log.Message("[IsoRim probe] undrafted: " + p.LabelShort + " " + job.def.defName + " (drafted " + p.Drafted + ", shows weapon " + job.def.alwaysShowWeapon + "): " + (p.CurJob == job));
+                    return true;
+                }
+                case "rotupdate":
+                    // Every colonist turned as the game turns it after a tick (Pawn_RotationTracker.UpdateRotation: toward what it aims
+                    // at), which the harness's jumps of the clock skip.
+                    foreach (Pawn p in map.mapPawns.FreeColonistsSpawned)
+                    {
+                        p.rotationTracker.UpdateRotation();
+                    }
+                    return true;
+                case "aimcheck":
+                    foreach (Pawn p in map.mapPawns.FreeColonistsSpawned)
+                    {
+                        // By reflection, so the probe also builds against a Patches without it (before/after runs).
+                        System.Reflection.MethodInfo cardAim = HarmonyLib.AccessTools.Method(typeof(Patches), "CardAim");
+                        if (cardAim == null)
+                        {
+                            Log.Message("[IsoRim probe] aimcheck " + p.LabelShort + " at " + p.Position + ": no Patches.CardAim in this build, facing " + p.Rotation
+                                + " seen " + View3D.SeenFacing(p.Rotation));
+                            continue;
+                        }
+                        object[] args = { p, false, 0f, 0f };
+                        bool aiming = (bool)cardAim.Invoke(null, args);
+                        float game = (float)args[2], seen = (float)args[3];
+                        Log.Message("[IsoRim probe] aimcheck " + p.LabelShort + " at " + p.Position + " job " + (p.CurJob != null ? p.CurJob.def.defName : "-")
+                            + " stance " + (p.stances != null && p.stances.curStance != null ? p.stances.curStance.GetType().Name : "-")
+                            + " aiming " + aiming + " game " + game.ToString("0.0") + " card " + seen.ToString("0.0")
+                            + " facing " + p.Rotation + " seen " + (aiming ? Rot4.FromAngleFlat(seen) : View3D.SeenFacing(p.Rotation))
+                            + " yaw " + View3D.Yaw.ToString("0") + " pitch " + View3D.Pitch.ToString("0.0"));
+                    }
+                    return true;
                 case "haul":
                 {
                     Pawn p = PawnAt(map, I(a[0]), I(a[1]));
