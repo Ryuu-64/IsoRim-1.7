@@ -140,7 +140,9 @@
   <IsoRim.ModelDef>
     <defName>R3D_PlantPot</defName>
     <thingDef>PlantPot</thingDef>
-    <model>Models/plant_pot.obj</model>
+    <model>Models/plant_pot_b8.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.30</surfaceHeight>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -187,11 +189,11 @@
     <defName>R3D_Grave</defName>
     <thingDef>Grave</thingDef>
     <models>
-      <li>Models/grave_open.obj</li>
-      <li>Models/grave_full.obj</li>
+      <li>Models/grave_b8_empty.obj</li>
+      <li>Models/grave_b8_full.obj</li>
     </models>
     <surfaceHeight>0.00</surfaceHeight>
-    <rotation>180</rotation>
+    <builtFor>(1, 2)</builtFor>
     <fullVariant>true</fullVariant>
   </IsoRim.ModelDef>
 
@@ -1485,6 +1487,7 @@
     <model>Models/tv_tube.obj</model>
     <surfaceHeight>0.00</surfaceHeight>
     <builtFor>(2, 1)</builtFor>
+    <rotation>180</rotation>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -1493,6 +1496,7 @@
     <model>Models/tv_flat.obj</model>
     <surfaceHeight>0.00</surfaceHeight>
     <builtFor>(3, 1)</builtFor>
+    <rotation>180</rotation>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -1501,6 +1505,7 @@
     <model>Models/tv_mega.obj</model>
     <surfaceHeight>0.00</surfaceHeight>
     <builtFor>(5, 1)</builtFor>
+    <rotation>180</rotation>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -1711,7 +1716,8 @@
   <IsoRim.ModelDef>
     <defName>R3D_Ship_CryptosleepCasket</defName>
     <thingDef>Ship_CryptosleepCasket</thingDef>
-    <model>Models/ship_cryptosleep_casket.obj</model>
+    <model>Models/ship_casket_b8.obj</model>
+    <emptyModel>Models/ship_casket_b8_open.obj</emptyModel>
     <surfaceHeight>0.40</surfaceHeight>
     <builtFor>(1, 2)</builtFor>
   </IsoRim.ModelDef>
@@ -1913,15 +1919,15 @@
   <IsoRim.ModelDef>
     <defName>R3D_Ship_Beam</defName>
     <thingDef>Ship_Beam</thingDef>
-    <model>Models/ship_beam.obj</model>
+    <model>Models/ship_beam_b8.obj</model>
     <surfaceHeight>0.00</surfaceHeight>
-    <builtFor>(1, 3)</builtFor>
+    <builtFor>(2, 6)</builtFor>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
     <defName>R3D_Ship_ComputerCore</defName>
     <thingDef>Ship_ComputerCore</thingDef>
-    <model>Models/ship_computer_core.obj</model>
+    <model>Models/ship_computer_core_b8.obj</model>
     <surfaceHeight>0.00</surfaceHeight>
     <builtFor>(2, 2)</builtFor>
   </IsoRim.ModelDef>
@@ -1929,25 +1935,25 @@
   <IsoRim.ModelDef>
     <defName>R3D_Ship_Reactor</defName>
     <thingDef>Ship_Reactor</thingDef>
-    <model>Models/ship_reactor.obj</model>
+    <model>Models/ship_reactor_b8.obj</model>
     <surfaceHeight>0.00</surfaceHeight>
-    <builtFor>(3, 4)</builtFor>
+    <builtFor>(6, 7)</builtFor>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
     <defName>R3D_Ship_Engine</defName>
     <thingDef>Ship_Engine</thingDef>
-    <model>Models/ship_engine.obj</model>
+    <model>Models/ship_engine_b8.obj</model>
     <surfaceHeight>0.00</surfaceHeight>
-    <builtFor>(3, 5)</builtFor>
+    <builtFor>(3, 4)</builtFor>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
     <defName>R3D_Ship_SensorCluster</defName>
     <thingDef>Ship_SensorCluster</thingDef>
-    <model>Models/ship_sensor.obj</model>
+    <model>Models/ship_sensor_cluster_b8.obj</model>
     <surfaceHeight>0.00</surfaceHeight>
-    <builtFor>(1, 1)</builtFor>
+    <builtFor>(2, 2)</builtFor>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -5274,6 +5280,20 @@
       <li>(1.32, 0.215, 1.30)</li>
       <li>(1.32, 0.215, -1.30)</li>
       <li>(-1.32, 0.215, -1.30)</li>
+    </chainAnchors>
+  </IsoRim.ModelDef>
+  <!-- Coverage buildings batch 8: holding spot (flat sprite before); restraints drawn from the stake rings (HoldingChains). -->
+  <IsoRim.ModelDef>
+    <defName>R3D_HoldingSpot</defName>
+    <thingDef>HoldingSpot</thingDef>
+    <model>Models/holding_spot.obj</model>
+    <builtFor>(3, 3)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <chainAnchors>
+      <li>(-1.32, 0.255, 1.30)</li>
+      <li>(1.32, 0.255, 1.30)</li>
+      <li>(1.32, 0.255, -1.30)</li>
+      <li>(-1.32, 0.255, -1.30)</li>
     </chainAnchors>
   </IsoRim.ModelDef>
   <!-- Coop batch 3 class B: outfit stands (head model; dressed with the 3D colonists' clothing parts, the weapon held as theirs: Stands.cs) -->
