@@ -981,6 +981,10 @@ namespace IsoRim
         // Corners in the middle of a rock mass stay put, keeping the top level with the fog.
         private static bool PrintRock(SectionLayer layer, Thing t, float height, WallKind kind)
         {
+            if (CliffMode > 0)
+            {
+                return PrintRockSmooth(layer, t, height, kind);   // PROTOTYPE (CliffLook.cs)
+            }
             Color tint = t.DrawColor;
             Material topMat = MaterialFor(kind, true, 0, false, tint);
             if (topMat == null)
@@ -2814,6 +2818,33 @@ namespace IsoRim
             bool north = Open(map, c, c + IntVec3.North);
             bool west = Open(map, c, c + IntVec3.West);
             bool east = Open(map, c, c + IntVec3.East);
+
+            // PROTOTYPE (CliffLook.cs): natural rock's contact shadow follows its chamfered outline.
+            Vector3[] g;
+            bool[] moved;
+            if (WallBoxes.RockGroundCorners(t, out g, out moved))
+            {
+                for (int f = 0; f < 4; f++)
+                {
+                    bool open = f == 0 ? south : (f == 1 ? north : (f == 2 ? west : east));
+                    if (!open)
+                    {
+                        continue;
+                    }
+                    Vector3 a = g[WallBoxes.FaceLeftCorner(f)], b = g[WallBoxes.FaceRightCornerOf(f)];
+                    Vector3 run = b - a;
+                    if (run.sqrMagnitude < 1e-4f)
+                    {
+                        continue;
+                    }
+                    run.Normalize();
+                    Vector3 outward = new Vector3(run.z, 0f, -run.x);
+                    a.y = y;
+                    b.y = y;
+                    MeshWriter.Quad(sm, a, a + outward * Reach, b + outward * Reach, b, inner, Clear, Clear, inner);
+                }
+                return;
+            }
 
             for (int f = 0; f < 4; f++)
             {

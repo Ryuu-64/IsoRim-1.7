@@ -789,6 +789,7 @@ namespace IsoRim
             {
                 slab.dirty = true;
             }
+            WallBoxes.ClipTerrain(__instance, s);   // PROTOTYPE (CliffLook.cs): the floor's edge over rock follows its chamfer
         }
 
         private static void DrawSlab(SectionLayer layer)
@@ -870,6 +871,17 @@ namespace IsoRim
                 bool blockBelow = FullBlock(map, Stacked(map, c, -1), out wallBelow);
                 if (blockBelow && FullBlock(map, c, out wallHere))
                 {
+                    continue;
+                }
+                Vector3[] chamfer;
+                if (blockBelow && WallBoxes.SlabOverRock(map, c, out chamfer))
+                {
+                    // PROTOTYPE (CliffLook.cs): over natural rock only the top, cut to the rock's chamfered outline (the rock
+                    // is the body under it)
+                    Color32 rc = map.terrainGrid.TerrainAt(c).DrawColor;
+                    rc.a = 255;
+                    Quad(verts, cols, tris, rc, new Vector3(c.x + chamfer[0].x, top, c.z + chamfer[0].z), new Vector3(c.x + chamfer[1].x, top, c.z + chamfer[1].z),
+                        new Vector3(c.x + chamfer[2].x, top, c.z + chamfer[2].z), new Vector3(c.x + chamfer[3].x, top, c.z + chamfer[3].z));
                     continue;
                 }
                 float sideBottom = blockBelow ? Mathf.Min(top, Mathf.Max(bottom, (belowH + wallBelow - floorH) / s)) : bottom;
@@ -1476,7 +1488,10 @@ namespace IsoRim
                     IntVec3 o = Stacked(map, loc, dk);
                     if (o.IsValid && o.InBounds(map))
                     {
-                        __instance.MapMeshDirty(o, flags);
+                        // PROTOTYPE (CliffLook.cs): the floor's terrain above follows the rock's chamfer below
+                        ulong extra = dk > 0 && WallBoxes.CliffMode > 0 && (dirtyFlags & (ulong)RimWorld.MapMeshFlagDefOf.Buildings) != 0
+                            ? (ulong)RimWorld.MapMeshFlagDefOf.Terrain : 0UL;
+                        __instance.MapMeshDirty(o, flags | extra);
                         SlabDirty(__instance, o);
                     }
                 }

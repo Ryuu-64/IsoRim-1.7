@@ -92,6 +92,15 @@ namespace IsoRim
             tickStart = Stopwatch.GetTimestamp();
             lapLast = tickStart;
             Array.Clear(lapFrame, 0, lapFrame.Length);
+            if (Current.Game != null && Find.TickManager != null && CliffScriptTick())
+            {
+                // PROTOTYPE (ProbeCliff.cs): a cliff script runs instead of the passes.
+                LogLoaded();
+                Sticky();
+                tickStart = lapLast = Stopwatch.GetTimestamp();
+                Array.Clear(lapFrame, 0, lapFrame.Length);
+                return;
+            }
             if (passes == null)
             {
                 passes = new List<string>();
@@ -164,6 +173,10 @@ namespace IsoRim
                     default:
                         try
                         {
+                            if (Find.CurrentMap != null && CliffKey(kv[0], kv[1].Split(","), Find.CurrentMap))
+                            {
+                                break;
+                            }
                             Scene(kv[0], kv[1].Split(","));
                         }
                         catch (Exception e)
