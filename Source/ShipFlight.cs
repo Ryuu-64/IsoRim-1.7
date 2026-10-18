@@ -1287,7 +1287,7 @@ namespace IsoRim
             }
         }
 
-        private static Material Flying(Material m)
+        internal static Material Flying(Material m)
         {
             if (m == null || m.renderQueue >= 2100)
             {

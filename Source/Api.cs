@@ -19,8 +19,8 @@ namespace IsoRim
     public static partial class Api
     {
         // Raised when members are added (2: view, projectile, skyfaller, drawing and option members of this file; 3: the
-        // fog lid lock).
-        public static int Version => 3;
+        // fog lid lock; 4: collapse debris, Debris.cs).
+        public static int Version => 4;
 
         // ---- the view
 
@@ -174,7 +174,7 @@ namespace IsoRim
 
         // ---- for addons' dev tests only: may change without notice
 
-        public static class Dev
+        public static partial class Dev
         {
             // Stacked floors are drawn this frame.
             public static bool FloorsDrawn => IsoRim.Floors.On;

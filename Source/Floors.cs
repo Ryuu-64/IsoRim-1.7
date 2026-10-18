@@ -777,7 +777,7 @@ namespace IsoRim
             public bool held;   // HoldSlab
         }
 
-        private const float SlabThickness = 0.12f;
+        internal const float SlabThickness = 0.12f;
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Section, Slab> slabs = new System.Runtime.CompilerServices.ConditionalWeakTable<Section, Slab>();
         private static readonly AccessTools.FieldRef<SectionLayer, Section> layerSection = AccessTools.FieldRefAccess<SectionLayer, Section>("section");
 

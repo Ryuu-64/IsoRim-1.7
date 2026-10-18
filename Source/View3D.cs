@@ -392,6 +392,7 @@ namespace IsoRim
                 Glass.DrawAll();
                 WorkPanels.DrawAll();
                 Silhouettes3D.DrawAll();
+                CollapseDebris.Frame();
                 Probe.Lap(7);
                 try
                 {

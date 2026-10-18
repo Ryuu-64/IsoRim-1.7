@@ -101,6 +101,7 @@ namespace IsoRim
         public int lookMode = 0;         // free look drag button: 0 = middle button with R3D_LookModifier (Ctrl), 1 = right button with nothing selected
         public bool pawns3D = true;
         public bool effects3D = true;
+        public bool collapseDebris = true;
         public bool groundShadows = true;
         public bool treeShadows = true;
         public bool grade = true;        // colour grade on
@@ -210,6 +211,7 @@ namespace IsoRim
             Scribe_Values.Look(ref fpEyeHeight, "fpEyeHeight", 0.95f);
             Scribe_Values.Look(ref pawns3D, "pawns3D", true);
             Scribe_Values.Look(ref effects3D, "effects3D", true);
+            Scribe_Values.Look(ref collapseDebris, "collapseDebris", true);
             Scribe_Values.Look(ref cutHeight, "cutHeight", 0.5f);
             Scribe_Values.Look(ref dissolveRadius, "dissolveRadius", 3.5f);
             Scribe_Values.Look(ref groundShadows, "groundShadows", true);
@@ -1000,6 +1002,7 @@ namespace IsoRim
                 Check(r, "R3D_Settings_Ghosts3D".Translate(), ref st.ghosts3D, "R3D_Settings_Ghosts3DTip".Translate());
                 Check(r, "R3D_Settings_Damage3D".Translate(), ref st.damage3D);
                 Check(r, "R3D_Settings_Effects3D".Translate(), ref st.effects3D);
+                Check(r, "R3D_Settings_CollapseDebris".Translate(), ref st.collapseDebris, "R3D_Settings_CollapseDebrisTip".Translate());
                 Check(r, "R3D_Settings_UprightPawns".Translate(), ref st.uprightPawns, "R3D_Settings_UprightPawnsTip".Translate());
                 if (st.uprightPawns && ModsConfig.IsActive("Nals.FacialAnimation"))
                 {

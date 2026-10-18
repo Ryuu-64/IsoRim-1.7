@@ -253,6 +253,8 @@
   <R3D_Settings_Ghosts3DTip>Blueprints, frames and the placement preview as see-through 3D models.</R3D_Settings_Ghosts3DTip>
   <R3D_Settings_Damage3D>Damage marks on buildings</R3D_Settings_Damage3D>
   <R3D_Settings_Effects3D>Flames, smoke, steam and sparkles</R3D_Settings_Effects3D>
+  <R3D_Settings_CollapseDebris>Collapse debris</R3D_Settings_CollapseDebris>
+  <R3D_Settings_CollapseDebrisTip>Collapsing roofs and floors break into pieces that fall.</R3D_Settings_CollapseDebrisTip>
   <R3D_Settings_UprightPawns>Sprites stand upright</R3D_Settings_UprightPawns>
   <R3D_Settings_UprightPawnsTip>For people and animals without a model.</R3D_Settings_UprightPawnsTip>
   <R3D_Settings_FaceDecal>  Facial Animation face on 3D heads</R3D_Settings_FaceDecal>

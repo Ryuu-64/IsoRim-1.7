@@ -472,6 +472,8 @@ namespace IsoRim
             Patch("strikes from the sky", AccessTools.DeclaredMethod(typeof(WeatherEvent_LightningStrikeDelayed), "WeatherEventDraw"), prefix: nameof(LightningDraw_Prefix));
             // A shot's flash at the muzzle, standing up, not flat in the middle of the shooter (Projectiles.ShotFlash).
             Patch("muzzle flashes at the muzzle", AccessTools.DeclaredMethod(typeof(Verb), "TryCastNextBurstShot"), transpiler: nameof(ShotFlash_Transpiler));
+            // A roof the game drops breaks into pieces that fall (CollapseDebris; after other mods' prefixes).
+            CollapseDebris.Patch(harmony);
 
             // The buttons in the bottom right corner of the map view.
             Patch("buttons for the 3D view and roofs", AccessTools.Method(typeof(PlaySettings), "DoPlaySettingsGlobalControls"),
