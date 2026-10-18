@@ -126,6 +126,10 @@
   <R3D_Settings_DissolveRadius>Reach round the pointer</R3D_Settings_DissolveRadius>
   <R3D_Settings_CutFrontOnly>Only walls in front of the pointer</R3D_Settings_CutFrontOnly>
   <R3D_Settings_CutFrontOnlyTip>Only the walls between the camera and the pointer are lowered; the ones behind it stay up.</R3D_Settings_CutFrontOnlyTip>
+  <R3D_Settings_CutWholeWall>Lower walls on every floor</R3D_Settings_CutWholeWall>
+  <R3D_Settings_CutWholeWallTip>With stacked floors, a lowered wall is lowered on all shown floors.</R3D_Settings_CutWholeWallTip>
+  <R3D_Settings_BuildSee>See through while building</R3D_Settings_BuildSee>
+  <R3D_Settings_BuildSeeTip>With a build or order tool in hand, what is near the pointer turns see-through.</R3D_Settings_BuildSeeTip>
   <R3D_Settings_CutNearColonists>Lower walls near colonists</R3D_Settings_CutNearColonists>
   <R3D_Settings_CutNearColonistsTip>Walls between the camera and each colonist are lowered wherever they go. Costs a little more as they move about.</R3D_Settings_CutNearColonistsTip>
   <R3D_Settings_ColonistRadius>Reach round each colonist</R3D_Settings_ColonistRadius>

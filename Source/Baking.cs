@@ -2037,7 +2037,7 @@ namespace IsoRim
             finally
             {
                 Floor = 0f;
-                RoofClip.Tag(layer, mark, thing.TrueCenter().ToIntVec3());   // whatever was written (nothing if it failed)
+                RoofClip.Tag(layer, mark, thing.TrueCenter().ToIntVec3(), BuildSee.Takes(thing, entry));   // whatever was written (nothing if it failed)
             }
         }
 

@@ -32,6 +32,9 @@ namespace IsoRim
     // the first time it is needed in a given colour and kept.
     public static class DynamicModels
     {
+        // Set while doors are drawn: the meshes made then also go see-through near the pointer while building (BuildSee).
+        public static bool SeeParts;
+
         public class Part
         {
             public Mesh mesh;
@@ -64,7 +67,7 @@ namespace IsoRim
                 List<Vector3> tags = new List<Vector3>(verts.Count);
                 for (int i = 0; i < verts.Count; i++)
                 {
-                    tags.Add(RoofClip.MovingTag);   // clipped under the roof over where it is drawn (RoofClip)
+                    tags.Add(SeeParts ? RoofClip.MovingSeeTag : RoofClip.MovingTag);   // clipped under the roof over where it is drawn (RoofClip)
                 }
                 mesh.SetUVs(1, tags);
                 mesh.SetTriangles(tris, 0);
@@ -805,6 +808,7 @@ namespace IsoRim
                 appliedSig = 0;
                 wantedSig = 0;
             }
+            BuildSee.Update(map);
             if (map == null)
             {
                 return;
@@ -991,6 +995,20 @@ namespace IsoRim
             return Find.WindowStack != null && Find.WindowStack.GetWindowAt(Verse.UI.MousePositionOnUIInverted) != null;
         }
 
+        // Where the pointer is on the map (stacked floors: on the floor it hits, in that floor's rows); false while it is
+        // over the interface. Also read by the see-through while building (BuildSee).
+        public static bool Pointer(out Vector3 ground)
+        {
+            if (Probe.On && Probe.HasCutPointer)
+            {
+                ground = Probe.CutPointer;   // harness: a virtual pointer (ProbeCut.cs)
+                return true;
+            }
+            Vector3 mouse = Input.mousePosition;
+            ground = Floors.ScreenToMap(new Vector2(mouse.x, mouse.y));
+            return !PointerOnInterface();
+        }
+
         // Fills the wanted sets from where the pointer and the colonists are now.
         private static void Gather(Map map)
         {
@@ -1001,14 +1019,8 @@ namespace IsoRim
             pointerFoci.Clear();
             colonistFoci.Clear();
 
-            Vector3 mouse = Input.mousePosition;
-            bool pointer = !PointerOnInterface();
-            Vector3 ground = Floors.ScreenToMap(new Vector2(mouse.x, mouse.y));   // (stacked floors: on the floor the pointer hits)
-            if (Probe.On && Probe.HasCutPointer)
-            {
-                pointer = true;   // harness: a virtual pointer (ProbeCut.cs)
-                ground = Probe.CutPointer;
-            }
+            Vector3 ground;
+            bool pointer = Pointer(out ground);
             if (pointer)
             {
                 pointerFoci.Add(ground);
@@ -1031,6 +1043,10 @@ namespace IsoRim
                 if (st.cutNearColonists)
                 {
                     AddWalls(map, colonistFoci, st.colonistRadius, true);
+                }
+                if (st.cutWholeWall)
+                {
+                    AddColumns(map);
                 }
             }
             if (st.trees3D)
@@ -1132,6 +1148,43 @@ namespace IsoRim
                         {
                             wantWalls.Add(c);
                         }
+                    }
+                }
+            }
+        }
+
+        // (option cutWholeWall) Stacked floors: every lowered wall takes the walls of its ground column on all shown floors
+        // with it (the ground and every floor drawn now), not just its own floor's. Without floors nothing changes.
+        private static readonly List<IntVec3> columnCells = new List<IntVec3>();
+
+        private static void AddColumns(Map map)
+        {
+            if (!Floors.On || wantWalls.Count == 0)
+            {
+                return;
+            }
+            columnCells.Clear();
+            columnCells.AddRange(wantWalls);
+            for (int i = 0; i < columnCells.Count; i++)
+            {
+                IntVec3 c = columnCells[i];
+                float h;
+                int z;
+                int k = Floors.ColumnFloor(map, c, out h, out z);
+                if (k < 0)
+                {
+                    continue;
+                }
+                for (int j = 0; j <= Floors.MaxFloors; j++)
+                {
+                    if (j == k || !Floors.Shown(j))
+                    {
+                        continue;
+                    }
+                    IntVec3 s = Floors.Stacked(map, c, j - k);
+                    if (s.IsValid && Cuttable(map, s) > 0f)
+                    {
+                        wantWalls.Add(s);
                     }
                 }
             }
@@ -1421,6 +1474,45 @@ namespace IsoRim
         // door could not be drawn, so the game draws its own.
         public static bool Draw(Building_Door door, float openDistance)
         {
+            DynamicModels.SeeParts = true;   // door leaves go see-through while building (BuildSee)
+            try
+            {
+                return DrawOne(door, openDistance);
+            }
+            finally
+            {
+                DynamicModels.SeeParts = false;
+            }
+        }
+
+        public static bool DrawWide(Building_Door door, ModelEntry entry, float openPct, bool stuckOpen)
+        {
+            DynamicModels.SeeParts = true;
+            try
+            {
+                return DrawWideOne(door, entry, openPct, stuckOpen);
+            }
+            finally
+            {
+                DynamicModels.SeeParts = false;
+            }
+        }
+
+        public static bool DrawSupported(Building_Door door, ModelEntry entry, float openPct)
+        {
+            DynamicModels.SeeParts = true;
+            try
+            {
+                return DrawSupportedOne(door, entry, openPct);
+            }
+            finally
+            {
+                DynamicModels.SeeParts = false;
+            }
+        }
+
+        private static bool DrawOne(Building_Door door, float openDistance)
+        {
             if (!tried)
             {
                 tried = true;
@@ -1493,7 +1585,7 @@ namespace IsoRim
         // (without the arch, which would float over the cut wall). openPct is the game's OpenPct;
         // a door stuck open shows no leaves, as in the game. doorUpperLeafModel (security door plates) is a second pair
         // sliding as the game's upper mover, 0.35 * clamp01(OpenPct * 2.5) door widths. Returns false if it drew nothing.
-        public static bool DrawWide(Building_Door door, ModelEntry entry, float openPct, bool stuckOpen)
+        private static bool DrawWideOne(Building_Door door, ModelEntry entry, float openPct, bool stuckOpen)
         {
             Map map = door.Map;
             if (map == null || entry == null || !entry.HasModel || entry.doorLeaf == null)
@@ -1550,7 +1642,7 @@ namespace IsoRim
         // sliding apart as far as the game slides its own (0.45 * OpenPct). hackTerminalModel is drawn
         // while the door's CompHackable is not hacked. As tall as the walls, cut down with them (no
         // lintel over a cut wall). Returns false if it drew nothing.
-        public static bool DrawSupported(Building_Door door, ModelEntry entry, float openPct)
+        private static bool DrawSupportedOne(Building_Door door, ModelEntry entry, float openPct)
         {
             Map map = door.Map;
             if (map == null || entry == null || !entry.HasModel)

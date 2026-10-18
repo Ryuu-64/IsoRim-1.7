@@ -112,8 +112,9 @@ namespace IsoRim
         }
 
         // After it: every vertex written since the mark is clipped under the roof of owner's cell. Vertices that already
-        // carry a cut-away tag (a tree's leaves) keep it and its cell, and get the flag added.
-        public static void Tag(SectionLayer layer, int mark, IntVec3 owner)
+        // carry a cut-away tag (a tree's leaves) keep it and its cell, and get the flag added. see: they also go
+        // see-through near the pointer while building (ShaderCut.See, BuildSee).
+        public static void Tag(SectionLayer layer, int mark, IntVec3 owner, bool see = false)
         {
             if (mark < 0)
             {
@@ -121,7 +122,8 @@ namespace IsoRim
             }
             depth = mark;
             int[] m = marks[mark];
-            Vector3 tag = new Vector3(owner.x + 0.5f, owner.z + 0.5f, Own);
+            int add = see ? Own | ShaderCut.See : Own;
+            Vector3 tag = new Vector3(owner.x + 0.5f, owner.z + 0.5f, add);
             List<LayerSubMesh> subs = layer.subMeshes;
             for (int i = 0; i < subs.Count; i++)
             {
@@ -150,9 +152,9 @@ namespace IsoRim
                     {
                         t[k] = tag;
                     }
-                    else if ((flags & Own) == 0)
+                    else if ((flags & add) != add)
                     {
-                        t[k] = new Vector3(v.x, v.y, flags | Own);
+                        t[k] = new Vector3(v.x, v.y, flags | add);
                     }
                 }
             }
@@ -181,5 +183,8 @@ namespace IsoRim
 
         // The texture coordinate 1 of every vertex of a moving model's mesh.
         public static readonly Vector3 MovingTag = new Vector3(0f, 0f, Moving);
+
+        // The same for a moving model that also goes see-through near the pointer while building (door leaves, BuildSee).
+        public static readonly Vector3 MovingSeeTag = new Vector3(0f, 0f, Moving | ShaderCut.See);
     }
 }

@@ -25,7 +25,7 @@
 layout(location = 0) in vec4 vColor;
 layout(location = 1) in vec2 vUv;
 layout(location = 2) in vec3 vWorldPos;
-layout(location = 3) in vec3 vNormal;     // roof clipping: x = 4 when clipped, y z = the owner cell (IsoRim.vert.glsl, IsoRimTex.vert.glsl)
+layout(location = 3) in vec3 vNormal;     // roof clipping: x = 4 when clipped, y z = the owner cell (IsoRim.vert.glsl, IsoRimTex.vert.glsl); x + 10: may go see-through while building (BuildSee)
 layout(location = 4) in vec3 vPosLocal;   // roof clipping: the position in roof space; both mean nothing else here
 
 layout(location = 0) out vec4 outColor;
@@ -47,6 +47,8 @@ layout(set = 2, binding = 0) uniform MaterialUniforms
     vec4 _IsoFloorGlow; // global, no default: stacked floors (Floors.GlowFloors): x = floors above the ground, y = storey height (true cells), z = rows from one floor to the next; 0 without floors
     vec4 _IsoRoof;    // global, no default: roof and fog clipping (RoofClip): x = 1 roofs, 2 the fog, 3 both, y = wall height, z = Rise, w = Pitch
     vec4 _IsoEye;     // global, no default: xyz = the eye in drawn space, w = 1 with a perspective camera (View3D)
+    vec4 _IsoSee;     // global, no default: see-through while building (BuildSee): x, y = the pointer (drawn x, z), z = the viewed floor's height (true cells), w = coverage at the pointer (0 = off)
+    vec4 _IsoSee2;    // global, no default: x = radius of full coverage, y = radius where it ends (cells), z = dither cell (pixels)
 } uMaterial;
 
 layout(set = 2, binding = 1) uniform sampler2D _MainTex;
@@ -184,6 +186,25 @@ bool RoofHides(vec3 p, vec2 owner)
     return p.y > h;
 }
 
+// ---- See-through while building (Source\BuildSee.cs): a fragment of something tagged (vNormal.x + 10) at or above
+// the viewed floor is dropped where the 4 x 4 ordered dither pattern, fixed on the screen, is below the coverage at its
+// spot (full within _IsoSee2.x cells of the pointer on the ground plane, nothing from _IsoSee2.y). Every layer drops the
+// same pixels, so what is behind shows through all of them.
+const float Bayer4[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+
+bool SeeThrough(float trueY)
+{
+    vec4 s = uMaterial._IsoSee;
+    if (s.w <= 0.0 || trueY - uMaterial._IsoLevel.x < s.z + 0.03)
+        return false;
+    vec4 r = uMaterial._IsoSee2;
+    float cover = s.w * (1.0 - smoothstep(r.x, r.y, distance(vWorldPos.xz, s.xy)));
+    if (cover <= 0.0)
+        return false;
+    ivec2 q = ivec2(floor(gl_FragCoord.xy / max(1.0, r.z))) & 3;
+    return (Bayer4[q.y * 4 + q.x] + 0.5) / 16.0 < cover;
+}
+
 vec3 Dir(float azimuthDeg, float elevationDeg)
 {
     float az = azimuthDeg * DEG;
@@ -256,8 +277,15 @@ void main()
         n = -n;
     vec3 faceNormal = n;   // the exact face normal, turned toward the camera
 
+    float tagged = vNormal.x;
+    if (tagged > 9.0)
+    {
+        tagged -= 10.0;
+        if (SeeThrough(p.y))
+            discard;
+    }
     // Roof clipping: whatever of a thing under a drawn roof rises above its underside is hidden by the roof anyway.
-    if (vNormal.x > 3.0 && RoofHides(vPosLocal, vNormal.yz))
+    if (tagged > 3.0 && RoofHides(vPosLocal, vNormal.yz))
         discard;
 
     vec4 color = vColor * uMaterial._Color;

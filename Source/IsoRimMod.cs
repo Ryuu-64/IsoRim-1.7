@@ -66,6 +66,8 @@ namespace IsoRim
         public bool waterStyle = true;   // the mod's own stylised water
         public bool cutHover = true;     // walls under the pointer are cut down
         public bool cutRooms = false;    // walls in front of every roofed room are cut down
+        public bool cutWholeWall = false;   // stacked floors: a lowered wall is lowered on every shown floor of its column (Cutaway.AddColumns)
+        public bool buildSeeThrough = true; // with a designator in hand, what is near the pointer is drawn see-through (BuildSee)
         public int turn = 0;             // eighth turns of the camera, clockwise
         public bool snap45 = true;       // Q and E turn an eighth (45 degrees) at a time; otherwise a quarter
         public bool freeLook = true;     // the view can be turned and tilted by dragging with the mouse
@@ -173,6 +175,8 @@ namespace IsoRim
             Scribe_Values.Look(ref waterStyle, "waterStyle", true);
             Scribe_Values.Look(ref cutHover, "cutHover", true);
             Scribe_Values.Look(ref cutRooms, "cutRooms", false);
+            Scribe_Values.Look(ref cutWholeWall, "cutWholeWall", false);
+            Scribe_Values.Look(ref buildSeeThrough, "buildSeeThrough", true);
             Scribe_Values.Look(ref turn, "turnSteps", 0);
             Scribe_Values.Look(ref snap45, "snap45", true);
             Scribe_Values.Look(ref freeLook, "freeLook", true);
@@ -773,6 +777,8 @@ namespace IsoRim
                     st.dissolveRadius = Slider(l, "R3D_Settings_DissolveRadius".Translate(), st.dissolveRadius, 1.5f, 8f, Cells(st.dissolveRadius, "0.0"));
                     Check(l, "R3D_Settings_CutFrontOnly".Translate(), ref st.cutFrontOnly, "R3D_Settings_CutFrontOnlyTip".Translate());
                 }
+                Check(l, "R3D_Settings_CutWholeWall".Translate(), ref st.cutWholeWall, "R3D_Settings_CutWholeWallTip".Translate());
+                Check(l, "R3D_Settings_BuildSee".Translate(), ref st.buildSeeThrough, "R3D_Settings_BuildSeeTip".Translate());
                 Check(l, "R3D_Settings_CutNearColonists".Translate(), ref st.cutNearColonists, "R3D_Settings_CutNearColonistsTip".Translate());
                 if (st.cutNearColonists)
                 {

@@ -83,6 +83,7 @@ namespace IsoRim
         // Every frame, before IsoRim's own work (from Sticky): moves the swept pointer.
         private static void CutTick()
         {
+            BuildSeeTick();
             if (sweepFrame > 0 && sweepLeft > 0 && sweepFrame % sweepEvery == 0)
             {
                 CutPointer += sweepStep;

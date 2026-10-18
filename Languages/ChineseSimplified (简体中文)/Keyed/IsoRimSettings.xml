@@ -126,6 +126,10 @@
   <R3D_Settings_DissolveRadius>光标周围范围</R3D_Settings_DissolveRadius>
   <R3D_Settings_CutFrontOnly>只降低光标前方的墙</R3D_Settings_CutFrontOnly>
   <R3D_Settings_CutFrontOnlyTip>只降低镜头与光标之间的墙，光标后面的墙保持不变。</R3D_Settings_CutFrontOnlyTip>
+  <R3D_Settings_CutWholeWall>降低所有楼层的墙</R3D_Settings_CutWholeWall>
+  <R3D_Settings_CutWholeWallTip>有多层楼时，降低的墙在所有显示的楼层都会降低。</R3D_Settings_CutWholeWallTip>
+  <R3D_Settings_BuildSee>建造时透视</R3D_Settings_BuildSee>
+  <R3D_Settings_BuildSeeTip>手持建造或指令工具时，光标附近的物体变为半透明。</R3D_Settings_BuildSeeTip>
   <R3D_Settings_CutNearColonists>降低殖民者附近的墙</R3D_Settings_CutNearColonists>
   <R3D_Settings_CutNearColonistsTip>无论殖民者走到哪里，镜头与其之间的墙都会降低。殖民者走动时性能开销稍大。</R3D_Settings_CutNearColonistsTip>
   <R3D_Settings_ColonistRadius>每个殖民者周围范围</R3D_Settings_ColonistRadius>

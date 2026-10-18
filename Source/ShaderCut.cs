@@ -27,6 +27,7 @@ namespace IsoRim
         public const int Roof = 256;         // hidden while the cell's roof is open
         public const int SecondShift = 9;    // bits 9-12: also lowered with the neighbour this way (1-8), whichever is cut more
                                              // bits 13-14: roof clipping (RoofClip.Own, RoofClip.Moving)
+        public const int See = 32768;        // bit 15: goes see-through near the pointer while building (BuildSee)
 
         // How long a cell takes to go down or come back up, in seconds. 0 = at once (the user's choice; the old
         // cut-away popped too, but only after the pointer had rested 0.08 s, and 0.25 s before walls came back).
@@ -115,10 +116,7 @@ namespace IsoRim
                 return;
             }
             depth = mark;
-            if (flags == 0)
-            {
-                return;
-            }
+            flags |= ShaderCut.See;   // all of the tagged layers (walls, rock, roofs, damage marks) go see-through (BuildSee)
             int[] m = stack[mark];
             Vector3 tag = new Vector3(owner.x + 0.5f, owner.z + 0.5f, flags);
             List<LayerSubMesh> subs = layer.subMeshes;
@@ -138,7 +136,9 @@ namespace IsoRim
                 }
                 for (int k = from; k < to; k++)
                 {
-                    if (t[k].z == 0f)
+                    // Untagged, or tagged by an inner run with no flags of its own (See only): this run's tag. (Otherwise
+                    // an inner run without flags would keep an outer run's Lower off its vertices.)
+                    if (t[k].z == 0f || t[k].z == ShaderCut.See)
                     {
                         t[k] = tag;
                     }

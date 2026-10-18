@@ -49,6 +49,9 @@ layout(set = 2, binding = 0) uniform MaterialUniforms
     vec4 _IsoLevel;   // global, no default: x = the map's ground height in cells, y = what is left of a cut wall
     vec4 _IsoFloorGlow; // global, no default: stacked floors (Floors.GlowFloors): x = floors above the ground, y = storey height (true cells), z = rows from one floor to the next; 0 without floors
     vec4 _IsoRoof;    // global, no default: roof and fog clipping (RoofClip): x = 1 roofs, 2 the fog, 3 both, y = wall height, z = Rise, w = Pitch
+    vec4 _IsoEye;     // global, no default: xyz = the eye in drawn space, w = 1 with a perspective camera (View3D)
+    vec4 _IsoSee;     // global, no default: see-through while building (BuildSee): x, y = the pointer (drawn x, z), z = the viewed floor's height (true cells), w = coverage at the pointer (0 = off)
+    vec4 _IsoSee2;    // global, no default: x = radius of full coverage, y = radius where it ends (cells), z = dither cell (pixels)
 } uMaterial;
 
 // ---- Step 7: the cut-away in the vertex stage (C# ShaderCut, Source\ShaderCut.cs). IsoRim's walls, damage,
@@ -186,5 +189,7 @@ void main()
     vColor = inColor;
     vUv = uv;
     vWorldPos = world.xyz;
-    vNormal = roofClip ? vec3(4.0, roofOwner) : inNormal;
+    // See-through while building (BuildSee, ShaderCut.See = bit 15): vNormal.x + 10 tells IsoRimSolid.frag.glsl.
+    bool see = (int(inUv1.z + 0.5) & 32768) != 0;
+    vNormal = roofClip ? vec3(see ? 14.0 : 4.0, roofOwner) : (see ? vec3(10.0, 0.0, 0.0) : inNormal);
 }
