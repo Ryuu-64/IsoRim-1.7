@@ -31,7 +31,8 @@ namespace IsoRim
     // (ghosts), extruded sprites and walls. Stacked floors (Floors): a floor above is a slab, not a roof, and clips
     // nothing; a roof on an upper floor clips the things on that floor (roof space = that floor's own rows and height).
     //
-    // The fog clips the same way (with the fog lid on, IsoRimSettings.fogLid). The game leaves fogged things out of what
+    // The fog clips the same way, with the fog lid on or off (the lid off: the game's flat fog, and the clip height is
+    // still the cell's top, so over fogged open ground nothing rises above the ground). The game leaves fogged things out of what
     // it draws, but in 3D a thing drawn beside or into a fogged cell (a tree of IsoRim's own trees layer, a figure half
     // into the fog, a crown over it) rose through the fog lid, which lies on the cell's top (IsoCellMap r, g: its highest
     // block, or its edifice). In a cell the game's fog grid hides (IsoCellMap a & 4), a fragment of a clipped thing above
@@ -56,10 +57,10 @@ namespace IsoRim
             get { return Enabled && View3D.Active && IsoRimMod.Settings.showRoofs; }
         }
 
-        // While the fog lid is drawn in the 3D view: the fog clips what stands under it.
+        // In the 3D view, with the fog lid on or off: the fog clips what stands in fogged cells at the cell's top.
         public static bool FogOn
         {
-            get { return FogEnabled && View3D.Active && IsoRimMod.Settings.fogLid; }
+            get { return FogEnabled && View3D.Active; }
         }
 
         // _IsoRoof: x = what clips (0 nothing, 1 roofs, 2 the fog, 3 both), y = wall height (true cells), z = how far a

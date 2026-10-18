@@ -1537,8 +1537,8 @@ namespace IsoRim
 
             // The fog lies on the tops of the rock and walls under it: the game's mesh drawn with
             // the lid material, whose shader lifts it. Flat (the game's own drawing) with the 3D
-            // view or the setting off.
-            if (kind == 2 && (!View3D.Ready || !st.fogLid))
+            // view or the lid off (View3D.FogLid: the setting, or an addon's lock).
+            if (kind == 2 && (!View3D.Ready || !View3D.FogLid))
             {
                 return true;
             }

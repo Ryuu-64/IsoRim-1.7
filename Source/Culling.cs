@@ -430,7 +430,7 @@ namespace IsoRim
 
         private static int SettingsKey()
         {
-            return View3D.Stamp * 31 + (IsoRimMod.Settings.fogLid ? 1 : 0);
+            return View3D.Stamp * 31 + (View3D.FogLid ? 1 : 0);
         }
 
         private static float FogLift(Map map)
@@ -447,7 +447,7 @@ namespace IsoRim
             box.any = box.fog = box.shadow = false;
             List<SectionLayer> layers = layersOf(section);
             float s = View3D.Squash;
-            bool fogLid = IsoRimMod.Settings.fogLid;
+            bool fogLid = View3D.FogLid;
             for (int li = 0; li < layers.Count; li++)
             {
                 List<LayerSubMesh> subs = layers[li].subMeshes;

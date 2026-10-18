@@ -552,6 +552,27 @@ namespace IsoRim
             l.CheckboxLabeled(label, ref value, tip);
         }
 
+        // A checkbox an addon has fixed: greyed out, showing the fixed value, with the addon's tooltip.
+        private static void LockedCheck(Listing_Standard l, string label, bool value, string tip)
+        {
+            Rect rect = l.GetRect(Text.CalcHeight(label, l.ColumnWidth));
+            GUI.color = Muted;
+            Widgets.CheckboxLabeled(rect, label, ref value, true);
+            GUI.color = Color.white;
+            string text = tip.NullOrEmpty() ? "R3D_Settings_FixedBy".Translate("another mod").ToString() : tip;
+            TooltipHandler.TipRegion(rect, text);
+            l.Gap(l.verticalSpacing);
+            if (Probe.ShowLockTips)
+            {
+                // Harness shots only (no pointer to hover with): the tooltip drawn as the game draws one, under the option.
+                Vector2 size = Text.CalcSize(text) + new Vector2(16f, 8f);
+                Rect box = new Rect(rect.x + 24f, rect.yMax + 2f, size.x, size.y);
+                Widgets.DrawAtlas(box, ActiveTip.TooltipBGAtlas);
+                Widgets.Label(box.ContractedBy(4f), text);
+                l.Gap(size.y + 4f);
+            }
+        }
+
         private static string KeyOf(KeyBindingDef key)
         {
             if (key == null || key.MainKey == KeyCode.None)
@@ -864,7 +885,14 @@ namespace IsoRim
 
                 Section(r, "R3D_Settings_Light".Translate());
                 Check(r, "R3D_Settings_LightingFix".Translate(), ref st.lightingFix);
-                Check(r, "R3D_Settings_FogLid".Translate(), ref st.fogLid);
+                if (View3D.FogLidLocked)
+                {
+                    LockedCheck(r, "R3D_Settings_FogLid".Translate(), View3D.LockedFogLid, View3D.FogLidLockTip);   // set by an addon (Api.LockFogLid)
+                }
+                else
+                {
+                    Check(r, "R3D_Settings_FogLid".Translate(), ref st.fogLid);
+                }
                 Check(r, "R3D_Settings_SunMoves".Translate(), ref st.sunMoves, "R3D_Settings_SunMovesTip".Translate());
             }
         }

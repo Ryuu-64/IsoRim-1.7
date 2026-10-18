@@ -612,7 +612,7 @@ namespace IsoRim
                     DrawSlab(layer);
                 }
             }
-            bool fogLid = kind == 2 && st.fogLid;
+            bool fogLid = kind == 2 && View3D.FogLid;
             List<LayerSubMesh> subs = layer.subMeshes;
             for (int i = 0; i < subs.Count; i++)
             {

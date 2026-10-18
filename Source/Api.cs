@@ -18,8 +18,9 @@ namespace IsoRim
     // (drawn y = true height / HeightSquash).
     public static partial class Api
     {
-        // Raised when members are added (2: view, projectile, skyfaller, drawing and option members of this file).
-        public static int Version => 2;
+        // Raised when members are added (2: view, projectile, skyfaller, drawing and option members of this file; 3: the
+        // fog lid lock).
+        public static int Version => 3;
 
         // ---- the view
 
@@ -50,6 +51,29 @@ namespace IsoRim
         public static string ViewLockedBy => View3D.LockedOn ? View3D.LockedBy : null;
 
         public static float LockedWallHeight => View3D.LockedWallHeight;
+
+        // For an addon whose current game needs the fog lid on or off (Version 3): the lid follows on, the player's own
+        // option is kept unchanged (back after UnlockFogLid, and saved as it was), and the option is greyed out with tip
+        // as its tooltip (who locked it, in the player's language). Not saved: lock again for each game that needs it.
+        public static void LockFogLid(string tip, bool on)
+        {
+            View3D.FogLidLocked = true;
+            View3D.LockedFogLid = on;
+            View3D.FogLidLockTip = tip;
+        }
+
+        // The player's own fog lid option decides again.
+        public static void UnlockFogLid()
+        {
+            View3D.FogLidLocked = false;
+            View3D.FogLidLockTip = null;
+        }
+
+        // The fog lid lock's tooltip (null when not locked), and whether the fog lid is drawn now (the option, or the
+        // locked value).
+        public static string FogLidLockedBy => View3D.FogLidLocked ? View3D.FogLidLockTip ?? "" : null;
+
+        public static bool FogLidOn => View3D.FogLid;
 
         // Where a true-space point shows on screen, pixels from the bottom left.
         public static Vector2 WorldToScreen(Vector3 p) => View3D.WorldToScreen(p);

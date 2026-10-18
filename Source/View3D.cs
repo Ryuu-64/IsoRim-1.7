@@ -44,6 +44,19 @@ namespace IsoRim
         // the wall height is fixed at this value (cells) and the option is greyed out. 0 = the option decides.
         public static float LockedWallHeight;
 
+        // Set by a gameplay addon whose world needs the fog lid on or off (Api.LockFogLid): the lid follows LockedFogLid
+        // instead of the player's option, which is kept as it is (it is back when the addon unlocks), and the option is
+        // greyed out with FogLidLockTip as its tooltip.
+        public static bool FogLidLocked;
+        public static bool LockedFogLid;
+        public static string FogLidLockTip;
+
+        // The fog lid is drawn: the option, or the locked value. Every reader of the fog lid option goes through this.
+        public static bool FogLid
+        {
+            get { return FogLidLocked ? LockedFogLid : IsoRimMod.Settings.fogLid; }
+        }
+
         // Changes whenever a setting that affects the shape of things changes.
         public static int Stamp;
 
@@ -845,7 +858,7 @@ namespace IsoRim
                 IsoRimSettings ts = IsoRimMod.Settings;
                 Map tm = Find.CurrentMap;
                 CrashTrail.Note("3D view " + (Active ? "on" : "off") + ": grade " + ts.grade + ", shader cut " + ShaderCut.On
-                    + ", fog lid " + ts.fogLid + ", screen " + Screen.width + "x" + Screen.height
+                    + ", fog lid " + FogLid + (FogLidLocked ? " (locked)" : "") + ", screen " + Screen.width + "x" + Screen.height
                     + ", map " + (tm != null ? tm.Size.x + "x" + tm.Size.z : "none"));
             }
 

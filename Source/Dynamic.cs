@@ -1695,7 +1695,7 @@ namespace IsoRim
             }
         }
 
-        // A thing the game's fog hides is not drawn, as the game leaves fogged things out (with the fog lid on; these
+        // A thing the game's fog hides is not drawn, as the game leaves fogged things out (lid on or off; these
         // live flames and steam columns are drawn here every frame, outside the fog clip of RoofClip).
         private static bool HiddenByFog(Thing t)
         {

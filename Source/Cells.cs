@@ -419,12 +419,12 @@ namespace IsoRim
         private static readonly int roofTexId = Shader.PropertyToID("_IsoRoofTex");
 
         // Before the map's meshes are drawn: brings the shown map's cell texture up to date and hands
-        // it to the shaders. Only the fog lid reads it today.
+        // it to the shaders (the fog lid, the cut-away, the roof and fog clips).
         public static void BeginFrame(Map map)
         {
             bool roofClip = RoofClip.On;
             Shader.SetGlobalVector(roofId, RoofClip.Globals);   // x = 0: nothing is clipped (1 roofs, 2 the fog, 3 both)
-            if (!View3D.Active || map == null || !(IsoRimMod.Settings.fogLid || ShaderCut.On || roofClip))
+            if (!View3D.Active || map == null || !(View3D.FogLid || RoofClip.FogOn || ShaderCut.On || roofClip))
             {
                 return;
             }
