@@ -203,11 +203,12 @@
   <R3D_Settings_RoofsNote>Built roofs as slate lids over your rooms, and rock roofs over caves.</R3D_Settings_RoofsNote>
   <R3D_Settings_ShowRoofs>Show roofs</R3D_Settings_ShowRoofs>
   <R3D_Settings_ShowRoofsTip>All roofs or none: switch them off again to see inside.</R3D_Settings_ShowRoofsTip>
-  <R3D_Settings_RoofColour>Roof colour: {0}</R3D_Settings_RoofColour>
+  <R3D_Settings_RoofColour>Roof style: {0}</R3D_Settings_RoofColour>
   <R3D_Settings_Roof_Slate>Slate</R3D_Settings_Roof_Slate>
   <R3D_Settings_Roof_Terracotta>Terracotta</R3D_Settings_Roof_Terracotta>
   <R3D_Settings_Roof_Thatch>Thatch</R3D_Settings_Roof_Thatch>
   <R3D_Settings_Roof_Tin>Tin</R3D_Settings_Roof_Tin>
+  <R3D_Settings_Roof_Concrete>Concrete flat roof</R3D_Settings_Roof_Concrete>
   <R3D_Settings_RoofShapeNote>Built roofs rise from every edge to a ridge, like hipped roofs. There is a button for them in the bottom right corner of the screen, and a key you can set.</R3D_Settings_RoofShapeNote>
 
   <!-- ==================== What is 3D ==================== -->

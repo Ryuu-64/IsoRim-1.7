@@ -64,14 +64,15 @@ namespace IsoRim
         }
 
         // _IsoRoof: x = what clips (0 nothing, 1 roofs, 2 the fog, 3 both), y = wall height (true cells), z = how far a
-        // built roof sits above the walls, w = how much it rises per cell (SectionLayer_IsoRimRoofs.Rise / Pitch; the
+        // built roof sits above the walls, w = how much it rises per cell (SectionLayer_IsoRimRoofs.Rise / ClipPitch: 0 for
+        // the concrete flat roof, whose slab starts at the wall tops, FlatRoofs; the
         // shaders know the overhang and the margins).
         public static Vector4 Globals
         {
             get
             {
                 float mode = (On ? 1f : 0f) + (FogOn ? 2f : 0f);
-                return mode <= 0f ? Vector4.zero : new Vector4(mode, View3D.WallHeight, SectionLayer_IsoRimRoofs.Rise, SectionLayer_IsoRimRoofs.Pitch);
+                return mode <= 0f ? Vector4.zero : new Vector4(mode, View3D.WallHeight, SectionLayer_IsoRimRoofs.Rise, SectionLayer_IsoRimRoofs.ClipPitch);
             }
         }
 

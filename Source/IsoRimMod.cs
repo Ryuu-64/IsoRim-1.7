@@ -113,7 +113,7 @@ namespace IsoRim
         public bool lightingFix = true;
         public bool fogLid = true;
         public bool showRoofs = false;
-        public int roofStyle = 0;        // slate, terracotta, thatch, tin
+        public int roofStyle = 0;        // slate, terracotta, thatch, tin, concrete flat roof (SectionLayer_IsoRimRoofs.StyleNames)
         public bool sunMoves = true;
         public bool cutFrontOnly = false;        // only walls between the camera and the pointer are lowered
         public bool cutNearColonists = false;    // walls round colonists are lowered too
@@ -922,7 +922,7 @@ namespace IsoRim
                     Roofs.Set(roofs);
                 }
                 Rect rb = r.GetRect(28f);
-                if (Widgets.ButtonText(rb, "R3D_Settings_RoofColour".Translate(RoofStyleLabel(Mathf.Clamp(st.roofStyle, 0, 3)))))
+                if (Widgets.ButtonText(rb, "R3D_Settings_RoofColour".Translate(RoofStyleLabel(SectionLayer_IsoRimRoofs.Style))))
                 {
                     List<FloatMenuOption> options = new List<FloatMenuOption>();
                     for (int i = 0; i < SectionLayer_IsoRimRoofs.StyleNames.Length; i++)

@@ -12,10 +12,11 @@ namespace IsoRim
     // Harness-only tests for the facing and selection fixes (2026-10-16), on top of the pointer tests (ProbeInteract):
     // they run in the same queue, one after the other, with real input paths and the game running.
     //   wipe=x0,z0,x1,z1             everything in the block but colonists removed (rock too), soil, no roof, no fog
-    //   pzslab=x0,z0,x1,z1           (with ProjectZ) floor 2 laid over that ground block, as ProjectZ's own tests set it up:
-    //                                its slab terrain upstairs, the floor's roof on the ground under it
+    //   pzslab=x0,z0,x1,z1[,k]       (with ProjectZ) floor 2 laid over that ground block, as ProjectZ's own tests set it up:
+    //                                its slab terrain upstairs, the floor's roof on the ground under it (k: floor k+1 over
+    //                                floor k's cells over that ground block, default 1)
     //   pzview=k                     the floor the player views (ProjectZ's FloorView: 0 the ground, 1 floor 2)
-    //   U<z> in any coordinate       that ground row's cell on floor 2 (e.g. dressed=40,U30,...)
+    //   U<z> in any coordinate       that ground row's cell on floor 2 (e.g. dressed=40,U30,...); V<z>: on floor 3
     //   want=tag,x:z;x:z|-           what the drag or click with that tag must select, by cell (- nothing): CHECK PASS/FAIL
     //   then=key:value|key:value     probe keys applied when the queue gets there (after the jobs queued before it)
     //   bdrag=def,ax,az,bx,bz,tag    the game's build designator of that def (terrain or thing) dragged between two map
@@ -80,10 +81,10 @@ namespace IsoRim
         }
 
         // The rows from the ground to floor 2 (U<z> coordinates).
-        private static int UShift()
+        private static int UShift(int k = 1)
         {
             Map map = Find.CurrentMap;
-            IntVec3 up = map != null && Floors.GroundRowsOf(map) > 0 ? Floors.Stacked(map, IntVec3.Zero, 1) : IntVec3.Invalid;
+            IntVec3 up = map != null && Floors.GroundRowsOf(map) > 0 ? Floors.Stacked(map, IntVec3.Zero, k) : IntVec3.Invalid;
             if (!up.IsValid)
             {
                 throw new InvalidOperationException("U coordinate without an upper floor");
@@ -215,10 +216,12 @@ namespace IsoRim
                         return true;
                     }
                     CellRect r = CellRect.FromLimits(I(a[0]), I(a[1]), I(a[2]), I(a[3]));
-                    foreach (IntVec3 c in r)
+                    int k = a.Length > 4 ? I(a[4]) : 1;
+                    foreach (IntVec3 g in r)
                     {
-                        IntVec3 up = Floors.Stacked(map, c, 1);
-                        if (up.IsValid && up.InBounds(map))
+                        IntVec3 c = k > 1 ? Floors.Stacked(map, g, k - 1) : g;
+                        IntVec3 up = Floors.Stacked(map, g, k);
+                        if (c.IsValid && c.InBounds(map) && up.IsValid && up.InBounds(map))
                         {
                             map.terrainGrid.SetTerrain(up, slab);
                             map.roofGrid.SetRoof(c, under);
