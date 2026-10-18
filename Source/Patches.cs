@@ -1582,7 +1582,8 @@ namespace IsoRim
                     LayerSubMesh sm = fogSubs[i];
                     if (sm.finalized && !sm.disabled)
                     {
-                        Material lid = sm.material == MatBases.FogOfWar ? IsoCellMap.FogFor(sm.material) : null;
+                        // (cover: storey 1 shows; fogged ground cells under its floors get no lid, the per-storey lid)
+                        Material lid = sm.material == MatBases.FogOfWar ? IsoCellMap.FogFor(sm.material, Floors.Shown(1)) : null;
                         Graphics.DrawMesh(sm.mesh, Matrix4x4.identity, lid ?? sm.material, sm.renderLayer);
                     }
                 }

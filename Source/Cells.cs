@@ -281,6 +281,11 @@ namespace IsoRim
             {
                 bits |= 4;   // fogged: whatever is drawn here above the fog lid is clipped (RoofClip, the fog)
             }
+            int za = aboveRow != null ? aboveRow[c.z] : -1;
+            if (za >= 0 && !map.terrainGrid.topGrid[za * width + c.x].dontRender)
+            {
+                bits |= 8;   // a floor right above (Floors.HasFloor of the cell above): its storey's lid is not drawn here while that floor shows
+            }
             int v = Mathf.Clamp(Mathf.RoundToInt(top * HeightSteps), 0, 65535);
             byte hi = (byte)(v >> 8), lo = (byte)(v & 255);
             if (cells[i].r != hi || cells[i].g != lo)
@@ -351,6 +356,7 @@ namespace IsoRim
             if (all)
             {
                 all = false;
+                BuildAboveRows();
                 for (int i = 0; i < cells.Length; i++)
                 {
                     Work(i);
@@ -447,12 +453,15 @@ namespace IsoRim
         // ---- the fog lid
 
         public const string FogDef = "IsoRimFog";
-        private static Material fog;
+        private static Material fog, fogCover;
         private static bool fogTried;
+        private static readonly int lidId = Shader.PropertyToID("_IsoLid");
 
         // The material a block of the game's fog is drawn with in 3D: the game's fog material on the
         // IsoRimFog shader (the lid is lifted in its vertex stage). Null if the def is missing.
-        public static Material FogFor(Material gameMat)
+        // cover: the storey above the block's is shown, so fogged cells with a floor right above them get no lid (cell
+        // bit 8; the floor above, and its own lid if fogged, shows there). False on maps without floors.
+        public static Material FogFor(Material gameMat, bool cover = false)
         {
             if (!fogTried)
             {
@@ -467,13 +476,65 @@ namespace IsoRim
                     fog.CopyPropertiesFromMaterial(gameMat);
                     fog.renderQueue = gameMat.renderQueue;
                     fog.name = "IsoRim_FogLid";
+                    fog.SetVector(lidId, Vector4.zero);
+                    fogCover = new Material(s);
+                    fogCover.CopyPropertiesFromMaterial(gameMat);
+                    fogCover.renderQueue = gameMat.renderQueue;
+                    fogCover.name = "IsoRim_FogLidCovered";
+                    fogCover.SetVector(lidId, new Vector4(1f, 0f, 0f, 0f));
                 }
             }
             if (fog != null && gameMat != null && fog.color != gameMat.color)
             {
                 fog.color = gameMat.color;
+                fogCover.color = gameMat.color;
             }
-            return fog;
+            return cover ? fogCover : fog;
+        }
+
+        // ---- the floor right above each cell (bit 8): per row, the row of the storey above (-1: none), from the layout
+
+        private int[] aboveRow;
+
+        public static bool CoverBits = true;   // harness A/B (probe key cellperf=): off, no cell gets bit 8 (the lid as before)
+
+        // (harness) the whole cell map worked out again now, timed (ms).
+        public static double RebuildNow(Map map)
+        {
+            IsoCellMap c = For(map);
+            c.all = true;
+            Stopwatch sw = Stopwatch.StartNew();
+            c.Update();
+            return sw.Elapsed.TotalMilliseconds;
+        }
+
+        private void BuildAboveRows()
+        {
+            if (!CoverBits)
+            {
+                aboveRow = null;
+                return;
+            }
+            aboveRow = new int[height];
+            for (int z = 0; z < height; z++)
+            {
+                aboveRow[z] = -1;
+            }
+            int rows;
+            float[] hs;
+            int[] shifts;
+            int n = Floors.Bands(map, out rows, out hs, out shifts);
+            for (int k = 0; k < n; k++)
+            {
+                for (int z = 0; z < rows; z++)
+                {
+                    int from = shifts[k] + z, to = shifts[k + 1] + z;
+                    if (from >= 0 && from < height && to >= 0 && to < height)
+                    {
+                        aboveRow[from] = to;
+                    }
+                }
+            }
         }
     }
 }

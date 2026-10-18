@@ -15,6 +15,7 @@ layout(set = 2, binding = 0) uniform MaterialUniforms
     vec4 _IsoView;    // global, no default: w = Squash
     vec4 _IsoCellMap; // global, no default: origin x, origin z, width, height of the cell texture
     vec4 _IsoLevel;   // global, no default: x = the map's ground height in cells
+    vec4 _IsoLid;     // @default = vec4(0.0, 0.0, 0.0, 0.0)   vertex stage only: x = 1 where fog under a shown floor gets no lid
 } uMaterial;
 
 layout(set = 2, binding = 1) uniform sampler2D _MainTex;

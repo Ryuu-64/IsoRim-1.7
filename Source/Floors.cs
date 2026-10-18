@@ -613,13 +613,20 @@ namespace IsoRim
                 }
             }
             bool fogLid = kind == 2 && View3D.FogLid;
+            // (the per-storey lid: no lid on fogged cells under a floor of the storey above while it shows)
+            bool cover = false;
+            if (fogLid)
+            {
+                Section s = layerSection(layer);
+                cover = s != null && Shown(FloorOfRow(s.botLeft.z) + 1);
+            }
             List<LayerSubMesh> subs = layer.subMeshes;
             for (int i = 0; i < subs.Count; i++)
             {
                 LayerSubMesh sm = subs[i];
                 if (sm.finalized && !sm.disabled)
                 {
-                    Material mat = fogLid && sm.material == MatBases.FogOfWar ? IsoCellMap.FogFor(sm.material) ?? sm.material : sm.material;
+                    Material mat = fogLid && sm.material == MatBases.FogOfWar ? IsoCellMap.FogFor(sm.material, cover) ?? sm.material : sm.material;
                     Graphics.DrawMesh(sm.mesh, sectionMatrix, mat, sm.renderLayer);
                 }
             }
@@ -1489,6 +1496,15 @@ namespace IsoRim
             if (loc.z >= GroundRowsOf(map) && (dirtyFlags & ((ulong)RimWorld.MapMeshFlagDefOf.Buildings | (ulong)RimWorld.MapMeshFlagDefOf.Terrain)) != 0)
             {
                 WallBoxes.OpenAirChanged(map);   // (CliffLook.cs) a floor or a block upstairs: which open air is a hole may change
+            }
+            if (loc.z >= GroundRowsOf(map) && (dirtyFlags & (ulong)RimWorld.MapMeshFlagDefOf.Terrain) != 0)
+            {
+                // a floor laid or taken up: the cell below has (or lost) its floor right above (cell bit 8, the per-storey fog lid)
+                IntVec3 below = Stacked(map, loc, -1);
+                if (below.IsValid && below.InBounds(map))
+                {
+                    IsoCellMap.Dirty(map, CellRect.SingleCell(below));
+                }
             }
             dirtying = true;
             try

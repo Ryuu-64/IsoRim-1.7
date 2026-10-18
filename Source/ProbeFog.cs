@@ -47,6 +47,27 @@ namespace IsoRim
                     Log.Message(sb.ToString());
                     return true;
                 }
+                case "cellperf":
+                {
+                    // cellperf=reps: the whole cell map rebuilt reps times with the floor-above bit and reps times without, interleaved; medians logged
+                    int reps = System.Math.Max(1, I(a[0]));
+                    List<double> with = new List<double>(), without = new List<double>();
+                    IsoCellMap.RebuildNow(map);
+                    for (int r = 0; r < reps; r++)
+                    {
+                        IsoCellMap.CoverBits = false;
+                        without.Add(IsoCellMap.RebuildNow(map));
+                        IsoCellMap.CoverBits = true;
+                        with.Add(IsoCellMap.RebuildNow(map));
+                    }
+                    with.Sort();
+                    without.Sort();
+                    Log.Message("[IsoRim probe] cellperf " + map.Size.x + "x" + map.Size.z + ", " + reps + " reps: full cell-map rebuild median " + with[reps / 2].ToString("0.00") + " ms with the floor-above bit, " + without[reps / 2].ToString("0.00") + " ms without (min " + with[0].ToString("0.00") + " / " + without[0].ToString("0.00") + ")");
+                    return true;
+                }
+                case "lidpts":
+                    LidPoints(map, I(a[0]), a.Length > 1 ? a[1] : "pts");
+                    return true;
                 case "fogcheck":
                 {
                     IntVec3 c = new IntVec3(I(a[0]), 0, I(a[1]));
