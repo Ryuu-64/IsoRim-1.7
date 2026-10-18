@@ -986,7 +986,8 @@ namespace IsoRim
                 return PrintRockSmooth(layer, t, height, kind);   // PROTOTYPE (CliffLook.cs)
             }
             Color tint = t.DrawColor;
-            Material topMat = MaterialFor(kind, true, 0, false, tint);
+            Material capMat = kind == WallKind.Rock ? RockCapMaterial(t.def) : null;
+            Material topMat = capMat ?? MaterialFor(kind, true, 0, false, tint);
             if (topMat == null)
             {
                 return false;
@@ -999,6 +1000,7 @@ namespace IsoRim
             Material solidMat = R3DMaterials.Solid;
             LayerSubMesh solid = solidMat != null ? MeshWriter.Sub(layer, solidMat) : null;
             bool room = solid != null && solid.verts.Count + 120 <= MeshWriter.MaxVerts;
+            int capRows = capMat != null ? CapRows(t.Map, t.Position) : 0;
 
             Map map = t.Map;
             IntVec3 c = t.Position;
@@ -1018,7 +1020,7 @@ namespace IsoRim
 
             MeshWriter.TexturedQuad(top,
                 ToWorld(rockTop[0], squash), ToWorld(rockTop[1], squash), ToWorld(rockTop[2], squash), ToWorld(rockTop[3], squash),
-                TopUV(rockTop[0]), TopUV(rockTop[1]), TopUV(rockTop[2]), TopUV(rockTop[3]), White);
+                CapUV(rockTop[0], capMat, capRows, c), CapUV(rockTop[1], capMat, capRows, c), CapUV(rockTop[2], capMat, capRows, c), CapUV(rockTop[3], capMat, capRows, c), White);
             if (room)
             {
                 Vector3 down = new Vector3(0f, -0.01f, 0f);
@@ -1128,6 +1130,59 @@ namespace IsoRim
         private static Vector2 TopUV(Vector3 cells)
         {
             return new Vector2(cells.x * 0.5f, cells.z * 0.5f);
+        }
+
+        // Natural rock's cap in its stone's own rough terrain (the game's texture and colour, as the rough ground beside the
+        // rock and the mountain tops of stacked floors), so cap and rough ground read as one stone. Ore keeps RockOreTop.
+        // Null when the stone has no natural terrain with a texture: the mod's RockTop then.
+        private static readonly Dictionary<ThingDef, Material> rockCaps = new Dictionary<ThingDef, Material>();
+        public static bool TerrainCaps = true;   // harness A/B (probe key rockcaps=0|1): off, the old RockTop caps
+
+        private static Material RockCapMaterial(ThingDef def)
+        {
+            Material m;
+            if (!TerrainCaps)
+            {
+                return null;
+            }
+            if (rockCaps.TryGetValue(def, out m))
+            {
+                return m;
+            }
+            TerrainDef terrain = def.building != null ? def.building.naturalTerrain : null;
+            Material tm = terrain != null && terrain.graphic != null ? terrain.graphic.MatSingle : null;
+            Texture2D tex = tm != null ? tm.mainTexture as Texture2D : null;
+            if (tex != null)
+            {
+                m = R3DTextures.MaterialFor(tex, "IsoRim_RockCap_" + def.defName, terrain.DrawColor);
+            }
+            rockCaps[def] = m;
+            return m;
+        }
+
+        // The terrain's own texture coordinates (the game's MapWorldUV: x and -z over 16 cells), so the pattern runs on from
+        // the rough stone beside the cap. On stacked floors in the rows of the storey above, whose floor the cap lies level
+        // with (a mountain top beside it).
+        private const float TerrainTileCells = 16f;
+
+        private static int CapRows(Map map, IntVec3 c)
+        {
+            float h;
+            int z;
+            IntVec3 up = Floors.ColumnFloor(map, c, out h, out z) >= 0 ? Floors.Stacked(map, c, 1) : IntVec3.Invalid;
+            return up.IsValid && up.InBounds(map) ? up.z - c.z : 0;
+        }
+
+        // Counted from the start of the tile the cell is in: the same pattern, with small numbers on big maps.
+        private static Vector2 CapUV(Vector3 cells, Material capMat, int rows, IntVec3 c)
+        {
+            if (capMat == null)
+            {
+                return TopUV(cells);
+            }
+            float tileX = Mathf.Floor(c.x / TerrainTileCells) * TerrainTileCells;
+            float tileZ = Mathf.Floor((c.z + rows) / TerrainTileCells) * TerrainTileCells;
+            return new Vector2((cells.x - tileX) / TerrainTileCells, 1f - (cells.z + rows - tileZ) / TerrainTileCells);
         }
 
         private static Vector2 SideUV(Vector3 cells, Vector3 right)

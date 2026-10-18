@@ -293,7 +293,7 @@ namespace IsoRim
                     CliffPerf(map, Math.Max(1, I(a[0])));
                     return true;
             }
-            return false;
+            return RockLookKey(key, a, map);
         }
 
         private static readonly HarmonyLib.AccessTools.FieldRef<MapDrawer, Section[,]> cliffSections = HarmonyLib.AccessTools.FieldRefAccess<MapDrawer, Section[,]>("sections");

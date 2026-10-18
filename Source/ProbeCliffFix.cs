@@ -135,7 +135,7 @@ namespace IsoRim
         // beside it to the south and west: with that floor viewed the rock's cap and the top's terrain lie side by side.
         private static void FindCap(Map map, int storey, int skip)
         {
-            int rows = Floors.GroundRowsOf(map);
+            int rows = Floors.GroundRowsOf(map) > 0 ? Floors.GroundRowsOf(map) : map.Size.z;   // (a plain map: its rows)
             List<KeyValuePair<float, IntVec3>> found = new List<KeyValuePair<float, IntVec3>>();
             IntVec3 centre = new IntVec3(map.Size.x / 2, 0, rows / 2);
             Func<IntVec3, IntVec3> at = g => storey == 0 ? g : Floors.Stacked(map, g, storey);

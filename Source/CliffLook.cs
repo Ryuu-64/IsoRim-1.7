@@ -147,7 +147,8 @@ namespace IsoRim
         private static bool PrintRockSmooth(SectionLayer layer, Thing t, float height, WallKind kind)
         {
             Color tint = t.DrawColor;
-            Material topMat = MaterialFor(kind, true, 0, false, tint);
+            Material capMat = kind == WallKind.Rock ? RockCapMaterial(t.def) : null;
+            Material topMat = capMat ?? MaterialFor(kind, true, 0, false, tint);
             if (topMat == null)
             {
                 return false;
@@ -195,7 +196,7 @@ namespace IsoRim
             // The cap (under the floor above where there is one; shown when the floors above are hidden).
             MeshWriter.TexturedQuad(top,
                 ToWorld(smTop[0], squash), ToWorld(smTop[1], squash), ToWorld(smTop[2], squash), ToWorld(smTop[3], squash),
-                TopUV(smTop[0]), TopUV(smTop[1]), TopUV(smTop[2]), TopUV(smTop[3]), White);
+                CapUV(smTop[0], capMat, upOff.z, c), CapUV(smTop[1], capMat, upOff.z, c), CapUV(smTop[2], capMat, upOff.z, c), CapUV(smTop[3], capMat, upOff.z, c), White);
             if (room)
             {
                 Vector3 down = new Vector3(0f, -0.01f, 0f);

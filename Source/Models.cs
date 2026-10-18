@@ -2176,6 +2176,27 @@ namespace IsoRim
             return m;
         }
 
+        // The same for a texture that is not one of the mod's own (the game's terrain, for natural rock caps).
+        public static Material MaterialFor(Texture2D tex, string name, Color color)
+        {
+            color.a = 1f;
+            Color32 c = color;
+            string key = "#" + name + "|" + c.r + "," + c.g + "," + c.b;
+            Material m;
+            if (!materials.TryGetValue(key, out m))
+            {
+                m = R3DMaterials.Make(R3DMaterials.SolidTexDef, name);
+                if (m != null)
+                {
+                    m.mainTexture = tex;
+                    m.color = color;
+                    IsoGlow.Use(m, IsoGlow.OwnCell);
+                }
+                materials[key] = m;
+            }
+            return m;
+        }
+
         private static readonly Dictionary<string, Material> materials = new Dictionary<string, Material>();
 
         public static int SwatchIndex(string swatch)
