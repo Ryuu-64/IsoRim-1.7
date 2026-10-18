@@ -2078,7 +2078,7 @@ namespace IsoRim
                 }
                 try
                 {
-                    Flame(foot, sy, sxz, false, fire.thingIDNumber * 0.37f, Find.TickManager.TicksGame / 60f);
+                    BurnFlame(foot, sy, sxz, fire.thingIDNumber, Find.TickManager.TicksGame / 60f);
                 }
                 finally
                 {
@@ -2097,6 +2097,102 @@ namespace IsoRim
         }
 
         public static bool BurningOn = true;   // harness: burn3d=0 draws the flat sprite (the look before)
+        public static readonly Dictionary<int, int> ForcedShape = new Dictionary<int, int>();   // harness: fire=x,z,size,shape
+
+        // A burning fire is one of four shapes, so a field of them doesn't repeat: 0 one tall tongue, 1 a fork of two
+        // leaning apart, 2 a low wide lick of four, 3 a cluster leaning one way. Its ID picks the shape (it never changes)
+        // and its turn, size (+-15% across and up) and beat, so neighbours don't pulse together. Each has the yellow
+        // heart a little wider than the campfire's and a little toward the camera, as the game's fire has a yellow centre.
+        private static void BurnFlame(Vector3 foot, float sy, float sxz, int id, float t)
+        {
+            uint h = Mix((uint)id * 2654435761u + 0x3C6EF372u);
+            uint g = Mix(h ^ 0x9E3779B9u);
+            int shape = (int)(h & 3u);
+            int forced;
+            if (ForcedShape.Count > 0 && ForcedShape.TryGetValue(id, out forced))
+            {
+                shape = forced & 3;
+            }
+            float yaw = ((h >> 2) & 1023u) * (360f / 1024f);
+            if (shape == 1 || shape == 3)
+            {
+                // The fork and the lean read only across the view: turned to the screen's sideways, give or take 35 degrees.
+                Vector3 f = View3D.GroundForward;
+                yaw = Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg + (yaw / 360f - 0.5f) * 70f + ((g >> 20) & 1u) * 180f;
+            }
+            sxz *= 0.85f + 0.30f * (((h >> 12) & 255u) / 255f);
+            sy *= 0.85f + 0.30f * (((h >> 20) & 255u) / 255f);
+            float own = (g & 1023u) * (6.2832f / 1024f);
+            t *= 0.9f + 0.2f * (((g >> 10) & 255u) / 255f);   // its own pace
+            Model m = flame;
+            float b = t * 7f + own;
+            float coreTall = 0.44f, coreWide = 0.22f;
+            switch (shape)
+            {
+                case 0:   // one tall tongue with a small one at its side
+                    Tongue(m, foot, yaw, sy, sxz, 0f, 0f, 0.34f, 1.02f + 0.15f * Mathf.Sin(b) + 0.06f * Mathf.Sin(b * 2.3f),
+                        4f * Mathf.Sin(b * 0.7f), 0f, t * 50f);
+                    Tongue(m, foot, yaw, sy, sxz, 0.14f, 0.02f, 0.24f, 0.48f + 0.09f * Mathf.Sin(b * 1.4f + 2f),
+                        16f + 5f * Mathf.Sin(b * 0.9f), 0.15f, -t * 60f);
+                    coreTall = 0.52f;
+                    break;
+                case 1:   // a fork: two tongues leaning apart
+                    Tongue(m, foot, yaw, sy, sxz, 0.09f, 0f, 0.28f, 0.80f + 0.13f * Mathf.Sin(b) + 0.05f * Mathf.Sin(b * 2.1f),
+                        17f + 5f * Mathf.Sin(b * 0.8f), 0f, t * 50f);
+                    Tongue(m, foot, yaw, sy, sxz, -0.09f, 0f, 0.26f, 0.62f + 0.12f * Mathf.Sin(b * 1.2f + 2.4f),
+                        17f + 5f * Mathf.Sin(b * 0.9f + 1.3f), Mathf.PI, -t * 55f);
+                    break;
+                case 2:   // a low wide lick of four
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float a = i * 1.5708f + 0.4f;
+                        float bi = b * (1f + 0.13f * i) + i * 1.9f;
+                        Tongue(m, foot, yaw, sy, sxz, 0.17f * Mathf.Cos(a), 0.17f * Mathf.Sin(a), 0.25f,
+                            (i % 2 == 0 ? 0.40f : 0.30f) + 0.07f * Mathf.Sin(bi), 12f + 4f * Mathf.Sin(bi * 0.6f), a,
+                            t * 45f * (i % 2 == 0 ? 1f : -1f));
+                    }
+                    coreTall = 0.32f;
+                    coreWide = 0.28f;
+                    break;
+                default:   // a cluster leaning one way, its tongues of three heights
+                {
+                    float lean = 18f + 7f * Mathf.Sin(b * 0.8f);
+                    Tongue(m, foot, yaw, sy, sxz, -0.07f, 0f, 0.29f, 0.74f + 0.12f * Mathf.Sin(b * 1.1f), lean, 0f, t * 50f);
+                    Tongue(m, foot, yaw, sy, sxz, 0.04f, 0.09f, 0.23f, 0.50f + 0.10f * Mathf.Sin(b * 1.3f + 1.7f), lean * 0.8f, 0.3f, -t * 60f);
+                    Tongue(m, foot, yaw, sy, sxz, 0.05f, -0.09f, 0.21f, 0.36f + 0.08f * Mathf.Sin(b * 1.6f + 3.1f), lean * 1.2f, -0.3f, t * 70f);
+                    break;
+                }
+            }
+            if (flameCore != null)
+            {
+                Vector3 at = foot - View3D.GroundForward * (0.05f * sxz);
+                Matrix4x4 local = Matrix4x4.Translate(new Vector3(0f, 0.06f * sy, 0f))
+                    * Matrix4x4.Scale(new Vector3(coreWide * sxz, (coreTall + 0.07f * Mathf.Sin(t * 11f + own)) * sy, coreWide * sxz));
+                DynamicModels.DrawLocal(flameCore, at, yaw + t * 90f, local, Color.white, null);
+            }
+        }
+
+        // One tongue of a burning fire: at (x, z) over the foot, wide and tall as the flame model's share, tipped lean
+        // degrees toward the angle dir (radians) and spun about its own axis.
+        private static void Tongue(Model m, Vector3 foot, float yaw, float sy, float sxz, float x, float z, float wide, float tall,
+            float lean, float dir, float spin)
+        {
+            Matrix4x4 local = Matrix4x4.Translate(new Vector3(x * sxz, FlameBase * sy, z * sxz))
+                * Matrix4x4.Rotate(Quaternion.AngleAxis(lean, new Vector3(Mathf.Sin(dir), 0f, -Mathf.Cos(dir))))
+                * Matrix4x4.Scale(new Vector3(wide * sxz, tall * sy, wide * sxz))
+                * Matrix4x4.Rotate(Quaternion.AngleAxis(spin, Vector3.up));
+            DynamicModels.DrawLocal(m, foot, yaw, local, Color.white, null);
+        }
+
+        private static uint Mix(uint x)
+        {
+            x ^= x >> 16;
+            x *= 0x7feb352du;
+            x ^= x >> 15;
+            x *= 0x846ca68bu;
+            x ^= x >> 16;
+            return x;
+        }
 
         // The burning fire's flame against the campfire's at the same sprite size.
         private const float BurnTall = 1.25f;

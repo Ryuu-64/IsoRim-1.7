@@ -235,9 +235,14 @@ namespace IsoRim
                 }
                 case "fire":
                 {
-                    // fire=x,z[,size]: a fire on the ground (or on what stands there), size 1 by default.
+                    // fire=x,z[,size[,shape]]: a fire on the ground (or on what stands there), size 1 by default; shape 0..3
+                    // forces its flame's shape (Effects.BurnFlame).
                     Fire fire = (Fire)ThingMaker.MakeThing(ThingDefOf.Fire);
                     fire.fireSize = a.Length > 2 ? F(a[2]) : 1f;
+                    if (a.Length > 3)
+                    {
+                        Effects.ForcedShape[fire.thingIDNumber] = I(a[3]);
+                    }
                     GenSpawn.Spawn(fire, new IntVec3(I(a[0]), 0, I(a[1])), map, Rot4.North);
                     break;
                 }
