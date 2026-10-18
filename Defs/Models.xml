@@ -993,6 +993,272 @@
     <outline>0.55</outline>
   </IsoRim.ModelDef>
 
+  <!-- Trees and stumps batch (2026-10-18, made by the user's Grok, user-approved previews): Models/trees_stumps.mtl
+       (fixed Kd colours; bark_* always shown, leaf_* hidden when bare or thinned, twig_* only then; glow_willowgill unlit),
+       BurnedTree with Models/burned_tree.mtl. Willowgill is a mushroom (no leaves). The harbinger tree is Graphic_Indexed by
+       bloom stage (growth quarters 0-3): stage 0 the bare model, 1-3 the one in bloom (as the sprites). Stumps: one shape per kind, fixed colours,
+       DLC stumps reuse the core shapes in their own colours; not sized by the felled tree's growth. DLC defs that are not
+       installed are skipped quietly (thingDef lookup is silent). -->
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_TreeGrayPine</defName>
+    <thingDef>Plant_TreeGrayPine</thingDef>
+    <models>
+      <li>Models/tree_graypine_1.obj</li>
+      <li>Models/tree_graypine_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.12</scaleJitter>
+    <growthScale>true</growthScale>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Witchwood</defName>
+    <thingDef>Plant_Witchwood</thingDef>
+    <models>
+      <li>Models/tree_witchwood_1.obj</li>
+      <li>Models/tree_witchwood_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.12</scaleJitter>
+    <growthScale>true</growthScale>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_RatPalm</defName>
+    <thingDef>Plant_RatPalm</thingDef>
+    <models>
+      <li>Models/tree_ratpalm_1.obj</li>
+      <li>Models/tree_ratpalm_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.12</scaleJitter>
+    <growthScale>true</growthScale>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_PebbleCactus</defName>
+    <thingDef>Plant_PebbleCactus</thingDef>
+    <models>
+      <li>Models/tree_pebblecactus_1.obj</li>
+      <li>Models/tree_pebblecactus_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.12</scaleJitter>
+    <growthScale>true</growthScale>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_TreeHarbinger</defName>
+    <thingDef>Plant_TreeHarbinger</thingDef>
+    <models>
+      <li>Models/tree_harbinger_1.obj</li>
+      <li>Models/tree_harbinger_2.obj</li>
+      <li>Models/tree_harbinger_2.obj</li>
+      <li>Models/tree_harbinger_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.12</scaleJitter>
+    <growthScale>true</growthScale>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_Plant_Willowgill</defName>
+    <thingDef>Plant_Willowgill</thingDef>
+    <models>
+      <li>Models/tree_willowgill_1.obj</li>
+      <li>Models/tree_willowgill_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.12</scaleJitter>
+    <growthScale>true</growthScale>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_ChoppedStump</defName>
+    <thingDef>ChoppedStump</thingDef>
+    <models>
+      <li>Models/stump_chopped_1.obj</li>
+      <li>Models/stump_chopped_2.obj</li>
+    </models>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_SmashedStump</defName>
+    <thingDef>SmashedStump</thingDef>
+    <models>
+      <li>Models/stump_smashed_1.obj</li>
+      <li>Models/stump_smashed_2.obj</li>
+    </models>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_BurnedTree</defName>
+    <thingDef>BurnedTree</thingDef>
+    <models>
+      <li>Models/stump_burned_1.obj</li>
+      <li>Models/stump_burned_2.obj</li>
+    </models>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_ChoppedStump_Harbinger</defName>
+    <thingDef>ChoppedStump_Harbinger</thingDef>
+    <model>Models/stump_harbinger_chopped_1.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_SmashedStump_Harbinger</defName>
+    <thingDef>SmashedStump_Harbinger</thingDef>
+    <model>Models/stump_harbinger_smashed_1.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_ChoppedStump_Polluted</defName>
+    <thingDef>ChoppedStump_Polluted</thingDef>
+    <model>Models/stump_chopped_polluted.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_SmashedStump_Polluted</defName>
+    <thingDef>SmashedStump_Polluted</thingDef>
+    <model>Models/stump_smashed_polluted.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_ChoppedStump_Polux</defName>
+    <thingDef>ChoppedStump_Polux</thingDef>
+    <model>Models/stump_chopped_polux.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_SmashedStump_Polux</defName>
+    <thingDef>SmashedStump_Polux</thingDef>
+    <model>Models/stump_smashed_polux.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_ChoppedStump_Anima</defName>
+    <thingDef>ChoppedStump_Anima</thingDef>
+    <model>Models/stump_chopped_anima.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_SmashedStump_Anima</defName>
+    <thingDef>SmashedStump_Anima</thingDef>
+    <model>Models/stump_smashed_anima.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_ChoppedStump_Gauranlen</defName>
+    <thingDef>ChoppedStump_Gauranlen</thingDef>
+    <model>Models/stump_chopped_gauranlen.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_SmashedStump_Gauranlen</defName>
+    <thingDef>SmashedStump_Gauranlen</thingDef>
+    <model>Models/stump_smashed_gauranlen.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_ChoppedStump_Archean</defName>
+    <thingDef>ChoppedStump_Archean</thingDef>
+    <model>Models/stump_chopped_archean.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_SmashedStump_Archean</defName>
+    <thingDef>SmashedStump_Archean</thingDef>
+    <model>Models/stump_smashed_archean.obj</model>
+    <builtFor>(1, 1)</builtFor>
+    <surfaceHeight>0.00</surfaceHeight>
+    <randomRotation>true</randomRotation>
+    <scaleJitter>0.08</scaleJitter>
+    <outline>0.55</outline>
+  </IsoRim.ModelDef>
+
   <IsoRim.ModelDef>
     <defName>R3D_Plant_Grass</defName>
     <thingDef>Plant_Grass</thingDef>
