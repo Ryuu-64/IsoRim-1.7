@@ -95,6 +95,86 @@ namespace IsoRim
             return true;
         }
 
+        // findore=storey,skip: a fogged ore (resource rock) on that storey with natural rock on the storey above it (deep in
+        // the mountain), the skip-th by distance from the centre; seamAt is set to it (look=seam,...).
+        private static void FindOre(Map map, int storey, int skip)
+        {
+            int rows = Floors.GroundRowsOf(map);
+            List<KeyValuePair<float, IntVec3>> found = new List<KeyValuePair<float, IntVec3>>();
+            IntVec3 centre = new IntVec3(map.Size.x / 2, 0, rows / 2);
+            for (int x = 10; x < map.Size.x - 10; x++)
+            {
+                for (int z = 10; z < rows - 10; z++)
+                {
+                    IntVec3 g = new IntVec3(x, 0, z);
+                    IntVec3 c = storey == 0 ? g : Floors.Stacked(map, g, storey);
+                    IntVec3 up = Floors.Stacked(map, g, storey + 1);
+                    if (!c.IsValid || !c.InBounds(map) || !up.IsValid || !up.InBounds(map) || !map.fogGrid.IsFogged(c))
+                    {
+                        continue;
+                    }
+                    Building b = c.GetEdifice(map);
+                    Building a = up.GetEdifice(map);
+                    if (b != null && b.def.building != null && b.def.building.isResourceRock && a != null && a.def.building != null && a.def.building.isNaturalRock)
+                    {
+                        found.Add(new KeyValuePair<float, IntVec3>((g - centre).LengthHorizontalSquared, g));
+                    }
+                }
+            }
+            found.Sort((p, q) => p.Key.CompareTo(q.Key));
+            if (found.Count > skip)
+            {
+                seamAt = found[skip].Value;
+            }
+            IntVec3 at = seamAt.IsValid ? (storey == 0 ? seamAt : Floors.Stacked(map, seamAt, storey)) : IntVec3.Invalid;
+            Log.Message("[IsoRim probe] findore storey " + storey + ": " + found.Count + " found, using " + seamAt
+                + (at.IsValid && at.InBounds(map) && at.GetEdifice(map) != null ? " (" + at.GetEdifice(map).def.defName + ")" : ""));
+        }
+
+        // findcap=storey,skip: an unfogged natural rock on that storey (not ore) with a mountain top (a floor, nothing on it)
+        // beside it to the south and west: with that floor viewed the rock's cap and the top's terrain lie side by side.
+        private static void FindCap(Map map, int storey, int skip)
+        {
+            int rows = Floors.GroundRowsOf(map);
+            List<KeyValuePair<float, IntVec3>> found = new List<KeyValuePair<float, IntVec3>>();
+            IntVec3 centre = new IntVec3(map.Size.x / 2, 0, rows / 2);
+            Func<IntVec3, IntVec3> at = g => storey == 0 ? g : Floors.Stacked(map, g, storey);
+            for (int x = 10; x < map.Size.x - 10; x++)
+            {
+                for (int z = 10; z < rows - 10; z++)
+                {
+                    IntVec3 g = new IntVec3(x, 0, z);
+                    IntVec3 c = at(g);
+                    if (!c.IsValid || !c.InBounds(map) || map.fogGrid.IsFogged(c))
+                    {
+                        continue;
+                    }
+                    Building b = c.GetEdifice(map);
+                    if (b == null || b.def.building == null || !b.def.building.isNaturalRock || b.def.building.isResourceRock)
+                    {
+                        continue;
+                    }
+                    bool ok = true;
+                    foreach (IntVec3 d in new[] { IntVec3.South, IntVec3.West, IntVec3.South * 2, IntVec3.West * 2 })
+                    {
+                        IntVec3 n = at(g + d);
+                        ok &= n.IsValid && n.InBounds(map) && n.GetEdifice(map) == null && (storey == 0 || Floors.HasFloor(map, n)) && !map.fogGrid.IsFogged(n)
+                            && RoughStone(map.terrainGrid.TerrainAt(n));
+                    }
+                    if (ok)
+                    {
+                        found.Add(new KeyValuePair<float, IntVec3>((g - centre).LengthHorizontalSquared, g));
+                    }
+                }
+            }
+            found.Sort((p, q) => p.Key.CompareTo(q.Key));
+            if (found.Count > skip)
+            {
+                seamAt = found[skip].Value;
+            }
+            Log.Message("[IsoRim probe] findcap storey " + storey + ": " + found.Count + " found, using " + seamAt);
+        }
+
         private static bool RoughStone(TerrainDef t)
         {
             return t != null && t.defName.EndsWith("_Rough");

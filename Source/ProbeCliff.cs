@@ -235,6 +235,18 @@ namespace IsoRim
                 case "panstrip":
                     StartPanStrip(F(a[0]), F(a[1]), I(a[2]), a[3]);
                     return;
+                case "findore":
+                    FindOre(map, I(a[0]), a.Length > 1 ? I(a[1]) : 0);
+                    return;
+                case "findcap":
+                    FindCap(map, I(a[0]), a.Length > 1 ? I(a[1]) : 0);
+                    return;
+                case "unlockfog":
+                    // as ProjectZ 9a9f72e: tall mountains no longer lock the fog lid; set=fogLid,N then decides
+                    Api.UnlockFogLid();
+                    map.mapDrawer.RegenerateEverythingNow();
+                    Log.Message("[IsoRim probe] fog lid unlocked, lid " + View3D.FogLid);
+                    return;
                 case "holescan":
                     HoleScan(map, I(a[0]), a.Length > 1 ? I(a[1]) : 0);
                     return;
