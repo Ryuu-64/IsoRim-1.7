@@ -24,6 +24,8 @@ namespace IsoRim
     //   stack=x,z,<count>            the first item in the cell brought to that count the game's way: split off
     //                                (and the rest destroyed) or a new stack absorbed (TryAbsorbStack)
     //   grow=x0,z0,x1,z1,<0-1>       every plant in the rectangle set to that growth (map mesh redrawn)
+    //   leafless=x0,z0,x1,z1         every tree in the rectangle made leafless as by cold (map mesh redrawn)
+    //   pollute=x0,z0,x1,z1          the ground polluted over a rectangle (Biotech)
     //   roof=0|1,x0,z0,x1,z1         built roof off or on over a rectangle
     //   flatroof=<fraction>          the concrete flat roof's thickness, of a wall height (-1: FlatRoofs.Thickness)
     //   active=0|1                   the 3D view off or on
@@ -333,6 +335,35 @@ namespace IsoRim
                         }
                     }
                     Log.Message("[IsoRim probe] grow: " + grown + " plants at " + growth.ToString("0.00"));
+                    break;
+                }
+                case "leafless":
+                {
+                    // leafless=x0,z0,x1,z1: every tree in the rectangle loses its leaves as in a cold snap (Plant.MakeLeafless).
+                    int bare = 0;
+                    foreach (IntVec3 c in Rect(a, 0))
+                    {
+                        Plant plant = c.InBounds(map) ? c.GetPlant(map) : null;
+                        if (plant != null && plant.def.plant != null && plant.def.plant.IsTree)
+                        {
+                            plant.MakeLeafless(Plant.LeaflessCause.Cold, false);
+                            plant.DirtyMapMesh(map);
+                            bare++;
+                        }
+                    }
+                    Log.Message("[IsoRim probe] leafless: " + bare + " trees");
+                    break;
+                }
+                case "pollute":
+                {
+                    // pollute=x0,z0,x1,z1: the ground polluted (Biotech), where the toxin-adapted trees keep their leaves.
+                    foreach (IntVec3 c in Rect(a, 0))
+                    {
+                        if (c.InBounds(map))
+                        {
+                            map.pollutionGrid.SetPolluted(c, true, true);
+                        }
+                    }
                     break;
                 }
                 case "spawn":
