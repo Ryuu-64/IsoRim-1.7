@@ -1011,6 +1011,7 @@
     <scaleJitter>0.12</scaleJitter>
     <growthScale>true</growthScale>
     <outline>0.55</outline>
+    <keepLeaves>true</keepLeaves>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -1025,6 +1026,7 @@
     <scaleJitter>0.12</scaleJitter>
     <growthScale>true</growthScale>
     <outline>0.55</outline>
+    <keepLeaves>true</keepLeaves>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -1039,6 +1041,7 @@
     <scaleJitter>0.12</scaleJitter>
     <growthScale>true</growthScale>
     <outline>0.55</outline>
+    <keepLeaves>true</keepLeaves>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
