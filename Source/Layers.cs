@@ -940,28 +940,27 @@ namespace IsoRim
             return found;
         }
 
-        // Roof styles to pick from in the options: pitched roofs in slate, terracotta, thatch or tin, or the concrete
-        // flat roof (FlatRoofs).
+        // Roof styles to pick from in the options: pitched roofs in slate, terracotta, thatch or tin (Styles: their
+        // colours), or the flat roof (FlatRoofs) in the colour of steel, marble or granite (FlatRoofs.Colour).
         public static readonly Color[] Styles =
         {
             new Color(0.40f, 0.42f, 0.47f),
             new Color(0.68f, 0.36f, 0.26f),
             new Color(0.72f, 0.60f, 0.36f),
             new Color(0.56f, 0.60f, 0.60f),
-            FlatRoofs.Concrete,
         };
-        public static readonly string[] StyleNames = { "Slate", "Terracotta", "Thatch", "Tin", "Concrete" };
-        public const int ConcreteStyle = 4;
+        public static readonly string[] StyleNames = { "Slate", "Terracotta", "Thatch", "Tin", "FlatSteel", "FlatMarble", "FlatGranite" };
+        public const int FirstFlatStyle = 4;
 
         public static int Style
         {
-            get { return Mathf.Clamp(IsoRimMod.Settings.roofStyle, 0, Styles.Length - 1); }
+            get { return Mathf.Clamp(IsoRimMod.Settings.roofStyle, 0, StyleNames.Length - 1); }
         }
 
-        // The concrete flat roof is chosen: built roofs are flat slabs (FlatRoofs), not pitched.
+        // A flat roof is chosen: built roofs are flat slabs (FlatRoofs), not pitched.
         public static bool Flat
         {
-            get { return Style == ConcreteStyle; }
+            get { return Style >= FirstFlatStyle; }
         }
 
         // How much a built roof's underside rises per cell in from its edge (RoofClip, the shaders' _IsoRoof.w).
@@ -1048,8 +1047,8 @@ namespace IsoRim
             }
             float squash = View3D.Squash;
             float wall = View3D.WallHeight;
-            Color roofCol = Styles[Style];
             bool flat = Flat;
+            Color roofCol = flat ? Styles[0] : Styles[Style];
 
             // What lies in and round this block: the kind of lid in each cell, then how far in
             // from the edge each built-roof cell is.

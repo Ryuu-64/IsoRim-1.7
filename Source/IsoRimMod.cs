@@ -113,7 +113,7 @@ namespace IsoRim
         public bool lightingFix = true;
         public bool fogLid = true;
         public bool showRoofs = false;
-        public int roofStyle = 0;        // slate, terracotta, thatch, tin, concrete flat roof (SectionLayer_IsoRimRoofs.StyleNames)
+        public int roofStyle = 0;        // slate, terracotta, thatch, tin, flat roof in steel, marble, granite (SectionLayer_IsoRimRoofs.StyleNames)
         public bool sunMoves = true;
         public bool cutFrontOnly = false;        // only walls between the camera and the pointer are lowered
         public bool cutNearColonists = false;    // walls round colonists are lowered too

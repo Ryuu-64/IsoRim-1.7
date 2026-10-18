@@ -4,7 +4,8 @@ using Verse;
 
 namespace IsoRim
 {
-    // The concrete flat roof (roof style Concrete, SectionLayer_IsoRimRoofs.Flat): a thick light grey slab laid on the
+    // The flat roof (roof styles FlatSteel, FlatMarble, FlatGranite, SectionLayer_IsoRimRoofs.Flat): a thick slab in the
+    // colour of that stuff (read from its def when built, so mods that recolour the stuff are followed), laid on the
     // wall tops over every built-roof cell (lid kind 1), with a low parapet round the edges where roofed meets unroofed.
     // Few big shapes, flat tones and dark lines along the parapet top and the slab's foot, as the rest of the 3D view.
     // The slab starts at the wall tops (its underside: things under it are clipped there, RoofClip, with no rise per
@@ -29,7 +30,19 @@ namespace IsoRim
         private const float ParapetHeight = 0.16f;
         private const float LineWidth = 0.035f;
         private const float Lift = 0.002f;            // lines over the faces they lie on
-        public static readonly Color Concrete = new Color(0.70f, 0.70f, 0.68f);
+        private static readonly string[] StuffNames = { "Steel", "BlocksMarble", "BlocksGranite" };
+        private static readonly Color Fallback = new Color(0.70f, 0.70f, 0.68f);
+
+        // The slab's colour for the chosen flat style: the stuff's own colour (StuffProperties.color, as its walls).
+        public static Color Colour
+        {
+            get
+            {
+                int i = Mathf.Clamp(SectionLayer_IsoRimRoofs.Style - SectionLayer_IsoRimRoofs.FirstFlatStyle, 0, StuffNames.Length - 1);
+                ThingDef def = DefDatabase<ThingDef>.GetNamedSilentFail(StuffNames[i]);
+                return def != null && def.stuffProps != null ? def.stuffProps.color : Fallback;
+            }
+        }
 
         private static readonly IntVec3[] Side = { IntVec3.South, IntVec3.East, IntVec3.North, IntVec3.West };
         private static readonly int[] AX = { 0, 1, 1, 0 };   // side f runs from corner A to corner B, anticlockwise seen from above
@@ -46,7 +59,7 @@ namespace IsoRim
             {
                 if (material == null && R3DMaterials.Solid != null)
                 {
-                    material = R3DMaterials.Make(R3DMaterials.SolidDef, "IsoRim_RoofConcrete", 3600, R3DMaterials.LightRoof);
+                    material = R3DMaterials.Make(R3DMaterials.SolidDef, "IsoRim_RoofFlat", 3600, R3DMaterials.LightRoof);
                     IsoGlow.Use(material, IsoGlow.SkyOnly);   // sky colour only: lamps under a roof do not light its top
                 }
                 return material;
@@ -75,12 +88,13 @@ namespace IsoRim
             float top = (wall + Depth) / squash;
             float rim = (wall + Depth + ParapetHeight) / squash;
             float lift = Lift / squash;
-            Color32 topCol = R3DMaterials.Shaded(Concrete, 1f);
-            Color32 rimTop = R3DMaterials.Shaded(Concrete, 1.04f);
-            Color32 rimInner = R3DMaterials.Shaded(Concrete, 0.8f);
-            Color32 sideCol = R3DMaterials.Shaded(Concrete, 0.94f);
-            Color32 cutCol = R3DMaterials.Shaded(Concrete, 0.82f);
-            Color32 line = R3DMaterials.Shaded(Concrete, 0.3f);
+            Color colour = Colour;
+            Color32 topCol = R3DMaterials.Shaded(colour, 1f);
+            Color32 rimTop = R3DMaterials.Shaded(colour, 1.04f);
+            Color32 rimInner = R3DMaterials.Shaded(colour, 0.8f);
+            Color32 sideCol = R3DMaterials.Shaded(colour, 0.94f);
+            Color32 cutCol = R3DMaterials.Shaded(colour, 0.82f);
+            Color32 line = R3DMaterials.Shaded(colour, 0.3f);
             bool tagged = CutTags.Enabled;
 
             int cellMark = -1;
