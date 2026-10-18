@@ -100,6 +100,104 @@ namespace IsoRim
             return t != null && t.defName.EndsWith("_Rough");
         }
 
+        // findtop=storey,skip: the middle of a 9x9 patch of mountain top on that storey (a floor, nothing on it, natural
+        // rock under every cell), the skip-th by distance from the centre; logged, and look=seam,... then looks at it
+        // (seamAt is reused). digcorner=dx,dz digs, on the storey below, the three cells round the top cell's north-east
+        // corner other than the top cell itself (cells offset by dx, dz from it): its rock is left with a convex corner
+        // under the floor.
+        private static void FindTop(Map map, int storey, int skip)
+        {
+            seamAt = IntVec3.Invalid;
+            int rows = Floors.GroundRowsOf(map);
+            List<KeyValuePair<float, IntVec3>> found = new List<KeyValuePair<float, IntVec3>>();
+            IntVec3 centre = new IntVec3(map.Size.x / 2, 0, rows / 2);
+            Func<IntVec3, bool> top = g =>
+            {
+                IntVec3 c = Floors.Stacked(map, g, storey);
+                IntVec3 b = Floors.Stacked(map, g, storey - 1);
+                if (!c.IsValid || !c.InBounds(map) || !b.IsValid || !b.InBounds(map) || c.GetEdifice(map) != null || !Floors.HasFloor(map, c))
+                {
+                    return false;
+                }
+                Building r = b.GetEdifice(map);
+                return r != null && r.def.building != null && r.def.building.isNaturalRock && !r.def.building.isResourceRock;
+            };
+            for (int x = 10; x < map.Size.x - 10; x++)
+            {
+                for (int z = 10; z < rows - 10; z++)
+                {
+                    bool ok = true;
+                    for (int dx = -4; dx <= 4 && ok; dx++)
+                    {
+                        for (int dz = -4; dz <= 4 && ok; dz++)
+                        {
+                            ok = top(new IntVec3(x + dx, 0, z + dz));
+                        }
+                    }
+                    if (ok)
+                    {
+                        found.Add(new KeyValuePair<float, IntVec3>((new IntVec3(x, 0, z) - centre).LengthHorizontalSquared, new IntVec3(x, 0, z)));
+                    }
+                }
+            }
+            found.Sort((p, q) => p.Key.CompareTo(q.Key));
+            if (found.Count > skip)
+            {
+                seamAt = found[skip].Value;
+            }
+            Log.Message("[IsoRim probe] findtop storey " + storey + ": " + found.Count + " found, using " + seamAt);
+        }
+
+        // holescan=storey,skip: cells of that storey whose slab top over rock is cut at a corner (the rock below is convex
+        // there) while a cell beside that corner on the same storey still has a floor or a block: a gap in the top.
+        private static void HoleScan(Map map, int storey, int skip)
+        {
+            int rows = Floors.GroundRowsOf(map);
+            int n = 0;
+            List<string> first = new List<string>();
+            int[] cx = { 0, 0, 1, 1 };
+            int[] cz = { 0, 1, 1, 0 };
+            for (int x = 1; x < map.Size.x - 1; x++)
+            {
+                for (int z = 1; z < rows - 1; z++)
+                {
+                    IntVec3 g = new IntVec3(x, 0, z);
+                    IntVec3 c = Floors.Stacked(map, g, storey);
+                    Vector3[] q;
+                    if (!c.IsValid || !c.InBounds(map) || !Floors.HasFloor(map, c) || !WallBoxes.SlabOverRock(map, c, out q))
+                    {
+                        continue;
+                    }
+                    for (int k = 0; k < 4; k++)
+                    {
+                        if (Mathf.Abs(q[k].x - cx[k]) < 0.01f && Mathf.Abs(q[k].z - cz[k]) < 0.01f)
+                        {
+                            continue;
+                        }
+                        // the two cells sharing an edge with this one at that corner
+                        IntVec3 sx = c + new IntVec3(cx[k] == 0 ? -1 : 1, 0, 0);
+                        IntVec3 sz = c + new IntVec3(0, 0, cz[k] == 0 ? -1 : 1);
+                        float h;
+                        bool covered = sx.InBounds(map) && (Floors.HasFloor(map, sx) || Floors.FullBlock(map, sx, out h))
+                            || sz.InBounds(map) && (Floors.HasFloor(map, sz) || Floors.FullBlock(map, sz, out h));
+                        if (covered)
+                        {
+                            if (n == skip)
+                            {
+                                seamAt = g;
+                            }
+                            n++;
+                            if (first.Count < 12)
+                            {
+                                first.Add(g.x + "," + g.z + "/k" + k);
+                            }
+                        }
+                    }
+                }
+            }
+            Log.Message("[IsoRim probe] holescan storey " + storey + ": " + n + " cut corners beside a floor, e.g. " + string.Join(" ", first) + "; using " + seamAt);
+        }
+
         private static void FindSeam(Map map, int storey, int skip)
         {
             WatchTerrainRegens();

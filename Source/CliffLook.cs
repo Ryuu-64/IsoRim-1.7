@@ -386,9 +386,7 @@ namespace IsoRim
                     for (int k = 0; k < 4; k++)
                     {
                         bool moved;
-                        int dx, dz;
-                        Vector3 g = ChamferedCorner(map, below.x + CornerX[k], below.z + CornerZ[k], rh, out moved, out dx, out dz);
-                        q[k] = new Vector3(g.x - below.x, 0f, g.z - below.z);
+                        q[k] = FloorCorner(map, c, below, k, rh, out moved);
                         any |= moved;
                     }
                     if (any)
@@ -473,9 +471,7 @@ namespace IsoRim
                 for (int k = 0; k < 4; k++)
                 {
                     bool moved;
-                    int dx, dz;
-                    Vector3 g = ChamferedCorner(map, below.x + CornerX[k], below.z + CornerZ[k], rh, out moved, out dx, out dz);
-                    corners[k] = new Vector3(g.x - below.x, 0f, g.z - below.z);
+                    corners[k] = FloorCorner(map, c, below, k, rh, out moved);
                 }
             }
             finally
@@ -483,6 +479,29 @@ namespace IsoRim
                 FullHeights = fullWas;
             }
             return true;
+        }
+
+        // Corner k (SW, NW, NE, SE) of the floor's cell c over the rock in below, relative to the cell, for both its slab
+        // top and its terrain: the rock's chamfered corner, unless the floor goes on past that corner (a cell beside c
+        // there, sharing an edge with it, has a floor or a block on this storey, as over a dug cell): then the square
+        // corner, or the cut-off corner would leave a hole in the floor. Only a cell touching the corner diagonally
+        // keeps the cut (the two floors just meet at a point there).
+        private static Vector3 FloorCorner(Map map, IntVec3 c, IntVec3 below, int k, float rh, out bool moved)
+        {
+            int dx, dz;
+            Vector3 g = ChamferedCorner(map, below.x + CornerX[k], below.z + CornerZ[k], rh, out moved, out dx, out dz);
+            if (moved && (FloorGoesOn(map, c + new IntVec3(CornerX[k] == 0 ? -1 : 1, 0, 0)) || FloorGoesOn(map, c + new IntVec3(0, 0, CornerZ[k] == 0 ? -1 : 1))))
+            {
+                moved = false;
+                return new Vector3(CornerX[k], 0f, CornerZ[k]);
+            }
+            return new Vector3(g.x - below.x, 0f, g.z - below.z);
+        }
+
+        private static bool FloorGoesOn(Map map, IntVec3 c)
+        {
+            float h;
+            return c.InBounds(map) && (Floors.HasFloor(map, c) || Floors.FullBlock(map, c, out h));
         }
     }
 }

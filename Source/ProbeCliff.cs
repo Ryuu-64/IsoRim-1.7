@@ -235,6 +235,16 @@ namespace IsoRim
                 case "panstrip":
                     StartPanStrip(F(a[0]), F(a[1]), I(a[2]), a[3]);
                     return;
+                case "holescan":
+                    HoleScan(map, I(a[0]), a.Length > 1 ? I(a[1]) : 0);
+                    return;
+                case "findtop":
+                    FindTop(map, I(a[0]), a.Length > 1 ? I(a[1]) : 0);
+                    return;
+                case "digrel":
+                    // digrel=dx0,dz0,dx1,dz1,storey: digrect relative to the cell findseam/findtop found
+                    CliffStep("digrect=" + (seamAt.x + I(a[0])) + "," + (seamAt.z + I(a[1])) + "," + (seamAt.x + I(a[2])) + "," + (seamAt.z + I(a[3])) + "," + a[4]);
+                    return;
                 case "findseam":
                     FindSeam(map, I(a[0]), a.Length > 1 ? I(a[1]) : 0);
                     return;
