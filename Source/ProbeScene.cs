@@ -25,6 +25,7 @@ namespace IsoRim
     //                                (and the rest destroyed) or a new stack absorbed (TryAbsorbStack)
     //   grow=x0,z0,x1,z1,<0-1>       every plant in the rectangle set to that growth (map mesh redrawn)
     //   roof=0|1,x0,z0,x1,z1         built roof off or on over a rectangle
+    //   flatroof=<fraction>          the concrete flat roof's thickness, of a wall height (-1: FlatRoofs.Thickness)
     //   active=0|1                   the 3D view off or on
     //   fog=x0,z0,x1,z1              fog of war over a rectangle
     //   mine=x,z                     the rock in the cell is mined out at once
@@ -230,9 +231,17 @@ namespace IsoRim
                     else
                     {
                         f.SetValue(IsoRimMod.Settings, v);
+                        if (a[0] == "roofStyle")
+                        {
+                            Roofs.Rebuild();   // as the options menu does
+                        }
                     }
                     break;
                 }
+                case "flatroof":
+                    FlatRoofs.ThicknessOverride = F(a[0]);   // the concrete flat roof's thickness, of a wall height (-1: the default)
+                    Roofs.Rebuild();
+                    break;
                 case "fire":
                 {
                     // fire=x,z[,size[,shape]]: a fire on the ground (or on what stands there), size 1 by default; shape 0..3

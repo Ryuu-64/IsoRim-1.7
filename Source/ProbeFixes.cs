@@ -15,7 +15,7 @@ namespace IsoRim
     //   pzslab=x0,z0,x1,z1[,k]       (with ProjectZ) floor 2 (k = 1, or floor k + 1) laid over that ground block, as
     //                                ProjectZ's own tests set it up: its slab terrain up there, the floor's roof under it
     //   pzview=k                     the floor the player views (ProjectZ's FloorView: 0 the ground, 1 floor 2)
-    //   U<z> in any coordinate       that ground row's cell on floor 2 (e.g. dressed=40,U30,...)
+    //   U<z> in any coordinate       that ground row's cell on floor 2 (e.g. dressed=40,U30,...); V<z>: on floor 3
     //   want=tag,x:z;x:z|-           what the drag or click with that tag must select, by cell (- nothing): CHECK PASS/FAIL
     //   then=key:value|key:value     probe keys applied when the queue gets there (after the jobs queued before it)
     //   bdrag=def,ax,az,bx,bz,tag    the game's build designator of that def (terrain or thing) dragged between two map

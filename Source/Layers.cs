@@ -940,7 +940,8 @@ namespace IsoRim
             return found;
         }
 
-        // Roof colours to pick from in the options: slate, terracotta, thatch, tin.
+        // Roof styles to pick from in the options: pitched roofs in slate, terracotta, thatch or tin (Styles: their
+        // colours), or the flat roof (FlatRoofs) in the colour of steel, marble or granite (FlatRoofs.Colour).
         public static readonly Color[] Styles =
         {
             new Color(0.40f, 0.42f, 0.47f),
@@ -948,7 +949,25 @@ namespace IsoRim
             new Color(0.72f, 0.60f, 0.36f),
             new Color(0.56f, 0.60f, 0.60f),
         };
-        public static readonly string[] StyleNames = { "Slate", "Terracotta", "Thatch", "Tin" };
+        public static readonly string[] StyleNames = { "Slate", "Terracotta", "Thatch", "Tin", "FlatSteel", "FlatMarble", "FlatGranite" };
+        public const int FirstFlatStyle = 4;
+
+        public static int Style
+        {
+            get { return Mathf.Clamp(IsoRimMod.Settings.roofStyle, 0, StyleNames.Length - 1); }
+        }
+
+        // A flat roof is chosen: built roofs are flat slabs (FlatRoofs), not pitched.
+        public static bool Flat
+        {
+            get { return Style >= FirstFlatStyle; }
+        }
+
+        // How much a built roof's underside rises per cell in from its edge (RoofClip, the shaders' _IsoRoof.w).
+        public static float ClipPitch
+        {
+            get { return Flat ? 0f : Pitch; }
+        }
 
         private static readonly Dictionary<int, Material> textureMats = new Dictionary<int, Material>();
 
@@ -1028,7 +1047,8 @@ namespace IsoRim
             }
             float squash = View3D.Squash;
             float wall = View3D.WallHeight;
-            Color roofCol = Styles[Mathf.Clamp(IsoRimMod.Settings.roofStyle, 0, Styles.Length - 1)];
+            bool flat = Flat;
+            Color roofCol = flat ? Styles[0] : Styles[Style];
 
             // What lies in and round this block: the kind of lid in each cell, then how far in
             // from the edge each built-roof cell is.
@@ -1080,9 +1100,9 @@ namespace IsoRim
                 CutTags.Apply(this, cellMark, markCell, ShaderCut.Roof);   // (shader cut-away) the cell before: hidden while its roof is open
                 cellMark = -1;
                 int kind = KindAt(c.x, c.z);
-                if (kind == 0 || kind == ShipRoofs.Kind || kind == FloorLid)
+                if (kind == 0 || kind == ShipRoofs.Kind || kind == FloorLid || (kind == 1 && flat))
                 {
-                    continue;   // ship roofs: ShipRoofs.Build below; under a floor: that floor's slab
+                    continue;   // ship roofs: ShipRoofs.Build below; concrete flat roofs: FlatRoofs.Build; under a floor: that floor's slab
                 }
                 if (sm.verts.Count + 64 > MeshWriter.MaxVerts)
                 {
@@ -1115,7 +1135,7 @@ namespace IsoRim
                     p[k] = new Vector3(cx, h, cz);   // in cells; corners SW, NW, NE, SE
                 }
                 bool alongSwNe = Mathf.Abs(p[0].y - p[2].y) >= Mathf.Abs(p[1].y - p[3].y);
-                int style = Mathf.Clamp(IsoRimMod.Settings.roofStyle, 0, Styles.Length - 1);
+                int style = Style;
                 if (alongSwNe)
                 {
                     Facet(this, sm, p[0], p[1], p[2], roofCol, c, style);
@@ -1164,6 +1184,10 @@ namespace IsoRim
                 }
             }
             CutTags.Apply(this, cellMark, markCell, ShaderCut.Roof);
+            if (flat)
+            {
+                FlatRoofs.Build(this, section.CellRect, KindAt, (x, z) => !CutTags.Enabled && Cutaway.RoofOpen(map, new IntVec3(x, 0, z)));
+            }
             ShipRoofs.Build(this, map, section.CellRect, KindAt);   // flat decks over gravships (Gravship.cs)
         }
 
@@ -1177,10 +1201,11 @@ namespace IsoRim
             {
                 return;
             }
+            bool flat = Flat;   // a flat roof: corner levels 0 (and ClipPitch 0)
             foreach (IntVec3 c in section.CellRect)
             {
                 int kind = KindAt(c.x, c.z);
-                Color32 v = kind == 1
+                Color32 v = kind == 1 && !flat
                     ? RoofClip.Pack(1, CornerLevel(c.x, c.z), CornerLevel(c.x + 1, c.z), CornerLevel(c.x, c.z + 1), CornerLevel(c.x + 1, c.z + 1))
                     : RoofClip.Pack(kind, 0, 0, 0, 0);   // 4 (a floor above: its slab) packs as no roof
                 cells.SetRoof(c, v);
