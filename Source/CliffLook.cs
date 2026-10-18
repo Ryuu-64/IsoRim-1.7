@@ -516,12 +516,18 @@ namespace IsoRim
 
         // ---- rock under a floor (rock-top floors, isorim-pz-rocktop-floors-plan.md §4.2-4.3)
 
-        // The seam rule: a top-edge line (the dark rim) is drawn only where the walkable surface really ends. Where the
-        // cell beyond face f has a floor (or a full block) on the storey above, the surface goes on at the rim's height
-        // there (a stairs landing or a slab over the open ground beside a mountain top): no rim. Without floors (and on
-        // the top storey) Stacked is Invalid and the rim stays.
+        // The seam rule: a top-edge line (the dark rim) is drawn only where the walkable surface really ends. On a rock with
+        // a floor right above it (its top is walkable: a mountain top), where the cell beyond face f has a floor (or a full
+        // block) on that storey too, the surface goes on at the rim's height (a stairs landing or a slab over the open
+        // ground beside a mountain top): no rim. A rock with no floor above keeps its rims (its top is not walkable; plan
+        // §4.4); without floors (and on the top storey) Stacked is Invalid and the rim stays.
         private static bool SurfaceGoesOn(Map map, IntVec3 c, int f)
         {
+            IntVec3 up = Floors.Stacked(map, c, 1);
+            if (!up.IsValid || !up.InBounds(map) || !Floors.HasFloor(map, up))
+            {
+                return false;
+            }
             IntVec3 n = c + FaceOut[f];
             return n.InBounds(map) && FloorGoesOn(map, Floors.Stacked(map, n, 1));
         }
