@@ -235,9 +235,41 @@ namespace IsoRim
                 }
                 case "fire":
                 {
+                    // fire=x,z[,size]: a fire on the ground (or on what stands there), size 1 by default.
                     Fire fire = (Fire)ThingMaker.MakeThing(ThingDefOf.Fire);
-                    fire.fireSize = 1f;
+                    fire.fireSize = a.Length > 2 ? F(a[2]) : 1f;
                     GenSpawn.Spawn(fire, new IntVec3(I(a[0]), 0, I(a[1])), map, Rot4.North);
+                    break;
+                }
+                case "fires":
+                {
+                    // fires=x0,z0,x1,z1,min,max: a fire in every cell of a rectangle, sizes spread between min and max.
+                    float lo = F(a[4]), hi = F(a[5]);
+                    foreach (IntVec3 c in Rect(a, 0))
+                    {
+                        if (c.InBounds(map) && !c.ContainsStaticFire(map))
+                        {
+                            Fire f = (Fire)ThingMaker.MakeThing(ThingDefOf.Fire);
+                            f.fireSize = Mathf.Lerp(lo, hi, Hashing.Unit(c.x, c.z, 7));
+                            GenSpawn.Spawn(f, c, map, Rot4.North);
+                        }
+                    }
+                    break;
+                }
+                case "burn3d":
+                    Effects.BurningOn = a[0] == "1";   // burn3d=0: burning fires as the flat sprite (before)
+                    break;
+                case "burn":
+                {
+                    // burn=x,z,size: the pawns in that cell set on fire, as the game attaches it (only pawns carry a fire).
+                    IntVec3 c = new IntVec3(I(a[0]), 0, I(a[1]));
+                    foreach (Thing t in c.GetThingList(map).ToList())
+                    {
+                        if (t is Pawn)
+                        {
+                            t.TryAttachFire(F(a[2]), null);
+                        }
+                    }
                     break;
                 }
                 case "gas":

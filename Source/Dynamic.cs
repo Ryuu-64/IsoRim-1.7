@@ -1632,21 +1632,7 @@ namespace IsoRim
             {
                 return;
             }
-            if (!tried)
-            {
-                tried = true;
-                string root = IsoRimMod.RootDir;
-                if (root != null)
-                {
-                    flame = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_flame.obj"));
-                    flameCore = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_flame_core.obj"));
-                    flameDark = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_flame_dark.obj"));
-                    flameDarkCore = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_flame_dark_core.obj"));
-                    puff = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_puff.obj"));
-                }
-                campfire = DefDatabase<ThingDef>.GetNamedSilentFail("Campfire");
-                geyser = DefDatabase<ThingDef>.GetNamedSilentFail("SteamGeyser");
-            }
+            Load();
             try
             {
                 // Time in seconds of game time, so everything stands still while the game is paused.
@@ -1693,6 +1679,26 @@ namespace IsoRim
             {
                 Log.ErrorOnce("[IsoRim] Drawing flames and smoke failed: " + e, 93611080);
             }
+        }
+
+        private static void Load()
+        {
+            if (tried)
+            {
+                return;
+            }
+            tried = true;
+            string root = IsoRimMod.RootDir;
+            if (root != null)
+            {
+                flame = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_flame.obj"));
+                flameCore = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_flame_core.obj"));
+                flameDark = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_flame_dark.obj"));
+                flameDarkCore = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_flame_dark_core.obj"));
+                puff = ModelLibrary.LoadFile(Path.Combine(root, "Models", "fx_puff.obj"));
+            }
+            campfire = DefDatabase<ThingDef>.GetNamedSilentFail("Campfire");
+            geyser = DefDatabase<ThingDef>.GetNamedSilentFail("SteamGeyser");
         }
 
         // A thing the game's fog hides is not drawn, as the game leaves fogged things out (lid on or off; these
@@ -2008,6 +2014,114 @@ namespace IsoRim
                     * Matrix4x4.Scale(new Vector3(0.18f * sxz, (0.40f + 0.07f * Mathf.Sin(beat)) * sy, 0.18f * sxz));
                 DynamicModels.DrawLocal(heart, foot, t * 90f, local, Color.white, null);
             }
+        }
+
+        // ---- burning fires --------------------------------------------------------------------
+        // The game draws every fire that burns (the Fire thing: in a cell, burning its grass, plants, building, items or
+        // corpse, or attached to a pawn on fire) one way only: its flat flickering sprite, Graphic_Flicker.DrawWorker,
+        // sized by fireSize. In 3D that draw is the campfire's flame instead (Patches.FlickerDraw_Prefix), sized as the
+        // game sizes the sprite: on the ground, on top of what burns in the cell (a wall, a bed, an item; a plant burns from the ground up), or on the body of
+        // the one it burns on, on the side facing the camera. The game still decides when it is drawn (in view, not
+        // fogged, not on a hidden floor); its light, fire glow, sparks and smoke stay the game's. False: draw the sprite.
+        public static bool BurningFire(Fire fire)
+        {
+            IsoRimSettings st = IsoRimMod.Settings;
+            if (!st.effects3D || !st.models3D || !BurningOn || Find.TickManager == null)
+            {
+                return false;
+            }
+            Load();
+            if (flame == null)
+            {
+                return false;
+            }
+            if (HiddenByFog(fire))
+            {
+                return true;
+            }
+            try
+            {
+                float s = Mathf.Min(fire.fireSize / 1.2f, 1.2f);   // the sprite's size (Graphic_Flicker)
+                float sy = s * BurnTall;
+                float sxz = s * BurnWide;
+                Vector3 at = fire.DrawPos;
+                Vector3 foot = new Vector3(at.x, 0f, at.z);
+                Thing on = fire.parent;
+                bool lifted = false;
+                Matrix4x4 wasFloor = DrawHook.floorMatrix;
+                bool wasOnFloor = DrawHook.floor;
+                if (on == null)
+                {
+                    float top = BurningBase(fire);
+                    if (top > 0f)
+                    {
+                        foot.y = Mathf.Max(0f, top - 0.2f * FlameHeight * sy);   // the top of it burns
+                    }
+                }
+                else
+                {
+                    // Only pawns carry a fire (FireUtility.CanEverAttachFire). A small one still shows on the body.
+                    Pawn p = on as Pawn;
+                    bool lying = p == null || p.Dead || p.Downed;
+                    float size = p != null ? Mathf.Clamp(p.BodySize, 0.3f, 2f) : 1f;
+                    sy = Mathf.Max(s, MinOnBody) * BurnTall;
+                    sxz = Mathf.Max(s, MinOnBody) * BurnWide;
+                    float mid = lying ? 0.12f * Mathf.Sqrt(size) : Interaction.PickHeight(p) * 0.45f;
+                    foot.y = Mathf.Max(0f, mid - 0.4f * FlameHeight * sy);
+                    foot -= View3D.GroundForward * (lying ? 0.14f : 0.22f) * Mathf.Sqrt(size);   // in front of the body
+                    if (Floors.On && on.Spawned)
+                    {
+                        lifted = true;   // a pawn on a stair step: its rise (the fire's own draw has none)
+                        DrawHook.floor = true;
+                        DrawHook.floorMatrix = Floors.ExtraMatrix(on);
+                    }
+                }
+                try
+                {
+                    Flame(foot, sy, sxz, false, fire.thingIDNumber * 0.37f, Find.TickManager.TicksGame / 60f);
+                }
+                finally
+                {
+                    if (lifted)
+                    {
+                        DrawHook.floor = wasOnFloor;
+                        DrawHook.floorMatrix = wasFloor;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Drawing a fire failed: " + e, 93611081);
+            }
+            return true;
+        }
+
+        public static bool BurningOn = true;   // harness: burn3d=0 draws the flat sprite (the look before)
+
+        // The burning fire's flame against the campfire's at the same sprite size.
+        private const float BurnTall = 1.25f;
+        private const float BurnWide = 1.8f;
+        private const float MinOnBody = 0.3f;   // the least sprite size of a fire on someone (smaller hides in the body)
+
+        // The top of what burns in a fire's cell (not plants, which burn from the ground; not people or other fires).
+        private static float BurningBase(Fire fire)
+        {
+            Map map = fire.Map;
+            if (map == null || !fire.Position.InBounds(map))
+            {
+                return 0f;
+            }
+            float h = 0f;
+            List<Thing> things = fire.Position.GetThingList(map);
+            for (int i = 0; i < things.Count; i++)
+            {
+                Thing o = things[i];
+                if (o != fire && !(o is Pawn) && !(o is Fire) && !(o is Plant) && !(o is Corpse) && !(o is Filth) && !(o is Mote))
+                {
+                    h = Mathf.Max(h, Interaction.PickHeight(o));
+                }
+            }
+            return h;
         }
 
         private static void Campfire(Thing fire, float t, float wind)

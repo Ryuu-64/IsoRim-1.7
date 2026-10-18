@@ -367,6 +367,10 @@ namespace IsoRim
                 prefix: nameof(FireOverlayPostDraw_Prefix), finalizer: nameof(FireOverlayPostDraw_Finalizer));
             Patch("3D models of buildings drawn every frame", AccessTools.DeclaredMethod(typeof(CompDarklightOverlay), "PostDraw"),
                 prefix: nameof(FireOverlayPostDraw_Prefix), finalizer: nameof(FireOverlayPostDraw_Finalizer));
+            // Burning fires (grass, buildings, items, corpses, pawns on fire): the game draws every one with its flat
+            // flickering sprite; in 3D that draw is the campfire's flame (Effects.BurningFire).
+            Patch("3D burning fires", AccessTools.DeclaredMethod(typeof(Graphic_Flicker), "DrawWorker"),
+                prefix: nameof(FlickerDraw_Prefix));
             // Ritual fires (pyre, effigy, sacrificial flag, burnbong): their live flame is Effects'.
             Patch("3D models of buildings drawn every frame", AccessTools.DeclaredMethod(typeof(CompRitualFireOverlay), "PostDraw"),
                 prefix: nameof(FireOverlayPostDraw_Prefix), finalizer: nameof(FireOverlayPostDraw_Finalizer));
@@ -2949,6 +2953,17 @@ namespace IsoRim
             {
                 DrawHook.skip = false;
             }
+        }
+
+        // A burning fire (the Fire thing) is the campfire's 3D flame in place of its flat sprite (Effects.BurningFire).
+        public static bool FlickerDraw_Prefix(Thing thing)
+        {
+            Fire fire = thing as Fire;
+            if (fire == null || !View3D.Ready || DrawHook.skip)
+            {
+                return true;
+            }
+            return !Effects.BurningFire(fire);
         }
 
         // ---------------------------------------------------------------- drafted pawns keep their facing
