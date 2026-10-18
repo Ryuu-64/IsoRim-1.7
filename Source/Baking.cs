@@ -2101,7 +2101,10 @@ namespace IsoRim
             {
                 isTree = false;   // a ghost (or a set of damage marks) casts no shadow
             }
-            if (st.treeShadows && isTree && !def.layFlat)
+            // A tree hidden in the fog (the fog clips it, RoofClip) casts no sun shadow onto revealed ground; the game's
+            // unfog redraws its block (FogOfWar | Things on the cell, SectionLayer_IsoRimTrees.MapMeshDirty_Postfix).
+            bool fogged = isTree && RoofClip.FogOn && thing.Spawned && thing.Map.fogGrid.IsFogged(thing.Position);
+            if (st.treeShadows && isTree && !def.layFlat && !fogged)
             {
                 try
                 {

@@ -136,6 +136,7 @@ namespace IsoRim
     //                                colonist and ordered to fire at (tx,tz) (real jobs: run tickuntil=flash after it)
     //   turretcheck=1                logs every turret's verb state, aim override, gun rotation and which gun model it shows
     //   roofclip=0|1                 things under roofs clipped at the roof (RoofClip, default 1) or not (before/after shots)
+    //   fogclip=0|1                  the fog clips what stands under the fog lid (RoofClip.FogOn, default 1) or not
     //   spacemap=<size>              a new empty space map (orbit tile, fog cleared) made the current map: later keys and the
     //                                harness shots work on it (layout shot coords are then plain map cells, see layout_space_edges)
     //   spaceedges=0|1               space platform sides in 3D (SpaceEdges, default 1) or the game flat strips (before/after)
@@ -1397,6 +1398,11 @@ namespace IsoRim
                 case "roofclip":
                     RoofClip.Enabled = a[0] == "1";
                     break;
+                case "fogclip":
+                    // fogclip=0|1: the fog clip (RoofClip.FogOn) off or on; the map is redrawn (fogged trees' shadows).
+                    RoofClip.FogEnabled = a[0] == "1";
+                    map.mapDrawer.RegenerateEverythingNow();
+                    break;
                 case "spacemap":
                 {
                     // spacemap=<size>: a new empty space map (Odyssey's "Space" site on a free orbit tile), fog
@@ -1509,7 +1515,7 @@ namespace IsoRim
                     break;
                 }
                 default:
-                    if (CutKey(key, a) || MechKey(key, a, map) || EntityKey(key, a, map) || FixKey(key, a, map) || SeatKey(key, a, map) || GshipKey(key, a, map) || SkyKey(key, a, map) || StrikeKey(key, a, map) || SilKey(key, a, map) || WeaponKey(key, a, map) || CrawlKey(key, a, map) || CardApiKey(key, a))
+                    if (CutKey(key, a) || MechKey(key, a, map) || EntityKey(key, a, map) || FixKey(key, a, map) || SeatKey(key, a, map) || GshipKey(key, a, map) || SkyKey(key, a, map) || StrikeKey(key, a, map) || SilKey(key, a, map) || WeaponKey(key, a, map) || CrawlKey(key, a, map) || CardApiKey(key, a) || FogKey(key, a, map))
                     {
                         break;
                     }

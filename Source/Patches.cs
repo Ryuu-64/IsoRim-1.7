@@ -186,7 +186,8 @@ namespace IsoRim
             // (built, deconstructed, mined, cut down) those layers are redrawn round it.
             Patch("redrawing walls and trees as they change", FindMethod(typeof(Thing), "SpawnSetup"), postfix: nameof(SpawnSetup_Postfix));
             Patch("redrawing walls and trees as they go", FindMethod(typeof(Thing), "DeSpawn"), prefix: nameof(DeSpawn_Prefix));
-            // A tree block is redrawn only for a change in a cell with a tree (SectionLayer_IsoRimTrees).
+            // A tree block is redrawn only for a change in a cell with a tree (SectionLayer_IsoRimTrees); a fog change marks
+            // its cell for the cell texture (IsoCellMap.FogDirty_Postfix).
             Patch("redrawing trees as they change", AccessTools.Method(typeof(MapDrawer), nameof(MapDrawer.MapMeshDirty), new[] { typeof(IntVec3), typeof(ulong), typeof(bool), typeof(bool) }),
                 postfix: nameof(TreesDirty_Postfix));
 
@@ -1793,6 +1794,7 @@ namespace IsoRim
         public static void TreesDirty_Postfix(MapDrawer __instance, IntVec3 loc, ulong dirtyFlags)
         {
             SectionLayer_IsoRimTrees.MapMeshDirty_Postfix(__instance, loc, dirtyFlags);
+            IsoCellMap.FogDirty_Postfix(__instance, loc, dirtyFlags);   // a cell's fog changed: the fog clip follows (RoofClip)
         }
 
         public static void SinkCut_Postfix(SectionLayer __instance)

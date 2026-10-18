@@ -18,7 +18,7 @@ layout(set = 2, binding = 0) uniform MaterialUniforms
     vec4 _IsoView;    // global, no default: w = Squash (read by IsoRimCard.vert.glsl)
     vec4 _IsoCard;    // global, no default: sin a, cos a (a = pitch - 90), sin yaw, cos yaw
     vec4 _IsoCellMap; // global, no default: (origin x, origin z, W, H) of the cell texture (IsoCellMap)
-    vec4 _IsoRoof;    // global, no default: roof clipping (RoofClip): x = 1 on, y = wall height, z = Rise, w = Pitch
+    vec4 _IsoRoof;    // global, no default: roof and fog clipping (RoofClip): x = 1 roofs, 2 the fog, 3 both, y = wall height, z = Rise, w = Pitch
 } uMaterial;
 
 layout(set = 2, binding = 1) uniform sampler2D _MainTex;
@@ -89,10 +89,39 @@ float RoofEave(ivec2 n, vec2 f)
     return RoofUnderside(1, r, f) - RoofOverhang * uMaterial._IsoRoof.w;   // the eave slopes down by this
 }
 
-// True: a fragment of a thing standing in cell owner, at p (roof space), is above the underside of a roof drawn over it.
+// ---- Fog clipping (RoofClip.cs, the fog; _IsoRoof.x & 2). The same in the three files. _IsoCellTex: a & 4 = the cell
+// is fogged in the game's fog grid, r, g = its top (16 bits, 1/4096 cells), b = how far its block is cut down.
+const float FogAbove = 0.012;   // IsoRimFog.vert.glsl Above: the lid's lift over the tops
+
+// The fog lid over cell c (the cell's full top (no cut-away level here: a cut block's cell holds no plant)), or very high where the cell is not fogged.
+float FogLid(ivec2 c)
+{
+    bool inside;
+    ivec2 t = RoofTexel(c, inside);
+    if (!inside)
+        return 1e9;
+    vec4 o = texelFetch(_IsoCellTex, t, 0);
+    if ((int(round(o.a * 255.0)) & 4) == 0)
+        return 1e9;
+    float full = (round(o.r * 255.0) * 256.0 + round(o.g * 255.0)) / 4096.0;
+    return full + FogAbove;
+}
+
+// True: a fragment at p (roof space) of a thing standing in cell owner is above the fog lid over its own cell, or the
+// thing stands in a fogged cell and the fragment is above that cell's lid (the game draws no fogged things).
+bool FogHides(vec3 p, vec2 owner)
+{
+    return p.y > min(FogLid(ivec2(floor(p.xz))), FogLid(ivec2(floor(owner))));
+}
+
+// True: a fragment of a thing standing in cell owner, at p (roof space), is above the underside of a roof drawn over it,
+// or above the fog lid (FogHides).
 bool RoofHides(vec3 p, vec2 owner)
 {
-    if (uMaterial._IsoRoof.x < 0.5)
+    int mode = int(round(uMaterial._IsoRoof.x));
+    if ((mode & 2) != 0 && FogHides(p, owner))
+        return true;
+    if ((mode & 1) == 0)
         return false;
     vec4 r;
     if (RoofLid(ivec2(floor(owner)), true, r) == 0)

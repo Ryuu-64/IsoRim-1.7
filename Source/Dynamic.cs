@@ -1660,7 +1660,7 @@ namespace IsoRim
                     List<Thing> fires = map.listerThings.ThingsOfDef(defs[d]);
                     for (int i = 0; i < fires.Count; i++)
                     {
-                        if (view.Contains(fires[i].Position))
+                        if (view.Contains(fires[i].Position) && !HiddenByFog(fires[i]))
                         {
                             if (defs[d] == campfire)
                             {
@@ -1682,7 +1682,7 @@ namespace IsoRim
                     List<Thing> vents = map.listerThings.ThingsOfDef(geyser);
                     for (int i = 0; i < vents.Count; i++)
                     {
-                        if (view.Contains(vents[i].Position))
+                        if (view.Contains(vents[i].Position) && !HiddenByFog(vents[i]))
                         {
                             Geyser(vents[i], map, t, wind);
                         }
@@ -1693,6 +1693,13 @@ namespace IsoRim
             {
                 Log.ErrorOnce("[IsoRim] Drawing flames and smoke failed: " + e, 93611080);
             }
+        }
+
+        // A thing the game's fog hides is not drawn, as the game leaves fogged things out (with the fog lid on; these
+        // live flames and steam columns are drawn here every frame, outside the fog clip of RoofClip).
+        private static bool HiddenByFog(Thing t)
+        {
+            return RoofClip.FogOn && !t.def.seeThroughFog && t.Fogged();
         }
 
         private static Mesh glint;

@@ -30,6 +30,15 @@ namespace IsoRim
     // without a model, motes, fire, projectiles), held weapons and carried items (SpriteSolids), blueprints and frames
     // (ghosts), extruded sprites and walls. Stacked floors (Floors): a floor above is a slab, not a roof, and clips
     // nothing; a roof on an upper floor clips the things on that floor (roof space = that floor's own rows and height).
+    //
+    // The fog clips the same way (with the fog lid on, IsoRimSettings.fogLid). The game leaves fogged things out of what
+    // it draws, but in 3D a thing drawn beside or into a fogged cell (a tree of IsoRim's own trees layer, a figure half
+    // into the fog, a crown over it) rose through the fog lid, which lies on the cell's top (IsoCellMap r, g: its highest
+    // block, or its edifice). In a cell the game's fog grid hides (IsoCellMap a & 4), a fragment of a clipped thing above
+    // the lid (the cell's top, as the cut-away leaves it, plus the lid's lift) is dropped, and so is any fragment of a
+    // thing standing in a fogged cell that rises above its own cell's lid. Where a roof is drawn too, the lower clips.
+    // Reads only the game's fog grid; with stacked floors each floor's cells are its own rows, as for roofs. Things not
+    // on this path are listed above (they are left out in fog by the game, or by their own drawer).
     public static class RoofClip
     {
         public const int Own = 8192;       // bit 13 of the cut-away flags: clipped, owner cell in x, y
@@ -38,17 +47,31 @@ namespace IsoRim
         // Harness only (probe roofclip=0): off for before/after shots.
         public static bool Enabled = true;
 
+        // Harness only (probe fogclip=0): the fog clip off for before/after shots.
+        public static bool FogEnabled = true;
+
         // While the roofs are drawn in the 3D view.
         public static bool On
         {
             get { return Enabled && View3D.Active && IsoRimMod.Settings.showRoofs; }
         }
 
-        // _IsoRoof: x = 1 on, y = wall height (true cells), z = how far a built roof sits above the walls, w = how much
-        // it rises per cell (SectionLayer_IsoRimRoofs.Rise / Pitch; the shaders know the overhang and the margins).
+        // While the fog lid is drawn in the 3D view: the fog clips what stands under it.
+        public static bool FogOn
+        {
+            get { return FogEnabled && View3D.Active && IsoRimMod.Settings.fogLid; }
+        }
+
+        // _IsoRoof: x = what clips (0 nothing, 1 roofs, 2 the fog, 3 both), y = wall height (true cells), z = how far a
+        // built roof sits above the walls, w = how much it rises per cell (SectionLayer_IsoRimRoofs.Rise / Pitch; the
+        // shaders know the overhang and the margins).
         public static Vector4 Globals
         {
-            get { return new Vector4(1f, View3D.WallHeight, SectionLayer_IsoRimRoofs.Rise, SectionLayer_IsoRimRoofs.Pitch); }
+            get
+            {
+                float mode = (On ? 1f : 0f) + (FogOn ? 2f : 0f);
+                return mode <= 0f ? Vector4.zero : new Vector4(mode, View3D.WallHeight, SectionLayer_IsoRimRoofs.Rise, SectionLayer_IsoRimRoofs.Pitch);
+            }
         }
 
         // The texel for one cell: the lid kind and, for a built roof, the levels of its corners SW, SE, NW, NE.

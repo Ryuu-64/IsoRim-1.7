@@ -26,7 +26,8 @@ namespace IsoRim
     //                                         (renders<harness tag>cullab_<tag>_off1/_on/_off2.png)
     //   speed=0..4                            the game speed (0 paused, 1 normal, 2 fast, 3 superfast) held from now on,
     //                                         against the harness's pauses
-    //   -isorimbiome=<BiomeDef> (command line) the quick-test map on a flat tile of that biome (after Capture17's pick)
+    //   -isorimbiome=<BiomeDef> (command line) the quick-test map on a flat tile of that biome (after Capture17's pick);
+    //                                         with -isorimhills=<Hilliness> (e.g. Mountainous) a tile that hilly
     public static partial class Probe
     {
         private static int heldSpeed = -1;
@@ -64,16 +65,23 @@ namespace IsoRim
                 Log.Warning("[IsoRim probe] no biome " + name);
                 return;
             }
+            // -isorimhills=<Hilliness> with it: a tile that hilly instead of flat (Mountainous: a mountain map, fogged inside).
+            string hillsName;
+            RimWorld.Planet.Hilliness hills = RimWorld.Planet.Hilliness.Flat;
+            if (GenCommandLine.TryGetCommandLineArg("isorimhills", out hillsName))
+            {
+                hills = (RimWorld.Planet.Hilliness)Enum.Parse(typeof(RimWorld.Planet.Hilliness), hillsName);
+            }
             foreach (RimWorld.Planet.SurfaceTile t in Find.WorldGrid.Tiles.InRandomOrder())
             {
-                if (t.PrimaryBiome == biome && t.hilliness == RimWorld.Planet.Hilliness.Flat && RimWorld.Planet.TileFinder.IsValidTileForNewSettlement(t.tile))
+                if (t.PrimaryBiome == biome && t.hilliness == hills && RimWorld.Planet.TileFinder.IsValidTileForNewSettlement(t.tile))
                 {
                     Find.GameInitData.startingTile = t.tile;
-                    Log.Message("[IsoRim probe] quick-test tile " + t.tile + " (" + biome.defName + ")");
+                    Log.Message("[IsoRim probe] quick-test tile " + t.tile + " (" + biome.defName + ", " + hills + ")");
                     return;
                 }
             }
-            Log.Warning("[IsoRim probe] no flat " + name + " tile");
+            Log.Warning("[IsoRim probe] no " + hills + " " + name + " tile");
         }
         private static Vector3 camFrom, camTo;
         private static int camFrames, camFrame = -1;

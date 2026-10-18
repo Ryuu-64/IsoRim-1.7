@@ -11,8 +11,9 @@ namespace IsoRim
     // One texel per cell, RGBA32, point-sampled (shaders use texelFetch on the integer cell):
     //   r, g = the top of what stands in the cell, in 1/4096 cells above the ground as a 16-bit number
     //       (the highest block, or the edifice's 3D height): the fog lid lies on it (IsoRimFog.vert.glsl);
-    //   b, a = 0, kept free for the shader cut-away (pointer/colonist/room cut flags) and other
-    //       per-cell states to come.
+    //   b, a = the shader cut-away (ShaderCut): b = how far the cell's block is cut down, a = tree thinned (1),
+    //       roof open (2); and a = fogged in the game's fog grid (4, always): nothing drawn in a fogged cell rises
+    //       above the fog lid (RoofClip: the fog clips as roofs do).
     // A second texture of the same size (_IsoRoofTex) holds the roof drawn over each cell, written by the roofs
     // layer as it builds (RoofClip.cs: things under a roof are clipped at its underside).
     // (A float texture would be simpler, but an RGBAFloat texture filled with SetPixels reads as 0 in
@@ -21,7 +22,8 @@ namespace IsoRim
     // wholesale from the game's overlay mesh, where this one is per cell and exact.
     //
     // Cells are marked dirty when something that changes their top changes (buildings spawned or gone,
-    // a block of walls rebuilt, which covers cut-away and settings changes); just before the map is
+    // a block of walls rebuilt, which covers cut-away and settings changes, or a cell's fog: the game marks it
+    // with its FogOfWar flag, FogDirty_Postfix); just before the map is
     // drawn the dirty cells are worked out again and, if any changed, the texture is uploaded once
     // (the engine has no partial upload). Owned per map, like the glow texture (design §11).
     [StaticConstructorOnStartup]
@@ -194,6 +196,24 @@ namespace IsoRim
             }
         }
 
+        private static readonly HarmonyLib.AccessTools.FieldRef<MapDrawer, Map> drawerMap = HarmonyLib.AccessTools.FieldRefAccess<MapDrawer, Map>("map");
+
+        // Postfix of MapDrawer.MapMeshDirty (via Patches.TreesDirty_Postfix): the game marks every cell whose fog
+        // changes (FogGrid.Unfog, Refog, the flood unfog of a dug-into cave) with its FogOfWar flag; the cell's
+        // fogged bit is worked out again before the next draw, so what is revealed shows at once.
+        public static void FogDirty_Postfix(MapDrawer drawer, IntVec3 loc, ulong dirtyFlags)
+        {
+            if ((dirtyFlags & (ulong)RimWorld.MapMeshFlagDefOf.FogOfWar) == 0 || maps.Count == 0)
+            {
+                return;
+            }
+            Map map = drawerMap(drawer);
+            if (map != null)
+            {
+                Dirty(map, CellRect.SingleCell(loc));
+            }
+        }
+
         // The whole map is being rebuilt: every cell is worked out again before the next draw.
         public static void Rebuilt(Map map)
         {
@@ -256,6 +276,10 @@ namespace IsoRim
             else
             {
                 top = TopOf(map, c);
+            }
+            if (map.fogGrid.IsFogged(i))
+            {
+                bits |= 4;   // fogged: whatever is drawn here above the fog lid is clipped (RoofClip, the fog)
             }
             int v = Mathf.Clamp(Mathf.RoundToInt(top * HeightSteps), 0, 65535);
             byte hi = (byte)(v >> 8), lo = (byte)(v & 255);
@@ -399,7 +423,7 @@ namespace IsoRim
         public static void BeginFrame(Map map)
         {
             bool roofClip = RoofClip.On;
-            Shader.SetGlobalVector(roofId, roofClip ? RoofClip.Globals : Vector4.zero);   // x = 0: nothing is clipped
+            Shader.SetGlobalVector(roofId, RoofClip.Globals);   // x = 0: nothing is clipped (1 roofs, 2 the fog, 3 both)
             if (!View3D.Active || map == null || !(IsoRimMod.Settings.fogLid || ShaderCut.On || roofClip))
             {
                 return;

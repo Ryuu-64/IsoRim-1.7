@@ -61,7 +61,7 @@ layout(set = 2, binding = 0) uniform MaterialUniforms
     vec4 _IsoCellMap; // global, no default: (origin x, origin z, W, H) of the cell texture (IsoCellMap)
     vec4 _IsoLevel;   // global, no default: x = the map's ground height in cells, y = what is left of a cut wall
     vec4 _IsoFloorGlow; // global, no default: stacked floors (Floors.GlowFloors): x = floors above the ground, y = storey height (true cells), z = rows from one floor to the next; 0 without floors
-    vec4 _IsoRoof;    // global, no default: roof clipping (RoofClip): x = 1 on, y = wall height, z = Rise, w = Pitch
+    vec4 _IsoRoof;    // global, no default: roof and fog clipping (RoofClip): x = 1 roofs, 2 the fog, 3 both, y = wall height, z = Rise, w = Pitch
     vec4 _IsoEye;     // global, no default: xyz = the eye in drawn space, w = 1 with a perspective camera (View3D)
 } uMaterial;
 
