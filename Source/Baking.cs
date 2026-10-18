@@ -1087,11 +1087,15 @@ namespace IsoRim
                     continue;
                 }
 
-                // Dark outlines: along the rim and along the ground.
+                // Dark outlines: along the rim (not where the surface goes on at that height, CliffLook.SurfaceGoesOn) and
+                // along the ground.
                 Vector3 lift = new Vector3(0f, 0.002f, 0f);
                 Vector3 inner = outward * -OutlineWidth;
-                MeshWriter.Quad(solid, ToWorld(rockTop[l] + lift, squash), ToWorld(rockTop[l] + inner + lift, squash),
-                    ToWorld(rockTop[r] + inner + lift, squash), ToWorld(rockTop[r] + lift, squash), lineColor);
+                if (!SurfaceGoesOn(map, c, f))
+                {
+                    MeshWriter.Quad(solid, ToWorld(rockTop[l] + lift, squash), ToWorld(rockTop[l] + inner + lift, squash),
+                        ToWorld(rockTop[r] + inner + lift, squash), ToWorld(rockTop[r] + lift, squash), lineColor);
+                }
 
                 Vector3 q0 = rockGround[l] - back;
                 Vector3 q1 = rockGround[r] - back;

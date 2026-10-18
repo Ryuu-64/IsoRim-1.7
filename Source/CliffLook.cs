@@ -291,8 +291,8 @@ namespace IsoRim
                 }
 
                 // The dark rim along the top: on the cap, or on the floor's edge above a covered face (none under rock,
-                // whose own face carries on up).
-                if (!(rockAbove && coveredFace))
+                // whose own face carries on up, and none where the surface goes on at that height: SurfaceGoesOn).
+                if (!(rockAbove && coveredFace) && !SurfaceGoesOn(map, c, f))
                 {
                     Vector3 lift = new Vector3(0f, 0.002f, 0f);
                     Vector3 rl = smCovered[l] ? new Vector3(smTop[l].x, upH + 0.004f, smTop[l].z) : smTop[l] + lift;
@@ -515,6 +515,16 @@ namespace IsoRim
         }
 
         // ---- rock under a floor (rock-top floors, isorim-pz-rocktop-floors-plan.md §4.2-4.3)
+
+        // The seam rule: a top-edge line (the dark rim) is drawn only where the walkable surface really ends. Where the
+        // cell beyond face f has a floor (or a full block) on the storey above, the surface goes on at the rim's height
+        // there (a stairs landing or a slab over the open ground beside a mountain top): no rim. Without floors (and on
+        // the top storey) Stacked is Invalid and the rim stays.
+        private static bool SurfaceGoesOn(Map map, IntVec3 c, int f)
+        {
+            IntVec3 n = c + FaceOut[f];
+            return n.InBounds(map) && FloorGoesOn(map, Floors.Stacked(map, n, 1));
+        }
 
         // A rock whose cell has a floor right above it: its cap goes into a "covered" sub-mesh (its own copy of the cap
         // material), drawn only while that floor's storey is hidden (a cut view: the cap stands in for the floor, same

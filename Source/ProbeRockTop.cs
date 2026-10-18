@@ -13,6 +13,7 @@ namespace IsoRim
     //                            for half cells east and west (a straight strip); the skip-th by distance from the centre.
     //                            The rule reads only the ground, so it finds the same spot before and after the lip gets
     //                            its floor. seamAt is set to it (look=seam,..., lampat=, padrel=, seamline=).
+    //   smoothrel=dx,dz,w,h,storey   the natural floors there smoothed (relative to the found cell)
     //   covercaps=0|1            rock caps under a shown floor hidden (default) or drawn (A/B)
     //   padrel=dx,dz,w,h,terrain,storey   flatpad relative to the found cell (a slab, carpet or smooth stone strip)
     //   seamline=dx0,dz0,dx1,dz1,storey,name   where the map-corner line from (seamAt + d0) to (seamAt + d1) shows on
@@ -68,6 +69,23 @@ namespace IsoRim
                             Log.Message("[IsoRim probe] colat " + g + col);
                         }
                     }
+                    return true;
+                }
+                case "smoothrel":
+                {
+                    // smoothrel=dx,dz,w,h,storey: the natural floor there smoothed (its terrain's smoothed form), relative to the found cell
+                    int storey = I(a[4]), n = 0;
+                    foreach (IntVec3 g in new CellRect(seamAt.x + I(a[0]), seamAt.z + I(a[1]), I(a[2]), I(a[3])))
+                    {
+                        IntVec3 c = storey == 0 ? g : Floors.Stacked(map, g, storey);
+                        TerrainDef sm = c.IsValid && c.InBounds(map) ? c.GetTerrain(map).smoothedTerrain : null;
+                        if (sm != null)
+                        {
+                            map.terrainGrid.SetTerrain(c, sm);
+                            n++;
+                        }
+                    }
+                    Log.Message("[IsoRim probe] smoothrel: " + n + " cells smoothed");
                     return true;
                 }
                 case "findlip":
