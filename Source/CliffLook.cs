@@ -81,16 +81,262 @@ namespace IsoRim
         // is convex too (the tip of a one-cell spur, a lone cell), so no side shrinks to nothing.
         public static Vector3 ChamferedCorner(Map map, int cx, int cz, float height, out bool moved, out int dx, out int dz)
         {
+            int kind;
+            Vector3 p = CornerAt(map, cx, cz, height, out kind, out dx, out dz);
+            moved = kind != 0;
+            return p;
+        }
+
+        // The same, and how the corner moved: 0 not, 1 a convex corner into its rock cell, 2 a hole's corner into its open
+        // cell (OpeningCorner).
+        private static Vector3 CornerAt(Map map, int cx, int cz, float height, out int kind, out int dx, out int dz)
+        {
             int n = Occupancy(map, cx, cz, height, out dx, out dz);
-            moved = false;
-            if (n != 1)
+            kind = 0;
+            if (n == 1)
             {
-                return new Vector3(cx, 0f, cz);
+                float mx = Convex(map, cx + dx, cz, height) ? 0.2f : 0.5f;
+                float mz = Convex(map, cx, cz + dz, height) ? 0.2f : 0.5f;
+                kind = 1;
+                return new Vector3(cx + dx * mx, 0f, cz + dz * mz);
             }
-            float mx = Convex(map, cx + dx, cz, height) ? 0.2f : 0.5f;
-            float mz = Convex(map, cx, cz + dz, height) ? 0.2f : 0.5f;
-            moved = true;
-            return new Vector3(cx + dx * mx, 0f, cz + dz * mz);
+            if (n == 3 && HoleChamfer && OpeningCorner(map, cx, cz, -dx, -dz))
+            {
+                float mx = HolePull(map, cx - dx, cz, height);
+                float mz = HolePull(map, cx, cz - dz, height);
+                if (mx >= 0f && mz >= 0f)
+                {
+                    kind = 2;
+                    return new Vector3(cx - dx * mx, 0f, cz - dz * mz);
+                }
+            }
+            return new Vector3(cx, 0f, cz);
+        }
+
+        // ---- holes in natural rock floors (stacked floors): their corners are chamfered as the rock's outline is
+        //
+        // A hole is open air on a storey (no floor, no block) that the open air round the storey's edge does not reach:
+        // a pit or shaft in a mountain top. Its corners are cut as a block of rock would be, mirrored: where three natural
+        // rock cells with a floor above them meet one open cell under the hole (a concave corner of the rock), the corner
+        // moves into that open cell, half a cell along each side, 0.2 along a side whose other end moves so too (a one-cell
+        // side), and not at all where the other end of either side is a convex rock corner (a diagonal runs straight on
+        // through it, or a rock tip is cut there). The convex corners of a hole are the rock's own convex corners (chamfered already). The rock below,
+        // the floor's terrain and slab top over it (FloorCorner), the rim and the contact shadow all take the moved corner
+        // from here, so they keep meeting. Only these corners leave their cells: the rock's faces and caps and the floors
+        // over the three rock cells reach a little into the open cell (which draws nothing of its own there: no floor
+        // above it, nothing standing in it), keeping their own cells' cut tags. The ground of a map without floors, the
+        // outside of a mountain and the open air round a storey's edge have no such corners: their outlines are as before.
+
+        public static bool HoleChamfer = true;   // harness A/B (probe key holechamfer=0|1)
+
+        // (harness, probe key cornerdump) map corner (cx, cz) of a rock storey: how it moved, and the corner the floors
+        // above put there.
+        public static string DebugCorner(Map map, int cx, int cz)
+        {
+            IntVec3 c = new IntVec3(cx, 0, cz);
+            float height = BlockHeightAt(map, c.InBounds(map) && NaturalRock(map, c) ? c : new IntVec3(cx - 1, 0, cz - 1));
+            int kind, dx, dz;
+            bool fullWas = FullHeights;
+            FullHeights = ShaderCut.On;
+            try
+            {
+                Vector3 p = CornerAt(map, cx, cz, height, out kind, out dx, out dz);
+                string s = "corner " + cx + "," + cz + " occupancy " + Occupancy(map, cx, cz, height) + " kind " + kind + " -> " + p.x.ToString("0.00") + "," + p.z.ToString("0.00");
+                for (int i = 0; i < 4; i++)
+                {
+                    IntVec3 b = new IntVec3(cx - 1 + (i & 1), 0, cz - 1 + (i >> 1));
+                    IntVec3 up = Floors.Stacked(map, b, 1);
+                    Building e = b.InBounds(map) ? b.GetEdifice(map) : null;
+                    s += " | " + b.x + "," + b.z + " " + (e != null ? e.def.defName : "-") + (up.IsValid && up.InBounds(map) ? (Floors.HasFloor(map, up) ? " floor" : " air") : " none");
+                    Vector3[] q;
+                    if (up.IsValid && up.InBounds(map) && SlabOverRock(map, up, out q))
+                    {
+                        int k = (i & 1) == 0 ? ((i >> 1) == 0 ? 2 : 3) : ((i >> 1) == 0 ? 1 : 0);
+                        s += " q" + k + " " + (b.x + q[k].x).ToString("0.00") + "," + (b.z + q[k].z).ToString("0.00");
+                    }
+                }
+                return s;
+            }
+            finally
+            {
+                FullHeights = fullWas;
+            }
+        }
+
+        // Map corner (cx, cz), whose one open cell is the one toward (ox, oz) (each -1 or 1), is a hole's corner: nothing
+        // stands in that cell, the cell above it is a hole, and the three other cells are natural rock with a floor above.
+        private static bool OpeningCorner(Map map, int cx, int cz, int ox, int oz)
+        {
+            int x = ox < 0 ? cx - 1 : cx;
+            int z = oz < 0 ? cz - 1 : cz;
+            int ax = ox < 0 ? cx : cx - 1;
+            int az = oz < 0 ? cz : cz - 1;
+            IntVec3 open = new IntVec3(x, 0, z);
+            if (!open.InBounds(map) || open.GetEdifice(map) != null)
+            {
+                return false;
+            }
+            if (!RockTop(map, new IntVec3(ax, 0, z)) || !RockTop(map, new IntVec3(x, 0, az)) || !RockTop(map, new IntVec3(ax, 0, az)))
+            {
+                return false;
+            }
+            IntVec3 up = Floors.Stacked(map, open, 1);
+            float h;
+            return up.IsValid && up.InBounds(map) && !Floors.HasFloor(map, up) && !Floors.FullBlock(map, up, out h) && InHole(map, up);
+        }
+
+        // Natural rock drawn by the walls layer with a floor right above it (a mountain top).
+        private static bool RockTop(Map map, IntVec3 c)
+        {
+            if (!NaturalRock(map, c) || !SectionLayer_IsoRimWalls.Handles(c.GetEdifice(map)))
+            {
+                return false;
+            }
+            IntVec3 up = Floors.Stacked(map, c, 1);
+            return up.IsValid && up.InBounds(map) && Floors.HasFloor(map, up);
+        }
+
+        // How far a hole's corner moves along a side whose other end is map corner (qx, qz); -1: it stays (a convex rock
+        // corner there: a diagonal runs straight through, or the cut tip of a rock; moved, the rock cell between them would
+        // be bent in at that tip).
+        private static float HolePull(Map map, int qx, int qz, float height)
+        {
+            int ex, ez;
+            int n = Occupancy(map, qx, qz, height, out ex, out ez);
+            if (n == 1)
+            {
+                return -1f;
+            }
+            return n == 3 && OpeningCorner(map, qx, qz, -ex, -ez) ? 0.2f : 0.5f;
+        }
+
+        // Which open-air cells of the upper storeys the open air round the storey's edge reaches (4-way, through cells
+        // without a floor or a block), per map; the rest are holes. Worked out again on first use after a floor or a
+        // block on an upper storey changed (Floors.MapMeshDirty_Postfix -> OpenAirChanged); where that turned a cell into
+        // a hole or back, the blocks round it are rebuilt.
+        private sealed class OpenAir
+        {
+            public bool[] outside;
+            public bool dirty = true;
+        }
+
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Map, OpenAir> openAir = new System.Runtime.CompilerServices.ConditionalWeakTable<Map, OpenAir>();
+        private static bool openAirDirtying;
+        public static int OpenAirBuilds;   // (harness: how often it was worked out)
+        public static double OpenAirMs;
+
+        public static void OpenAirChanged(Map map)
+        {
+            OpenAir o;
+            if (!openAirDirtying && map != null && openAir.TryGetValue(map, out o))
+            {
+                o.dirty = true;
+            }
+        }
+
+        private static bool InHole(Map map, IntVec3 c)
+        {
+            OpenAir o = openAir.GetValue(map, m => new OpenAir());
+            if (o.dirty)
+            {
+                BuildOpenAir(map, o);
+            }
+            int i = c.z * map.Size.x + c.x;
+            return o.outside != null && i >= 0 && i < o.outside.Length && !o.outside[i];
+        }
+
+        private static void BuildOpenAir(Map map, OpenAir o)
+        {
+            long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+            o.dirty = false;
+            int w = map.Size.x;
+            bool[] was = o.outside;
+            bool[] outside = new bool[w * map.Size.z];
+            int rows;
+            float[] heights;
+            int[] shifts;
+            int n = Floors.Bands(map, out rows, out heights, out shifts);
+            Queue<int> q = new Queue<int>();
+            for (int k = 1; k <= n; k++)
+            {
+                int z0 = shifts[k];
+                if (z0 < 0 || z0 + rows > map.Size.z)
+                {
+                    continue;
+                }
+                TerrainGrid terrain = map.terrainGrid;
+                Func<int, int, bool> open = (x, z) =>
+                {
+                    // (Floors.HasFloor on an upper storey: the terrain is drawn there)
+                    IntVec3 c = new IntVec3(x, 0, z);
+                    float h;
+                    return terrain.TerrainAt(c).dontRender && !Floors.FullBlock(map, c, out h);
+                };
+                for (int x = 0; x < w; x++)
+                {
+                    for (int r = 0; r < rows; r++)
+                    {
+                        if ((x == 0 || x == w - 1 || r == 0 || r == rows - 1) && open(x, z0 + r))
+                        {
+                            int i = (z0 + r) * w + x;
+                            if (!outside[i])
+                            {
+                                outside[i] = true;
+                                q.Enqueue(i);
+                            }
+                        }
+                    }
+                }
+                while (q.Count > 0)
+                {
+                    int i = q.Dequeue();
+                    int x = i % w, z = i / w;
+                    for (int d = 0; d < 4; d++)
+                    {
+                        int nx = x + (d == 0 ? 1 : d == 1 ? -1 : 0);
+                        int nz = z + (d == 2 ? 1 : d == 3 ? -1 : 0);
+                        if (nx < 0 || nx >= w || nz < z0 || nz >= z0 + rows)
+                        {
+                            continue;
+                        }
+                        int j = nz * w + nx;
+                        if (!outside[j] && open(nx, nz))
+                        {
+                            outside[j] = true;
+                            q.Enqueue(j);
+                        }
+                    }
+                }
+            }
+            o.outside = outside;
+            OpenAirBuilds++;
+            OpenAirMs += (System.Diagnostics.Stopwatch.GetTimestamp() - t0) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+            if (was == null || was.Length != outside.Length)
+            {
+                return;
+            }
+            // a cell that became a hole or stopped being one: the rock under it and the floors round it are made again
+            openAirDirtying = true;
+            try
+            {
+                for (int i = 0; i < outside.Length; i++)
+                {
+                    if (was[i] != outside[i])
+                    {
+                        IntVec3 c = new IntVec3(i % w, 0, i / w);
+                        map.mapDrawer.MapMeshDirty(c, (ulong)RimWorld.MapMeshFlagDefOf.Terrain | (ulong)RimWorld.MapMeshFlagDefOf.Buildings);
+                        IntVec3 below = Floors.Stacked(map, c, -1);
+                        if (below.IsValid && below.InBounds(map))
+                        {
+                            map.mapDrawer.MapMeshDirty(below, (ulong)RimWorld.MapMeshFlagDefOf.Buildings);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                openAirDirtying = false;
+            }
         }
 
         // The cell above a cell in its column covers it: a floor (a ledge over the rock) or a block standing on it.
@@ -495,12 +741,14 @@ namespace IsoRim
         // top and its terrain: the rock's chamfered corner, unless the floor goes on past that corner (a cell beside c
         // there, sharing an edge with it, has a floor or a block on this storey, as over a dug cell): then the square
         // corner, or the cut-off corner would leave a hole in the floor. Only a cell touching the corner diagonally
-        // keeps the cut (the two floors just meet at a point there).
+        // keeps the cut (the two floors just meet at a point there). A hole's corner (CornerAt kind 2) always moves: the
+        // cells round it are the hole and three floors over rock, all cut to it.
         private static Vector3 FloorCorner(Map map, IntVec3 c, IntVec3 below, int k, float rh, out bool moved)
         {
-            int dx, dz;
-            Vector3 g = ChamferedCorner(map, below.x + CornerX[k], below.z + CornerZ[k], rh, out moved, out dx, out dz);
-            if (moved && (FloorGoesOn(map, c + new IntVec3(CornerX[k] == 0 ? -1 : 1, 0, 0)) || FloorGoesOn(map, c + new IntVec3(0, 0, CornerZ[k] == 0 ? -1 : 1))))
+            int dx, dz, kind;
+            Vector3 g = CornerAt(map, below.x + CornerX[k], below.z + CornerZ[k], rh, out kind, out dx, out dz);
+            moved = kind != 0;
+            if (kind == 1 && (FloorGoesOn(map, c + new IntVec3(CornerX[k] == 0 ? -1 : 1, 0, 0)) || FloorGoesOn(map, c + new IntVec3(0, 0, CornerZ[k] == 0 ? -1 : 1))))
             {
                 moved = false;
                 return new Vector3(CornerX[k], 0f, CornerZ[k]);

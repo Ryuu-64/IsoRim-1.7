@@ -1486,6 +1486,10 @@ namespace IsoRim
             {
                 return;
             }
+            if (loc.z >= GroundRowsOf(map) && (dirtyFlags & ((ulong)RimWorld.MapMeshFlagDefOf.Buildings | (ulong)RimWorld.MapMeshFlagDefOf.Terrain)) != 0)
+            {
+                WallBoxes.OpenAirChanged(map);   // (CliffLook.cs) a floor or a block upstairs: which open air is a hole may change
+            }
             dirtying = true;
             try
             {

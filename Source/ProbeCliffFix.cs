@@ -250,9 +250,10 @@ namespace IsoRim
                     }
                     for (int k = 0; k < 4; k++)
                     {
-                        if (Mathf.Abs(q[k].x - cx[k]) < 0.01f && Mathf.Abs(q[k].z - cz[k]) < 0.01f)
+                        if (Mathf.Abs(q[k].x - cx[k]) < 0.01f && Mathf.Abs(q[k].z - cz[k]) < 0.01f
+                            || q[k].x < 0.01f || q[k].x > 0.99f || q[k].z < 0.01f || q[k].z > 0.99f)
                         {
-                            continue;
+                            continue;   // (a corner moved out of the cell: a hole's corner, checked below)
                         }
                         // the two cells sharing an edge with this one at that corner
                         IntVec3 sx = c + new IntVec3(cx[k] == 0 ? -1 : 1, 0, 0);
@@ -275,7 +276,81 @@ namespace IsoRim
                     }
                 }
             }
-            Log.Message("[IsoRim probe] holescan storey " + storey + ": " + n + " cut corners beside a floor, e.g. " + string.Join(" ", first) + "; using " + seamAt);
+            // Every map corner: floors sharing an edge there must put that corner at the same point (their slab tops over
+            // rock cut to the chamfer, others square), else the top has a crack or an overlap (a hole's corner moves the
+            // corner of all three floors round it).
+            int bad = 0, holeCorners = 0, concave = 0;
+            List<string> badAt = new List<string>();
+            Dictionary<IntVec3, Vector3[]> pts = new Dictionary<IntVec3, Vector3[]>();
+            Func<IntVec3, Vector3[]> corners = g =>
+            {
+                Vector3[] r;
+                if (pts.TryGetValue(g, out r))
+                {
+                    return r;
+                }
+                IntVec3 c = Floors.Stacked(map, g, storey);
+                r = null;
+                if (c.IsValid && c.InBounds(map) && Floors.HasFloor(map, c))
+                {
+                    Vector3[] q;
+                    r = WallBoxes.SlabOverRock(map, c, out q) ? q : new[] { new Vector3(0f, 0f, 0f), new Vector3(0f, 0f, 1f), new Vector3(1f, 0f, 1f), new Vector3(1f, 0f, 0f) };
+                    // the top (and the terrain mapped onto it) must stay a convex quad, else it folds over itself
+                    for (int i = 0; i < 4; i++)
+                    {
+                        Vector3 e0 = r[(i + 1) % 4] - r[i], e1 = r[(i + 2) % 4] - r[(i + 1) % 4];
+                        if (e0.x * e1.z - e0.z * e1.x > 1e-4f)
+                        {
+                            concave++;
+                            if (badAt.Count < 12)
+                            {
+                                badAt.Add("concave " + g.x + "," + g.z);
+                            }
+                            break;
+                        }
+                    }
+                }
+                pts[g] = r;
+                return r;
+            };
+            for (int x = 2; x < map.Size.x - 1; x++)
+            {
+                for (int z = 2; z < rows - 1; z++)
+                {
+                    // the cells round map corner (x, z): SW (its NE corner, 2), SE (NW, 1), NW (SE, 3), NE (SW, 0)
+                    IntVec3[] cell = { new IntVec3(x - 1, 0, z - 1), new IntVec3(x, 0, z - 1), new IntVec3(x - 1, 0, z), new IntVec3(x, 0, z) };
+                    int[] kOf = { 2, 1, 3, 0 };
+                    Vector3?[] p = new Vector3?[4];
+                    for (int i = 0; i < 4; i++)
+                    {
+                        Vector3[] r = corners(cell[i]);
+                        if (r != null)
+                        {
+                            p[i] = new Vector3(cell[i].x, 0f, cell[i].z) + r[kOf[i]];
+                            if (Mathf.Abs(p[i].Value.x - x) > 0.01f && (p[i].Value.x < cell[i].x - 0.01f || p[i].Value.x > cell[i].x + 1.01f)
+                                || Mathf.Abs(p[i].Value.z - z) > 0.01f && (p[i].Value.z < cell[i].z - 0.01f || p[i].Value.z > cell[i].z + 1.01f))
+                            {
+                                holeCorners++;
+                            }
+                        }
+                    }
+                    int[,] pairs = { { 0, 1 }, { 0, 2 }, { 1, 3 }, { 2, 3 } };
+                    for (int e = 0; e < 4; e++)
+                    {
+                        Vector3? a = p[pairs[e, 0]], b = p[pairs[e, 1]];
+                        if (a.HasValue && b.HasValue && (a.Value - b.Value).sqrMagnitude > 1e-4f)
+                        {
+                            bad++;
+                            if (badAt.Count < 12)
+                            {
+                                badAt.Add(x + "," + z);
+                            }
+                        }
+                    }
+                }
+            }
+            Log.Message("[IsoRim probe] holescan storey " + storey + ": " + n + " cut corners beside a floor, e.g. " + string.Join(" ", first) + "; using " + seamAt
+                + "; floors meeting at a corner at different points " + bad + (badAt.Count > 0 ? " (" + string.Join(" ", badAt) + ")" : "") + "; floor corners out of their cell (holes) " + holeCorners + "; concave tops " + concave);
         }
 
         private static void FindSeam(Map map, int storey, int skip)

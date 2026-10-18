@@ -107,7 +107,7 @@ namespace IsoRim
                     return true;
                 }
             }
-            return false;
+            return HoleKey(key, a, map);
         }
 
         private static void FindLip(Map map, int skip, int half)
