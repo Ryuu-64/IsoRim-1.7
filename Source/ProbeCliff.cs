@@ -85,6 +85,10 @@ namespace IsoRim
                 scriptWait = Math.Max(scriptWait, 120);   // not before the map is up, and a moment after
                 return true;
             }
+            if (PanStripTick())
+            {
+                return true;
+            }
             if (pendingShotName != null)
             {
                 if (--pendingShotFrames == 0)
@@ -92,7 +96,7 @@ namespace IsoRim
                     string dir = Path.Combine(GenFilePaths.SaveDataFolderPath, "renders", HarnessTag());
                     Directory.CreateDirectory(dir);
                     ScreenCapture.CaptureScreenshot(Path.Combine(dir, pendingShotName + ".png"));
-                    Log.Message("[IsoRim probe] shot " + pendingShotName + ": cliff mode " + WallBoxes.CliffMode + ", yaw " + View3D.Yaw.ToString("0") + ", pitch " + View3D.Pitch.ToString("0.0"));
+                    Log.Message("[IsoRim probe] shot " + pendingShotName + ": cliff mode " + WallBoxes.CliffMode + ", yaw " + View3D.Yaw.ToString("0") + ", pitch " + View3D.Pitch.ToString("0.0") + RegenNote());
                     pendingShotName = null;
                     scriptWait = 6;
                 }
@@ -197,6 +201,7 @@ namespace IsoRim
                     Vector3 at = a[0] == "tunnel" && tunnelStart.IsValid
                         ? (tunnelStart + tunnelDir * (tunnelLen + 2)).ToVector3Shifted()
                         : a[0] == "diag" && diagAt.IsValid ? diagAt.ToVector3Shifted()
+                        : a[0] == "seam" && seamAt.IsValid ? seamAt.ToVector3Shifted() + (a.Length >= 4 ? new Vector3(F(a[1]), 0f, F(a[2])) : Vector3.zero)
                         : new Vector3(F(a[0]) + 0.5f, 0f, F(a[1]) + 0.5f);
                     float size = F(a[a.Length - 1]);
                     if (a[0] == "tunnel" && a.Length >= 3)
@@ -226,6 +231,12 @@ namespace IsoRim
                 case "dig":
                     DigTunnel(map);
                     scriptWait = 30;
+                    return;
+                case "panstrip":
+                    StartPanStrip(F(a[0]), F(a[1]), I(a[2]), a[3]);
+                    return;
+                case "findseam":
+                    FindSeam(map, I(a[0]), a.Length > 1 ? I(a[1]) : 0);
                     return;
                 case "finddiag":
                     FindDiagonal(map, I(a[0]), I(a[1]), a.Length > 2 ? I(a[2]) : 0);

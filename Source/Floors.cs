@@ -778,6 +778,11 @@ namespace IsoRim
         }
 
         internal const float SlabThickness = 0.12f;
+        // The slab's top lies this far (true cells) under the floor: the game draws the soft edge where two terrains meet
+        // (SectionLayer_Terrain's fans) at height 0, level with the floor, and the slab writes depth there; level, the two
+        // fought over every pixel and the edge flickered as the camera moved. The terrain's own cells (at the game's
+        // Terrain altitude) were already above. Far under a pixel at any zoom.
+        internal const float SlabTopDrop = 0.004f;
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Section, Slab> slabs = new System.Runtime.CompilerServices.ConditionalWeakTable<Section, Slab>();
         private static readonly AccessTools.FieldRef<SectionLayer, Section> layerSection = AccessTools.FieldRefAccess<SectionLayer, Section>("section");
 
@@ -857,7 +862,7 @@ namespace IsoRim
             List<Vector3> verts, List<Color32> cols, List<int> tris)
         {
             float s = View3D.Squash;
-            float top = 0f;
+            float top = -SlabTopDrop / s;
             float bottom = -SlabThickness / s;
             foreach (IntVec3 c in cells)
             {
