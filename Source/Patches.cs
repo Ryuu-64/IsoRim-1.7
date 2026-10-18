@@ -1536,6 +1536,10 @@ namespace IsoRim
                 layerKinds[type] = kind;
             }
             IsoRimSettings st = IsoRimMod.Settings;
+            if (kind == 0 && __instance is SectionLayer_IsoRimWalls)
+            {
+                WallBoxes.UpdateCovered(__instance);   // rock caps under a shown floor are not drawn (CliffLook.cs)
+            }
             if (Floors.sectionLifted)
             {
                 return Floors.DrawLayer(__instance, kind);   // a block of an upper floor

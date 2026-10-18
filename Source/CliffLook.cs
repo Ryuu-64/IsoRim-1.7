@@ -193,7 +193,16 @@ namespace IsoRim
                 SmoothCorner(map, c.x + CornerX[k], c.z + CornerZ[k], height, hasUp, upOff, out smGround[k], out smMid[k], out smTop[k], out smCovered[k], out smMoved[k]);
             }
 
-            // The cap (under the floor above where there is one; shown when the floors above are hidden).
+            // The cap (under the floor above where there is one: then drawn only while that floor is hidden, CoveredByFloor).
+            bool coveredCap = CoveredByFloor(map, c);
+            if (coveredCap)
+            {
+                LayerSubMesh ct = MeshWriter.Sub(layer, CoveredTwin(topMat));
+                if (ct != null && ct.verts.Count + 4 <= MeshWriter.MaxVerts)
+                {
+                    top = ct;
+                }
+            }
             MeshWriter.TexturedQuad(top,
                 ToWorld(smTop[0], squash), ToWorld(smTop[1], squash), ToWorld(smTop[2], squash), ToWorld(smTop[3], squash),
                 CapUV(smTop[0], capMat, upOff.z, c), CapUV(smTop[1], capMat, upOff.z, c), CapUV(smTop[2], capMat, upOff.z, c), CapUV(smTop[3], capMat, upOff.z, c), White);
@@ -503,6 +512,75 @@ namespace IsoRim
         {
             float h;
             return c.InBounds(map) && (Floors.HasFloor(map, c) || Floors.FullBlock(map, c, out h));
+        }
+
+        // ---- rock under a floor (rock-top floors, isorim-pz-rocktop-floors-plan.md §4.2-4.3)
+
+        // A rock whose cell has a floor right above it: its cap goes into a "covered" sub-mesh (its own copy of the cap
+        // material), drawn only while that floor's storey is hidden (a cut view: the cap stands in for the floor, same
+        // texture and UV). The plain solid quad just under the cap stays: the rock's body, as the slab body under a floor
+        // (it closes the hair-thin steps where a floor over rock meets a rock column's lower cap). While the floor shows, it is drawn in its own cell (its
+        // light, fog and hiding) and the cap under it is not drawn at all. Not under a block standing on that floor (a
+        // rock column: the floor there has no slab, Floors.SlabGeometry, and the cap closes the column where the block
+        // above is chamfered). Without floors Stacked is Invalid: never covered.
+        private static bool CoveredByFloor(Map map, IntVec3 c)
+        {
+            float h;
+            int z;
+            if (Floors.ColumnFloor(map, c, out h, out z) < 0)
+            {
+                return false;
+            }
+            IntVec3 up = Floors.Stacked(map, c, 1);
+            return up.IsValid && up.InBounds(map) && Floors.HasFloor(map, up) && !Floors.FullBlock(map, up, out h);
+        }
+
+        public static bool HideCoveredCaps = true;   // harness A/B (probe key covercaps=0|1): off, covered caps always drawn
+
+        private static readonly Dictionary<Material, Material> coveredTwins = new Dictionary<Material, Material>();
+        private static readonly HashSet<Material> coveredSet = new HashSet<Material>();
+
+        private static Material CoveredTwin(Material m)
+        {
+            if (m == null)
+            {
+                return null;
+            }
+            Material t;
+            if (coveredTwins.TryGetValue(m, out t))
+            {
+                return t;
+            }
+            t = new Material(m);
+            t.name = m.name + "_Covered";
+            if (IsoGlow.Marked(m))
+            {
+                IsoGlow.Use(t, IsoGlow.OwnCell);   // its own stencil mark, as the original's
+            }
+            coveredTwins[m] = t;
+            coveredSet.Add(t);
+            return t;
+        }
+
+        // Per draw of a walls layer (Patches.DrawLayer_Section, ground and upper floors): its covered sub-meshes are off
+        // while the storey above its section is shown. One flag per section; meshes are not rebuilt on a view change.
+        public static void UpdateCovered(SectionLayer layer)
+        {
+            if (coveredSet.Count == 0)
+            {
+                return;
+            }
+            Section s = Floors.SectionOf(layer);
+            int k = s != null ? Floors.FloorOfRow(s.botLeft.z) : -1;
+            bool hide = HideCoveredCaps && Floors.On && k >= 0 && Floors.Shown(k + 1);
+            List<LayerSubMesh> subs = layer.subMeshes;
+            for (int i = 0; i < subs.Count; i++)
+            {
+                if (subs[i].material != null && coveredSet.Contains(subs[i].material))
+                {
+                    subs[i].disabled = hide;
+                }
+            }
         }
     }
 }

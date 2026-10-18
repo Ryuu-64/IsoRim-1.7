@@ -135,7 +135,7 @@ namespace IsoRim
                     return true;
                 }
             }
-            return false;
+            return RockTopKey(key, a, map);
         }
 
         private static void Lamp(Map map, IntVec3 c)

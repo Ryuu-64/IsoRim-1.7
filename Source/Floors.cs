@@ -786,6 +786,9 @@ namespace IsoRim
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Section, Slab> slabs = new System.Runtime.CompilerServices.ConditionalWeakTable<Section, Slab>();
         private static readonly AccessTools.FieldRef<SectionLayer, Section> layerSection = AccessTools.FieldRefAccess<SectionLayer, Section>("section");
 
+        // The block a section layer belongs to.
+        internal static Section SectionOf(SectionLayer layer) => layer != null ? layerSection(layer) : null;
+
         public static void TerrainRegenerate_Postfix(SectionLayer_Terrain __instance)
         {
             Section s = layerSection(__instance);

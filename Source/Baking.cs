@@ -1018,6 +1018,16 @@ namespace IsoRim
                 RockCorner(map, cx, cz, height, out rockMid[k], out rockTop[k]);
             }
 
+            // (under a floor: drawn only while that floor is hidden, CliffLook.CoveredByFloor)
+            bool coveredCap = CoveredByFloor(map, c);
+            if (coveredCap)
+            {
+                LayerSubMesh ct = MeshWriter.Sub(layer, CoveredTwin(topMat));
+                if (ct != null && ct.verts.Count + 4 <= MeshWriter.MaxVerts)
+                {
+                    top = ct;
+                }
+            }
             MeshWriter.TexturedQuad(top,
                 ToWorld(rockTop[0], squash), ToWorld(rockTop[1], squash), ToWorld(rockTop[2], squash), ToWorld(rockTop[3], squash),
                 CapUV(rockTop[0], capMat, capRows, c), CapUV(rockTop[1], capMat, capRows, c), CapUV(rockTop[2], capMat, capRows, c), CapUV(rockTop[3], capMat, capRows, c), White);
