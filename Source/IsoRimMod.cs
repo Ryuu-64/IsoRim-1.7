@@ -72,6 +72,7 @@ namespace IsoRim
         public float seeRadius = 7f;        // BuildSee: cells to where it ends, full strength to 3 cells less (before: fixed 4.5)
         public int turn = 0;             // eighth turns of the camera, clockwise
         public bool snap45 = true;       // Q and E turn an eighth (45 degrees) at a time; otherwise a quarter
+        public bool instantTurn = false; // Q and E (and the free-look snap) jump straight to the new angle, with no swing
         public bool freeLook = true;     // the view can be turned and tilted by dragging with the mouse
         public float freeYaw = 0f;       // degrees turned by free look, on top of the eighth turns
         public float lookSensitivity = 0.25f;   // degrees per pixel dragged
@@ -184,6 +185,7 @@ namespace IsoRim
             Scribe_Values.Look(ref seeRadius, "seeRadius", 7f);
             Scribe_Values.Look(ref turn, "turnSteps", 0);
             Scribe_Values.Look(ref snap45, "snap45", true);
+            Scribe_Values.Look(ref instantTurn, "instantTurn", false);
             Scribe_Values.Look(ref freeLook, "freeLook", true);
             Scribe_Values.Look(ref freeYaw, "freeYaw", 0f);
             Scribe_Values.Look(ref lookSensitivity, "lookSensitivity", 0.25f);
@@ -659,6 +661,7 @@ namespace IsoRim
                 Section(l, "R3D_Settings_Camera".Translate(), "R3D_Settings_CameraNote".Translate());
                 Check(l, "R3D_Settings_Isometric".Translate(), ref st.isometric, "R3D_Settings_IsometricTip".Translate());
                 Check(l, "R3D_Settings_Snap45".Translate(), ref st.snap45, "R3D_Settings_Snap45Tip".Translate());
+                Check(l, "R3D_Settings_InstantTurn".Translate(), ref st.instantTurn, "R3D_Settings_InstantTurnTip".Translate());
                 Check(l, "R3D_Settings_FreeLook".Translate(), ref st.freeLook, "R3D_Settings_FreeLookTip".Translate());
                 if (st.freeLook)
                 {

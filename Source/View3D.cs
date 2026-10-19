@@ -236,9 +236,9 @@ namespace IsoRim
                 return;
             }
             float target = YawTarget;
-            if (!yawSet || !Active || lookDragging)
+            if (!yawSet || !Active || lookDragging || IsoRimMod.Settings.instantTurn)
             {
-                // While the view is dragged round with the mouse it follows at once, with no easing.
+                // While the view is dragged round with the mouse it follows at once, with no easing; with instantTurn every turn does.
                 yawNow = target;
                 yawSet = true;
             }
