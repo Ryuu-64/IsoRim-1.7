@@ -7,7 +7,7 @@ namespace IsoRim
     // Harness-only keys for the see-through while building (BuildSee; the setting itself: set=buildSeeThrough,0|1):
     //   bsee=coverage,inner,outer[,px]  the see-through's coverage at the pointer, its radii (cells) and dither cell (pixels)
     //                                (overrides the settings seeStrength, seeRadius; bsee=off: the settings again)
-    //   designator=def|off           the game's build designator of that def (terrain or thing) in hand, or none
+    //   designator=def|mine|off      the game's build designator of that def (terrain or thing), its Mine tool, or none
     //   bsptr=x,z|off                the cut-away's pointer (cutptr) at that map point AND the real pointer over it every
     //                                frame, so the designator's ghost follows it (U<z>: floor 2)
     public static partial class Probe
@@ -38,6 +38,11 @@ namespace IsoRim
                     if (a[0] == "off")
                     {
                         dm.Deselect();
+                        return true;
+                    }
+                    if (a[0] == "mine")
+                    {
+                        dm.Select(new Designator_Mine());   // the game's Mine tool (MineXray)
                         return true;
                     }
                     BuildableDef def = (BuildableDef)DefDatabase<TerrainDef>.GetNamedSilentFail(a[0]) ?? DefDatabase<ThingDef>.GetNamed(a[0]);

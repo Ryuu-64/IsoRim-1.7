@@ -1491,6 +1491,7 @@ namespace IsoRim
             {
                 return;   // (as the game: nothing to remake while the map is made)
             }
+            MineXray.Dirty(dirtyFlags);   // the x-ray of the floor below remakes its outline
             ulong want = (ulong)RimWorld.MapMeshFlagDefOf.Buildings | (ulong)RimWorld.MapMeshFlagDefOf.Terrain | (ulong)RimWorld.MapMeshFlagDefOf.Roofs;
             if ((dirtyFlags & want) == 0)
             {

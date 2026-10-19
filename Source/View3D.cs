@@ -398,6 +398,7 @@ namespace IsoRim
                 {
                     Interaction.DrawDesignationDrag();
                     Interaction.DrawDragGhosts();
+                    MineXray.Draw();
                 }
                 catch (Exception e)
                 {
