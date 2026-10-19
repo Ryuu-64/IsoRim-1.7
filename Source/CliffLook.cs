@@ -392,8 +392,8 @@ namespace IsoRim
 
         private static bool PrintRockSmooth(SectionLayer layer, Thing t, float height, WallKind kind)
         {
-            Color tint = t.DrawColor;
-            Material capMat = kind == WallKind.Rock ? RockCapMaterial(t.def) : null;
+            Color tint = MineMarks.Tint(t, t.DrawColor);   // marked for mining: toward the mark's colour
+            Material capMat = kind == WallKind.Rock ? RockCapMaterial(t) : null;
             Material topMat = capMat ?? MaterialFor(kind, true, 0, false, tint);
             if (topMat == null)
             {

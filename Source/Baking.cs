@@ -988,7 +988,7 @@ namespace IsoRim
                 return PrintRockSmooth(layer, t, height, kind);   // PROTOTYPE (CliffLook.cs)
             }
             Color tint = MineMarks.Tint(t, t.DrawColor);   // marked for mining: toward the mark's colour
-            Material capMat = kind == WallKind.Rock ? RockCapMaterial(t.def) : null;
+            Material capMat = kind == WallKind.Rock ? RockCapMaterial(t) : null;
             Material topMat = capMat ?? MaterialFor(kind, true, 0, false, tint);
             if (topMat == null)
             {
@@ -1153,6 +1153,17 @@ namespace IsoRim
         // Null when the stone has no natural terrain with a texture: the mod's RockTop then.
         private static readonly Dictionary<ThingDef, Material> rockCaps = new Dictionary<ThingDef, Material>();
         public static bool TerrainCaps = true;   // harness A/B (probe key rockcaps=0|1): off, the old RockTop caps
+
+        // The cap of this rock: its stone's, tinted toward the mine mark's colour when marked for mining (MineMarks).
+        private static Material RockCapMaterial(Thing t)
+        {
+            Material m = RockCapMaterial(t.def);
+            if (m == null || !MineMarks.Marked(t))
+            {
+                return m;
+            }
+            return R3DTextures.MaterialFor(m.mainTexture as Texture2D, "IsoRim_RockCap_" + t.def.defName, MineMarks.Toward(m.color));
+        }
 
         private static Material RockCapMaterial(ThingDef def)
         {
