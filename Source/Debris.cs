@@ -125,6 +125,9 @@ namespace IsoRim
         private static readonly Dictionary<SectionLayer, Dictionary<int, List<long>>> index = new Dictionary<SectionLayer, Dictionary<int, List<long>>>();
         private static int doneTick = -1;
 
+        // the layers TakeLayer indexes
+        private static readonly Type[] IndexedLayers = { typeof(SectionLayer_Terrain), typeof(SectionLayer_IsoRimWalls), typeof(SectionLayer_IsoRimBodies), typeof(SectionLayer_IsoRimRoofs) };
+
         // the map's floors (this tick)
         private static Map bandsMap;
         private static int bandsTick = -1;
@@ -271,6 +274,16 @@ namespace IsoRim
             if (s.floor > 0 && !Floors.Shown(s.floor) && sec.dirtyFlags != 0 && regenerated.Add(sec))
             {
                 sec.RegenerateAllLayers();
+                // Its meshes are new: an index made from them earlier this tick (a cell taken before the collapse
+                // dirtied the block) points at triangles that are gone.
+                foreach (Type t in IndexedLayers)
+                {
+                    SectionLayer l = sec.GetLayer(t);
+                    if (l != null)
+                    {
+                        index.Remove(l);
+                    }
+                }
             }
             if (s.roof)
             {
