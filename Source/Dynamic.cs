@@ -471,6 +471,11 @@ namespace IsoRim
                 {
                     Apply(st);
                 }
+                Bridges.Rebuilt();   // the deck sides take the deck's tint
+                if (Find.CurrentMap != null)
+                {
+                    MapSections.QueueAll(Find.CurrentMap, typeof(SectionLayer_IsoRimBridges), true);
+                }
             }
             catch (Exception e)
             {
@@ -2161,9 +2166,9 @@ namespace IsoRim
                     float mid = lying ? 0.12f * Mathf.Sqrt(size) : Interaction.PickHeight(p) * 0.45f;
                     foot.y = Mathf.Max(0f, mid - 0.4f * FlameHeight * sy);
                     foot -= View3D.GroundForward * (lying ? 0.14f : 0.22f) * Mathf.Sqrt(size);   // in front of the body
-                    if (Floors.On && on.Spawned)
+                    if (on.Spawned)
                     {
-                        lifted = true;   // a pawn on a stair step: its rise (the fire's own draw has none)
+                        lifted = true;   // a pawn on a stair step or a bridge deck: its rise (the fire's own draw has none)
                         DrawHook.floor = true;
                         DrawHook.floorMatrix = Floors.ExtraMatrix(on);
                     }
