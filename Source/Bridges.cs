@@ -22,7 +22,7 @@ namespace IsoRim
     //   - things: Floors.ThingOffset / ExtraMatrix (things drawn every frame, labels, brackets, culling, silhouettes),
     //     PrintLift (things printed into the map mesh: TakePrintFrom, the realtime bodies layer), IsoCellMap.TopOf (the
     //     fog lid).
-    // Ground floor only (ProjectZ's floors have no bridges). With the 3D view or the option off nothing changes.
+    // Ground floor only (ProjectZ's floors have no bridges). With the 3D view off nothing changes.
     // Call sites: Patches (TakePrintFrom prefix/finalizer, ThingPhase, ground layer postfixes, BridgeProps postfix,
     // TerrainChanged_Postfix), Floors (ThingOffset, ExtraMatrix, DrawnOffset, ThingPhase_Prefix), Layers (water under
     // bridges, realtime bodies), Cells (TopOf).
@@ -40,7 +40,7 @@ namespace IsoRim
 
         public static bool Active
         {
-            get { return View3D.Active && IsoRimMod.Settings.bridges3D; }
+            get { return View3D.Active; }
         }
 
         // The bridge in a cell (ground rows only), or null.
@@ -1006,7 +1006,7 @@ namespace IsoRim
 
         public override bool Visible
         {
-            get { return View3D.Ready && IsoRimMod.Settings.bridges3D; }
+            get { return View3D.Ready; }
         }
 
         public override void Regenerate()

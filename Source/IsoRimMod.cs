@@ -64,7 +64,6 @@ namespace IsoRim
         public bool grassSoil = true;
         public bool floorStyle = true;
         public bool waterStyle = true;   // the mod's own stylised water
-        public bool bridges3D = true;    // bridge decks raised, with sides and posts (Bridges)
         public bool cutHover = true;     // walls under the pointer are cut down
         public bool cutRooms = false;    // walls in front of every roofed room are cut down
         public bool cutWholeWall = false;   // stacked floors: a lowered wall is lowered on every shown floor of its column (Cutaway.AddColumns)
@@ -177,7 +176,6 @@ namespace IsoRim
             Scribe_Values.Look(ref grassSoil, "grassSoil", true);
             Scribe_Values.Look(ref floorStyle, "floorStyle", true);
             Scribe_Values.Look(ref waterStyle, "waterStyle", true);
-            Scribe_Values.Look(ref bridges3D, "bridges3D", true);
             Scribe_Values.Look(ref cutHover, "cutHover", true);
             Scribe_Values.Look(ref cutRooms, "cutRooms", false);
             Scribe_Values.Look(ref cutWholeWall, "cutWholeWall", false);
@@ -930,7 +928,6 @@ namespace IsoRim
 
                 Section(l, "R3D_Settings_Water".Translate());
                 Check(l, "R3D_Settings_WaterStyle".Translate(), ref st.waterStyle, "R3D_Settings_WaterStyleTip".Translate());
-                Check(l, "R3D_Settings_Bridges3D".Translate(), ref st.bridges3D, "R3D_Settings_Bridges3DTip".Translate());
             }
             if (r != null)
             {
