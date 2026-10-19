@@ -70,6 +70,8 @@ namespace IsoRim
         public bool buildSeeThrough = true; // with a designator in hand, what is near the pointer is drawn see-through (BuildSee)
         public float seeStrength = 0.85f;   // BuildSee: share of pixels dropped at the pointer (before: fixed 0.55)
         public float seeRadius = 7f;        // BuildSee: cells to where it ends, full strength to 3 cells less (before: fixed 4.5)
+        public bool mineXray = true;        // MineXray: with the Mine tool on an upper floor, the floor below outlined
+        public bool mineCrosshair = true;   // MineXray: a crosshair along x and z from the pointer's cell
         public int turn = 0;             // eighth turns of the camera, clockwise
         public bool snap45 = true;       // Q and E turn an eighth (45 degrees) at a time; otherwise a quarter
         public bool freeLook = true;     // the view can be turned and tilted by dragging with the mouse
@@ -182,6 +184,8 @@ namespace IsoRim
             Scribe_Values.Look(ref buildSeeThrough, "buildSeeThrough", true);
             Scribe_Values.Look(ref seeStrength, "seeStrength", 0.85f);
             Scribe_Values.Look(ref seeRadius, "seeRadius", 7f);
+            Scribe_Values.Look(ref mineXray, "mineXray", true);
+            Scribe_Values.Look(ref mineCrosshair, "mineCrosshair", true);
             Scribe_Values.Look(ref turn, "turnSteps", 0);
             Scribe_Values.Look(ref snap45, "snap45", true);
             Scribe_Values.Look(ref freeLook, "freeLook", true);
@@ -790,6 +794,8 @@ namespace IsoRim
                     st.seeStrength = Slider(l, "R3D_Settings_SeeStrength".Translate(), st.seeStrength, 0.2f, 1f, (st.seeStrength * 100f).ToString("0") + "%", "R3D_Settings_SeeStrengthTip".Translate());
                     st.seeRadius = Slider(l, "R3D_Settings_SeeRadius".Translate(), st.seeRadius, 3f, 12f, Cells(st.seeRadius, "0.0"));
                 }
+                Check(l, "R3D_Settings_MineXray".Translate(), ref st.mineXray, "R3D_Settings_MineXrayTip".Translate());
+                Check(l, "R3D_Settings_MineCrosshair".Translate(), ref st.mineCrosshair, "R3D_Settings_MineCrosshairTip".Translate());
                 Check(l, "R3D_Settings_CutNearColonists".Translate(), ref st.cutNearColonists, "R3D_Settings_CutNearColonistsTip".Translate());
                 if (st.cutNearColonists)
                 {

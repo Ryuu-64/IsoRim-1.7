@@ -70,7 +70,8 @@ namespace IsoRim
             Shown = false;
             Map map = Find.CurrentMap;
             DesignatorManager dm = Find.DesignatorManager;
-            if (!Floors.On || map == null || dm == null || !Tool(dm.SelectedDesignator))
+            IsoRimSettings st = IsoRimMod.Settings;
+            if (!Floors.On || map == null || dm == null || !Tool(dm.SelectedDesignator) || !st.mineXray && !st.mineCrosshair)
             {
                 return;
             }
@@ -94,8 +95,8 @@ namespace IsoRim
 
             IntVec3 cell = Interaction.DesignatorMouseCell();
             UpdateTop(map, cell, k);
-            if (outline == null || outlineMap != map || outlineFloor != below || outlineRows != rows
-                || dirty && Time.realtimeSinceStartup - builtAt >= RebuildSeconds)
+            if (st.mineXray && (outline == null || outlineMap != map || outlineFloor != below || outlineRows != rows
+                || dirty && Time.realtimeSinceStartup - builtAt >= RebuildSeconds))
             {
                 Build(map, below, zB, zK, rows);
             }
@@ -106,10 +107,13 @@ namespace IsoRim
             Shown = true;
             Matrix4x4 lift = View3D.LiftMatrix(top + 0.03f);
             // The floor below's rows, moved up into the viewed floor's (the drawing map puts them on that floor).
-            Graphics.DrawMesh(outline, lift * Matrix4x4.Translate(new Vector3(0f, 0f, zK)), mat, 0, null, 0, Block(Color.white));
+            if (st.mineXray && outline != null)
+            {
+                Graphics.DrawMesh(outline, lift * Matrix4x4.Translate(new Vector3(0f, 0f, zK)), mat, 0, null, 0, Block(Color.white));
+            }
 
             // Pawns below, where the player can see them.
-            IReadOnlyList<Pawn> pawns = map.mapPawns.AllPawnsSpawned;
+            IReadOnlyList<Pawn> pawns = st.mineXray ? map.mapPawns.AllPawnsSpawned : (IReadOnlyList<Pawn>)System.Array.Empty<Pawn>();
             for (int i = 0; i < pawns.Count; i++)
             {
                 Pawn p = pawns[i];
@@ -124,7 +128,7 @@ namespace IsoRim
             }
 
             // The crosshair, on the viewed floor's rows.
-            if (cell.InBounds(map) && Floors.FloorOfRow(cell.z) == k)
+            if (st.mineCrosshair && cell.InBounds(map) && Floors.FloorOfRow(cell.z) == k)
             {
                 Rect(lift, cell.x - Reach, cell.z, cell.x + Reach + 1, cell.z + 1, Cross);
                 Rect(lift, cell.x, cell.z - Reach, cell.x + 1, cell.z, Cross);

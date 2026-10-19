@@ -133,6 +133,10 @@
   <R3D_Settings_SeeStrength>透视强度</R3D_Settings_SeeStrength>
   <R3D_Settings_SeeStrengthTip>光标处隐藏多少。100%为完全隐藏。</R3D_Settings_SeeStrengthTip>
   <R3D_Settings_SeeRadius>透视范围</R3D_Settings_SeeRadius>
+  <R3D_Settings_MineXray>开采时显示下层</R3D_Settings_MineXray>
+  <R3D_Settings_MineXrayTip>在上层拿着开采工具时，显示下一层的隧道和人。</R3D_Settings_MineXrayTip>
+  <R3D_Settings_MineCrosshair>开采十字线</R3D_Settings_MineCrosshair>
+  <R3D_Settings_MineCrosshairTip>在上层拿着开采工具时，标出光标所在的行和列。</R3D_Settings_MineCrosshairTip>
   <R3D_Settings_CutNearColonists>降低殖民者附近的墙</R3D_Settings_CutNearColonists>
   <R3D_Settings_CutNearColonistsTip>无论殖民者走到哪里，镜头与其之间的墙都会降低。殖民者走动时性能开销稍大。</R3D_Settings_CutNearColonistsTip>
   <R3D_Settings_ColonistRadius>每个殖民者周围范围</R3D_Settings_ColonistRadius>
