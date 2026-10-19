@@ -26,7 +26,7 @@ namespace IsoRim
 
         private static readonly Color Edge = new Color(0.55f, 0.85f, 1f, 0.6f);
         private static readonly Color Fill = new Color(0.55f, 0.85f, 1f, 0.14f);
-        private static readonly Color Cross = new Color(1f, 0.9f, 0.45f, 0.12f);
+        private static readonly Color Cross = new Color(1f, 0.9f, 0.45f, 0.18f);
         private static readonly Color CrossCell = new Color(1f, 0.9f, 0.45f, 0.35f);
         private static readonly Color Colonist = new Color(0.6f, 1f, 0.6f, 0.85f);
         private static readonly Color Other = new Color(1f, 0.55f, 0.45f, 0.85f);
@@ -127,13 +127,17 @@ namespace IsoRim
                 Graphics.DrawMesh(Disc, m, mat, 0, null, 0, Block(p.Faction != null && p.Faction == Faction.OfPlayer ? Colonist : Other));
             }
 
-            // The crosshair, on the viewed floor's rows.
+            // The crosshair, on the viewed floor's rows: one square per cell, so the cells can be counted.
             if (st.mineCrosshair && cell.InBounds(map) && Floors.FloorOfRow(cell.z) == k)
             {
-                Rect(lift, cell.x - Reach, cell.z, cell.x + Reach + 1, cell.z + 1, Cross);
-                Rect(lift, cell.x, cell.z - Reach, cell.x + 1, cell.z, Cross);
-                Rect(lift, cell.x, cell.z + 1, cell.x + 1, cell.z + Reach + 1, Cross);
-                Rect(lift, cell.x, cell.z, cell.x + 1, cell.z + 1, CrossCell);
+                for (int i = 1; i <= Reach; i++)
+                {
+                    CrossSquare(map, lift, cell.x - i, cell.z, k);
+                    CrossSquare(map, lift, cell.x + i, cell.z, k);
+                    CrossSquare(map, lift, cell.x, cell.z - i, k);
+                    CrossSquare(map, lift, cell.x, cell.z + i, k);
+                }
+                Rect(lift, cell.x + CrossGap, cell.z + CrossGap, cell.x + 1f - CrossGap, cell.z + 1f - CrossGap, CrossCell);
             }
         }
 
@@ -271,6 +275,18 @@ namespace IsoRim
             tris.Add(b + 2);
             tris.Add(b + 3);
         }
+
+        // One crosshair cell, inset so neighbouring squares stay apart; none off the map or off the viewed floor.
+        private static void CrossSquare(Map map, Matrix4x4 lift, int x, int z, int k)
+        {
+            if (x < 0 || x >= map.Size.x || z < 0 || z >= map.Size.z || Floors.FloorOfRow(z) != k)
+            {
+                return;
+            }
+            Rect(lift, x + CrossGap, z + CrossGap, x + 1f - CrossGap, z + 1f - CrossGap, Cross);
+        }
+
+        private const float CrossGap = 0.08f;   // the gap round each crosshair square, cells
 
         private static void Rect(Matrix4x4 lift, float x0, float z0, float x1, float z1, Color c)
         {
