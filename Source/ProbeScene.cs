@@ -135,6 +135,8 @@ namespace IsoRim
     //                                bullet drawn from there; 0: the game's flat flash and the bullet from the middle (before/after)
     //   clearflashes=1               the shot flashes in the air removed, no tick (the same frame without them, for diffs)
     //   interact=x,z                 the nearest free colonist is ordered to activate the building (as its float menu option)
+    //   opencrate=x,z                the crate in the cell (Building_Crate) opened by the nearest free colonist not already opening one:
+    //                                the game's Open job, as its float menu option (run tick= after it)
     //   social=x,z,chat|mood|thought the colonist there chats with the nearest other colonist, gains a mood bubble or a thought bubble
     //   lookcheck=1                  logs the free look key bindings (bound keys, labels) and whether they read as held
     //   manfire=x,z,tx,tz            the turret in the cell (a mortar: loaded with an HE shell) manned by the nearest free
@@ -1413,6 +1415,25 @@ namespace IsoRim
                     }
                     ic.OrderForceTarget(ip);   // as the float menu option does: the colonist walks over and activates it
                     Log.Message("[IsoRim probe] interact: " + ip.LabelShort + " at " + ip.Position + " activates " + ib.def.defName + " (" + (ip.CurJob != null ? ip.CurJob.def.defName : "no job") + ")");
+                    break;
+                }
+                case "opencrate":
+                {
+                    Building_Crate cr = new IntVec3(I(a[0]), 0, I(a[1])).GetFirstBuilding(map) as Building_Crate;
+                    Pawn op = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && (p.CurJob == null || p.CurJob.def != JobDefOf.Open))
+                        .OrderBy(p => p.Position.DistanceToSquared(cr != null ? cr.Position : IntVec3.Zero)).FirstOrDefault();
+                    if (cr == null || op == null)
+                    {
+                        Log.Warning("[IsoRim probe] opencrate: no crate at " + a[0] + "," + a[1] + " or no free colonist");
+                        return;
+                    }
+                    if (op.drafter != null)
+                    {
+                        op.drafter.Drafted = false;
+                    }
+                    op.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.Open, cr), JobTag.Misc);
+                    Log.Message("[IsoRim probe] opencrate: " + op.LabelShort + " at " + op.Position + " opens " + cr.def.defName + " at " + cr.Position
+                        + " (can open " + cr.CanOpen + ", job " + (op.CurJob != null ? op.CurJob.def.defName : "none") + ")");
                     break;
                 }
                 case "lookcheck":
