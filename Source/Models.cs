@@ -71,6 +71,8 @@ namespace IsoRim
         public Vector3 flameAt = new Vector3(0f, -1f, 0f);   // foot of the live flame (Effects), model space; y < 0: from the model's
                                             // own flame* parts (torches, braziers), none if it has none
         public Vector2 flameSize;           // with flameAt: the live flame's height and width (cells, model space)
+        public bool liveFlame = false;      // the live flame (Effects) burns over its flame* parts (or flameAt) while the thing stands,
+                                            // with no fire overlay of the game's (the burning power cell); map-mesh things too
         public float sinkHole = 0f;         // > 0: a hole sunk into the ground (pits), this the radius (cells, model space) of
                                             // its opening: the model may reach below the ground, the ground cells the opening
                                             // touches are cut out of the map mesh and the ground round it hides what lies under
