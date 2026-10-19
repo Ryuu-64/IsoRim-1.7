@@ -3267,6 +3267,18 @@ namespace IsoRim
                 float h = 0f;
                 LocalTargetInfo target = __instance.target;
                 Map map = __instance.designationManager != null ? __instance.designationManager.map : Find.CurrentMap;
+                if (map != null && MineMarks.OnTop(__instance) && target.Cell.InBounds(map))
+                {
+                    // the game's mine mark lies flat on the top of the block it marks (over the fog lid where fogged), as
+                    // the game draws it on the ground (MineMarks); its own layer height is kept
+                    if (!DrawHook.active)
+                    {
+                        BeginBillboard(ref __state, 0f, false, Vector3.zero);
+                        DrawHook.billboard = false;
+                        DrawHook.xform = MineMarks.MarkMatrix(map, target.Cell);
+                    }
+                    return;
+                }
                 if (target.HasThing)
                 {
                     h = Interaction.PickHeight(target.Thing);

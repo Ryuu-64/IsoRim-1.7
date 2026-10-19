@@ -13,6 +13,9 @@ namespace IsoRim
     //   mineunmark=x0,z0,x1,z1       the game's cancel designator used on the rectangle (as the player's drag)
     //   minetint=s|off               the tint's strength (MineMarks.StrengthOverride; off: the default)
     //   minecheck=x,z                logs whether the block at (x,z) is marked and the colour it is drawn in
+    //   mineoutline=0|1              the faint top-edge line of marked blocks off / on (MineMarks.OutlineOn)
+    //   mineline=f                   how far the line goes toward white (MineMarks.LineLight)
+    //   minemarktop=0|1              the game's mark on the block's top off (back on the ground, raised as an icon) / on
     public static partial class Probe
     {
         private static bool MineMarkKey(string key, string[] a, Map map)
@@ -89,6 +92,20 @@ namespace IsoRim
                         + " after " + ran + " ticks; designation left " + (map.designationManager.DesignationAt(c, DesignationDefOf.Mine) != null));
                     return true;
                 }
+                case "mineoutline":
+                    MineMarks.OutlineOn = a[0] != "0";
+                    MapSections.QueueAll(map, typeof(SectionLayer_IsoRimWalls), true);
+                    Log.Message("[IsoRim probe] mineoutline " + MineMarks.OutlineOn);
+                    return true;
+                case "mineline":
+                    MineMarks.LineLight = F(a[0]);
+                    MapSections.QueueAll(map, typeof(SectionLayer_IsoRimWalls), true);
+                    Log.Message("[IsoRim probe] mineline " + MineMarks.LineLight);
+                    return true;
+                case "minemarktop":
+                    MineMarks.MarkOnTop = a[0] != "0";
+                    Log.Message("[IsoRim probe] minemarktop " + MineMarks.MarkOnTop);
+                    return true;
                 case "minecheck":
                 {
                     Building b = new IntVec3(I(a[0]), 0, I(a[1])).GetEdifice(map);

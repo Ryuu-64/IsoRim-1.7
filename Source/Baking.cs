@@ -647,6 +647,8 @@ namespace IsoRim
         private static readonly Vector3[] rockGround = new Vector3[4];
         private static readonly Vector3[] rockMid = new Vector3[4];
         private static readonly Vector3[] rockTop = new Vector3[4];
+        private static readonly Vector3[] markTop = new Vector3[4];   // a marked block's top and which edges have a dark rim (MineMarks.PrintOutline)
+        private static readonly bool[] markRim = new bool[4];
         private static readonly Color32 White = new Color32(255, 255, 255, 255);
 
         // The piece of mesh for plain wall faces looking out of side f, lit by the sun as it
@@ -893,6 +895,10 @@ namespace IsoRim
             Vector3 centre = new Vector3(x0 + 0.5f, baseY, z0 + 0.5f);
             for (int f = 0; f < 4; f++)
             {
+                markRim[f] = false;
+            }
+            for (int f = 0; f < 4; f++)
+            {
                 int cond = 0;
                 if (!ExposedFrom(map, c, c + FaceOut[f], height))
                 {
@@ -941,6 +947,7 @@ namespace IsoRim
                 // line along the ground, and a line up each end of a run of wall.
                 Vector3 inner = outward * -OutlineWidth;
                 MeshWriter.Quad(solid, Raised(p0, rimY), Raised(p0 + inner, rimY), Raised(p1 + inner, rimY), Raised(p1, rimY), lineColor);
+                markRim[f] = true;
 
                 Vector3 q0 = p0 + outward * Gap;
                 Vector3 q1 = q0 + right;
@@ -971,6 +978,12 @@ namespace IsoRim
                             new Vector3(cx + OutlineWidth, rimY, cz + OutlineWidth), new Vector3(cx + OutlineWidth, rimY, cz), lineColor);
                     }
                 }
+                // marked for mining: the faint line along the top edges of the marked group
+                for (int k = 0; k < 4; k++)
+                {
+                    markTop[k] = new Vector3(x0 + CornerX[k], height, z0 + CornerZ[k]);
+                }
+                MineMarks.PrintOutline(solid, t, markTop, markRim, OutlineWidth, capTint * TopShade, squash);
             }
             CutTags.Apply(layer, whole, c, own);
             return true;
@@ -1042,6 +1055,10 @@ namespace IsoRim
 
             for (int f = 0; f < 4; f++)
             {
+                markRim[f] = false;
+            }
+            for (int f = 0; f < 4; f++)
+            {
                 int cond = 0;
                 if (!Exposed(map, c + FaceOut[f], height))
                 {
@@ -1097,6 +1114,7 @@ namespace IsoRim
                 {
                     MeshWriter.Quad(solid, ToWorld(rockTop[l] + lift, squash), ToWorld(rockTop[l] + inner + lift, squash),
                         ToWorld(rockTop[r] + inner + lift, squash), ToWorld(rockTop[r] + lift, squash), lineColor);
+                    markRim[f] = true;
                 }
 
                 Vector3 q0 = rockGround[l] - back;
@@ -1104,6 +1122,12 @@ namespace IsoRim
                 Vector3 lineTop = new Vector3(0f, OutlineWidth * 0.7f, 0f);
                 MeshWriter.Quad(solid, ToWorld(q0, squash), ToWorld(q0 + lineTop, squash), ToWorld(q1 + lineTop, squash), ToWorld(q1, squash), lineColor);
                 CutTags.Apply(layer, faceMark, c, own | cond);
+            }
+            if (room)
+            {
+                // marked for mining: the faint top-edge line (with the cap: under a floor, shown only while the floor is hidden)
+                MineMarks.PrintOutline(coveredCap ? MeshWriter.Sub(layer, CoveredTwin(solidMat)) : solid, t, rockTop, markRim, OutlineWidth,
+                    capMat != null ? capMat.color : tint * TopShade, squash);
             }
             CutTags.Apply(layer, whole, c, own);
             return true;
