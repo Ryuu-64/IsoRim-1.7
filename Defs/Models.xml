@@ -9264,4 +9264,204 @@
     <builtFor>(1, 1)</builtFor>
   </IsoRim.ModelDef>
 
+  <!-- Crashed ship parts and ancient large machinery (Grok 20261018-2152, user-approved previews 2141 / 2147): Core
+       DefoliatorShipPart, PsychicDronerShipPart, AncientShipBeacon; the rest Odyssey. One shared Models/ancient_machinery.mtl
+       (fixed colours, no stuff* faces; glow_gravreactor, glow_gravengine, glow_uplink unlit). Exact thingDef entries; no
+       match word caught these defs before, so they were extruded sprites. Graphic_Random defs: two models each, picked by
+       thing ID like the sprites (vanilla has 2-6 sprites). Graphic_Multi defs are built facing north; the crane arms (no
+       north sprite: North shows the south one) are built from the south sprite, long east-west. Drill platform, forklift,
+       uplink and transport pod overhang their cells as their drawSize does. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_DefoliatorShipPart</defName>
+    <thingDef>DefoliatorShipPart</thingDef>
+    <model>Models/shippart_defoliator.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(6, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_PsychicDronerShipPart</defName>
+    <thingDef>PsychicDronerShipPart</thingDef>
+    <model>Models/shippart_psychicdroner.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(6, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientCraneBase</defName>
+    <thingDef>AncientCraneBase</thingDef>
+    <model>Models/ancient_crane_base.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(5, 5)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientCraneColumn</defName>
+    <thingDef>AncientCraneColumn</thingDef>
+    <models>
+      <li>Models/ancient_crane_column_1.obj</li>
+      <li>Models/ancient_crane_column_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientCraneArm</defName>
+    <thingDef>AncientCraneArm</thingDef>
+    <model>Models/ancient_crane_arm.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientCraneArmSmall</defName>
+    <thingDef>AncientCraneArmSmall</thingDef>
+    <model>Models/ancient_crane_arm_small.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientDrillPlatform</defName>
+    <thingDef>AncientDrillPlatform</thingDef>
+    <models>
+      <li>Models/ancient_drill_platform_1.obj</li>
+      <li>Models/ancient_drill_platform_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientExcavator</defName>
+    <thingDef>AncientExcavator</thingDef>
+    <model>Models/ancient_excavator.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 4)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientForklift</defName>
+    <thingDef>AncientForklift</thingDef>
+    <model>Models/ancient_forklift.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 4)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientGravReactor</defName>
+    <thingDef>AncientGravReactor</thingDef>
+    <model>Models/ancient_grav_reactor.obj</model>
+    <hackedGlowOff>true</hackedGlowOff>   <!-- hacked (vanilla _Off sprite): the glow_gravreactor panel goes dark -->
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(5, 5)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientGravEngine</defName>
+    <thingDef>AncientGravEngine</thingDef>
+    <model>Models/ancient_grav_engine.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(3, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientMediumContainer</defName>
+    <thingDef>AncientMediumContainer</thingDef>
+    <models>
+      <li>Models/ancient_container_medium_1.obj</li>
+      <li>Models/ancient_container_medium_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 4)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientSmallContainer</defName>
+    <thingDef>AncientSmallContainer</thingDef>
+    <models>
+      <li>Models/ancient_container_small_1.obj</li>
+      <li>Models/ancient_container_small_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientOpenContainer</defName>
+    <thingDef>AncientOpenContainer</thingDef>
+    <models>
+      <li>Models/ancient_open_container_1.obj</li>
+      <li>Models/ancient_open_container_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(4, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientShipBeacon</defName>
+    <thingDef>AncientShipBeacon</thingDef>
+    <model>Models/ancient_ship_beacon.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientTerraformer</defName>
+    <thingDef>AncientTerraformer</thingDef>
+    <model>Models/ancient_terraformer.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(4, 4)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientTransportPod</defName>
+    <thingDef>AncientTransportPod</thingDef>
+    <models>
+      <li>Models/ancient_transport_pod_1.obj</li>
+      <li>Models/ancient_transport_pod_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientUplink</defName>
+    <thingDef>AncientUplink</thingDef>
+    <model>Models/ancient_uplink.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientWindTurbineBody</defName>
+    <thingDef>AncientWindTurbineBody</thingDef>
+    <model>Models/ancient_wind_turbine.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(5, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientTunnelerClaw</defName>
+    <thingDef>AncientTunnelerClaw</thingDef>
+    <models>
+      <li>Models/ancient_tunneler_claw_1.obj</li>
+      <li>Models/ancient_tunneler_claw_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientTunnelerHusk</defName>
+    <thingDef>AncientTunnelerHusk</thingDef>
+    <models>
+      <li>Models/ancient_tunneler_husk_1.obj</li>
+      <li>Models/ancient_tunneler_husk_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
 </Defs>
