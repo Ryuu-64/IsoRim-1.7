@@ -173,7 +173,7 @@ namespace IsoRim
                 {
                     // On the wall it will hang on, where it will hang (WallMount).
                     float wall = WallMount.Wall(Find.CurrentMap, center, rot, ref at, ref yaw);
-                    lift = WallMount.ModelLift(entry.def, wall, m.maxY * fit.y);
+                    lift = WallMount.ModelLift(entry.def, wall, WallMount.Bottom(m) * fit.y, m.maxY * fit.y);
                 }
                 Quaternion turn = Quaternion.AngleAxis(yaw, Vector3.up);
                 Vector3 offset = turn * Vector3.Scale(entry.def.offset, Vector3.one);

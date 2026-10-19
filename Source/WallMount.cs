@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -65,10 +66,34 @@ namespace IsoRim
             return Mathf.Max(want - top, -bottom);
         }
 
-        // A model fixture whose top (as built and scaled) is top: its def's own fraction of the wall if it sets one.
-        public static float ModelLift(ModelDef def, float wall, float top)
+        // A model fixture whose lowest and highest points (as built and scaled) are bottom and top: its def's own
+        // fraction of the wall if it sets one. A fixture built hung on the wall (the life support unit, 0.85 up) may be
+        // lowered by up to its own bottom, as one built from the floor is raised.
+        public static float ModelLift(ModelDef def, float wall, float bottom, float top)
         {
-            return def.mountHeight >= 0f ? wall * Mathf.Clamp01(def.mountHeight) : Lift(wall, 0f, top);
+            return def.mountHeight >= 0f ? wall * Mathf.Clamp01(def.mountHeight) : Lift(wall, Mathf.Max(0f, bottom), top);
+        }
+
+        private static readonly Dictionary<int, float> bottoms = new Dictionary<int, float>();   // by Model.id
+
+        // The lowest point of a model as built (cells), worked out once per model.
+        public static float Bottom(Model m)
+        {
+            float b;
+            if (m == null || m.positions == null || m.positions.Length == 0)
+            {
+                return 0f;
+            }
+            if (!bottoms.TryGetValue(m.id, out b))
+            {
+                b = float.MaxValue;
+                for (int i = 0; i < m.positions.Length; i++)
+                {
+                    b = Mathf.Min(b, m.positions[i].y);
+                }
+                bottoms[m.id] = b;
+            }
+            return b;
         }
 
         // The top of a mounted thing, for clicking it and for the icons over it.
@@ -80,8 +105,9 @@ namespace IsoRim
             ThingForm f = Forms.For(t.def);
             if (f.form == Form3D.Model && f.model != null && f.model.HasModel)
             {
-                float h = f.model.variants[0].maxY * f.model.def.scale * f.model.Fit(t.def).y;
-                return ModelLift(f.model.def, wall, h) + h;
+                float fy = f.model.def.scale * f.model.Fit(t.def).y;
+                float h = f.model.variants[0].maxY * fy;
+                return ModelLift(f.model.def, wall, Bottom(f.model.variants[0]) * fy, h) + h;
             }
             return Mathf.Min(wall - TopGap, HeadClear);
         }
