@@ -409,6 +409,12 @@ namespace IsoRim
 
         // ---- the pointer
 
+        // The number of floors above the ground this frame (0 without floors or with the 3D view off).
+        public static int Count
+        {
+            get { return On ? count : 0; }
+        }
+
         // The floors the pointer works on are the shown ones, from the one viewed (PointerTop) down to the ground. The ray
         // under a screen pixel lands on the first of them, from the top, whose floor is built where it meets that floor's
         // plane, or where something that can be selected stands in that cell (a floor's blueprint or frame on the open

@@ -133,10 +133,10 @@
   <R3D_Settings_SeeStrength>See-through strength</R3D_Settings_SeeStrength>
   <R3D_Settings_SeeStrengthTip>How much is hidden at the pointer. 100% hides it fully.</R3D_Settings_SeeStrengthTip>
   <R3D_Settings_SeeRadius>See-through reach</R3D_Settings_SeeRadius>
-  <R3D_Settings_MineXray>Floor below while mining</R3D_Settings_MineXray>
-  <R3D_Settings_MineXrayTip>With the Mine tool on an upper floor, outline the tunnels and people on the floor below.</R3D_Settings_MineXrayTip>
+  <R3D_Settings_MineXray>Floors above and below while mining</R3D_Settings_MineXray>
+  <R3D_Settings_MineXrayTip>With the Mine tool, outline the open ground and people on the floors below and above. With stairs, the floor above.</R3D_Settings_MineXrayTip>
   <R3D_Settings_MineCrosshair>Mining crosshair</R3D_Settings_MineCrosshair>
-  <R3D_Settings_MineCrosshairTip>With the Mine tool on an upper floor, mark the pointer's row and column.</R3D_Settings_MineCrosshairTip>
+  <R3D_Settings_MineCrosshairTip>With the Mine tool on a map with floors, mark the pointer's row and column.</R3D_Settings_MineCrosshairTip>
   <R3D_Settings_CutNearColonists>Lower walls near colonists</R3D_Settings_CutNearColonists>
   <R3D_Settings_CutNearColonistsTip>Walls between the camera and each colonist are lowered wherever they go. Costs a little more as they move about.</R3D_Settings_CutNearColonistsTip>
   <R3D_Settings_ColonistRadius>Reach round each colonist</R3D_Settings_ColonistRadius>

@@ -6,16 +6,17 @@ using Verse;
 
 namespace IsoRim
 {
-    // X-ray of the floor below while mining upstairs (stacked floors, Floors): with the game's Mine tool in hand
-    // (Designator_Mine, MineVein too) and an upper floor viewed, the floor directly below is drawn faintly over the
-    // viewed one, at the height of the rock tops the tool points at: its open cells (tunnels, rooms) outlined, with a
-    // light fill, rock and walls left empty; the pawns down there as dots. Only under what the viewed floor covers (its
-    // rock, floors, buildings): below the open air the floor is seen anyway. A crosshair runs Reach cells along x and z
-    // from the pointer's cell, to line the marks up with the tunnels below. All on the overlay shader (no depth test),
-    // so the rock never hides it. Only what the player knows is shown: fogged cells below count as solid and pawns on
-    // them are left out.
+    // X-ray of the floors next to the viewed one (stacked floors, Floors), both ways: with the game's Mine tool in hand
+    // (Designator_Mine, MineVein too) the floor directly below the viewed one and the floor directly above it are drawn
+    // faintly over the viewed one, at the height of the rock tops (the floor above's own height): their open cells
+    // (tunnels, rooms, mountain tops, built floors) outlined, with a light fill, rock and walls left empty; the pawns there
+    // as dots. Below: only under what the viewed floor covers (its rock, floors, buildings); below the open air the floor is
+    // seen anyway. Above: everywhere (the floors above the viewed one are not drawn). While placing stairs only the floor
+    // above is shown (where the exit lands). A crosshair (Mine tool) runs Reach cells along x and z from the pointer's cell,
+    // to line the marks up with the tunnels and tops. All on the overlay shader (no depth test), so the rock never hides
+    // it. Only what the player knows is shown: fogged cells count as solid and pawns on them are left out.
     //
-    // Cheap per frame: the outline is one mesh per floor, remade only when something on the map that changes it
+    // Cheap per frame: the outline is one mesh per floor shown, remade only when something on the map that changes it
     // (buildings, terrain, fog: Floors.MapMeshDirty_Postfix -> Dirty) has happened, at most every RebuildSeconds.
     [StaticConstructorOnStartup]
     public static class MineXray
@@ -26,17 +27,28 @@ namespace IsoRim
 
         private static readonly Color Edge = new Color(0.55f, 0.85f, 1f, 0.6f);
         private static readonly Color Fill = new Color(0.55f, 0.85f, 1f, 0.14f);
+        private static readonly Color EdgeUp = new Color(1f, 0.7f, 0.95f, 0.6f);
+        private static readonly Color FillUp = new Color(1f, 0.7f, 0.95f, 0.12f);
         private static readonly Color Cross = new Color(1f, 0.9f, 0.45f, 0.18f);
         private static readonly Color CrossCell = new Color(1f, 0.9f, 0.45f, 0.35f);
         private static readonly Color Colonist = new Color(0.6f, 1f, 0.6f, 0.85f);
         private static readonly Color Other = new Color(1f, 0.55f, 0.45f, 0.85f);
 
-        private static Mesh outline;
-        private static Map outlineMap;
-        private static int outlineFloor = -1;
-        private static int outlineRows;
-        private static bool dirty = true;
-        private static float builtAt = -100f;
+        // One floor's outline (below or above the viewed one).
+        private class Layer
+        {
+            public Mesh mesh;
+            public Map map;
+            public int floor = -1;
+            public int viewed = -1;
+            public int rows;
+            public bool dirty = true;
+            public float builtAt = -100f;
+            public int quads;
+        }
+
+        private static readonly Layer down = new Layer();
+        private static readonly Layer up = new Layer();
         private static float top = -1f;             // drawn height over the viewed floor (the rock tops), last known
         private static Mesh quad;
         private static Mesh disc;
@@ -44,9 +56,9 @@ namespace IsoRim
         private static MaterialPropertyBlock block;
         private static int colorId;
 
-        // Harness: drawn this frame (probe readout).
-        public static bool Shown;
-        public static int OutlineQuads;
+        // Harness: drawn this frame (probe readout). Shown: anything; ShownDown / ShownUp: the floor below / above.
+        public static bool Shown, ShownDown, ShownUp;
+        public static int OutlineQuads, OutlineQuadsUp;
         public static double BuildMs;               // the last outline rebuild
         public static int Builds;
 
@@ -55,7 +67,8 @@ namespace IsoRim
         {
             if ((flags & ((ulong)MapMeshFlagDefOf.Buildings | (ulong)MapMeshFlagDefOf.Terrain | (ulong)MapMeshFlagDefOf.FogOfWar)) != 0)
             {
-                dirty = true;
+                down.dirty = true;
+                up.dirty = true;
             }
         }
 
@@ -64,72 +77,70 @@ namespace IsoRim
             return d is Designator_Mine;   // Designator_MineVein derives from it
         }
 
+        // Placing stairs (ProjectZ's stairs and ship stairs, by name: IsoRim does not reference ProjectZ).
+        public static bool StairsTool(Designator d)
+        {
+            BuildableDef def = (d as Designator_Place)?.PlacingDef;
+            return def != null && (def.defName == "PZ_Stairs" || def.defName == "PZ_ShipStairs");
+        }
+
         // Every frame while the 3D view draws (View3D, with the drag box).
         public static void Draw()
         {
-            Shown = false;
+            Shown = ShownDown = ShownUp = false;
             Map map = Find.CurrentMap;
             DesignatorManager dm = Find.DesignatorManager;
             IsoRimSettings st = IsoRimMod.Settings;
-            if (!Floors.On || map == null || dm == null || !Tool(dm.SelectedDesignator) || !st.mineXray && !st.mineCrosshair)
+            if (!Floors.On || map == null || dm == null || !st.mineXray && !st.mineCrosshair)
+            {
+                return;
+            }
+            bool mine = Tool(dm.SelectedDesignator);
+            bool stairs = !mine && StairsTool(dm.SelectedDesignator);
+            if (!mine && !stairs)
             {
                 return;
             }
             int k = Floors.PointerTop;
-            if (k <= 0)
-            {
-                return;
-            }
-            int below = k - 1;
-            float hK;
-            int zK;
-            Floors.FloorPlane(k, out hK, out zK);
-            float hB;
-            int zB;
-            Floors.FloorPlane(below, out hB, out zB);
             int rows = Floors.GroundRowsOf(map);
             if (rows <= 0)
             {
                 return;
             }
+            int below = mine && k >= 1 ? k - 1 : -1;
+            int above = k + 1 <= Floors.Count ? k + 1 : -1;
+            if (below < 0 && above < 0)
+            {
+                return;
+            }
+            float hK;
+            int zK;
+            Floors.FloorPlane(k, out hK, out zK);
 
             IntVec3 cell = Interaction.DesignatorMouseCell();
             UpdateTop(map, cell, k);
-            if (st.mineXray && (outline == null || outlineMap != map || outlineFloor != below || outlineRows != rows
-                || dirty && Time.realtimeSinceStartup - builtAt >= RebuildSeconds))
-            {
-                Build(map, below, zB, zK, rows);
-            }
             if (Mat == null)
             {
                 return;
             }
-            Shown = true;
-            Matrix4x4 lift = View3D.LiftMatrix(top + 0.03f);
-            // The floor below's rows, moved up into the viewed floor's (the drawing map puts them on that floor).
-            if (st.mineXray && outline != null)
+            if (st.mineXray && below >= 0)
             {
-                Graphics.DrawMesh(outline, lift * Matrix4x4.Translate(new Vector3(0f, 0f, zK)), mat, 0, null, 0, Block(Color.white));
+                Floors.FloorPlane(below, out float hB, out int zB);
+                ShownDown = DrawLayer(map, down, below, k, zB, zK, rows, top, true);
             }
-
-            // Pawns below, where the player can see them.
-            IReadOnlyList<Pawn> pawns = st.mineXray ? map.mapPawns.AllPawnsSpawned : (IReadOnlyList<Pawn>)System.Array.Empty<Pawn>();
-            for (int i = 0; i < pawns.Count; i++)
+            if (st.mineXray && above >= 0)
             {
-                Pawn p = pawns[i];
-                IntVec3 pc = p.Position;
-                if (pc.z < zB || pc.z >= zB + rows || Floors.ColumnFloor(map, pc, out float ph, out int pz) != below || map.fogGrid.IsFogged(pc) || !Covered(map, new IntVec3(pc.x, 0, pc.z - zB + zK)))
-                {
-                    continue;
-                }
-                Vector3 d = p.DrawPos;
-                Matrix4x4 m = lift * Matrix4x4.TRS(new Vector3(d.x, 0f, d.z - zB + zK), Quaternion.identity, new Vector3(0.55f, 1f, 0.55f));
-                Graphics.DrawMesh(Disc, m, mat, 0, null, 0, Block(p.Faction != null && p.Faction == Faction.OfPlayer ? Colonist : Other));
+                Floors.FloorPlane(above, out float hA, out int zA);
+                ShownUp = DrawLayer(map, up, above, k, zA, zK, rows, Mathf.Max(hA - hK, 0.1f), false);
             }
+            OutlineQuads = down.quads;
+            OutlineQuadsUp = up.quads;
 
-            // The crosshair, on the viewed floor's rows: one square per cell, so the cells can be counted.
-            if (st.mineCrosshair && cell.InBounds(map) && Floors.FloorOfRow(cell.z) == k)
+            // The crosshair (Mine tool), on the viewed floor's rows: one square per cell, so the cells can be counted.
+            bool cross = mine && st.mineCrosshair && cell.InBounds(map) && Floors.FloorOfRow(cell.z) == k;
+            if (cross)
             {
+                Matrix4x4 lift = View3D.LiftMatrix(top + 0.03f);
                 for (int i = 1; i <= Reach; i++)
                 {
                     CrossSquare(map, lift, cell.x - i, cell.z, k);
@@ -139,6 +150,39 @@ namespace IsoRim
                 }
                 Rect(lift, cell.x + CrossGap, cell.z + CrossGap, cell.x + 1f - CrossGap, cell.z + 1f - CrossGap, CrossCell);
             }
+            Shown = ShownDown || ShownUp || cross;
+        }
+
+        // One floor's outline and its pawns, moved into the viewed floor's rows (the drawing map puts them there) at height
+        // 'height' over it. Below: only under what the viewed floor covers.
+        private static bool DrawLayer(Map map, Layer l, int floor, int k, int zF, int zK, int rows, float height, bool isBelow)
+        {
+            if (l.mesh == null || l.map != map || l.floor != floor || l.viewed != k || l.rows != rows
+                || l.dirty && Time.realtimeSinceStartup - l.builtAt >= RebuildSeconds)
+            {
+                Build(map, l, floor, k, zF, zK, rows, isBelow);
+            }
+            Matrix4x4 lift = View3D.LiftMatrix(height + 0.03f);
+            if (l.mesh != null)
+            {
+                Graphics.DrawMesh(l.mesh, lift * Matrix4x4.Translate(new Vector3(0f, 0f, zK)), mat, 0, null, 0, Block(Color.white));
+            }
+            // Pawns there, where the player can see them.
+            IReadOnlyList<Pawn> pawns = map.mapPawns.AllPawnsSpawned;
+            for (int i = 0; i < pawns.Count; i++)
+            {
+                Pawn p = pawns[i];
+                IntVec3 pc = p.Position;
+                if (pc.z < zF || pc.z >= zF + rows || Floors.ColumnFloor(map, pc, out float ph, out int pz) != floor || map.fogGrid.IsFogged(pc)
+                    || isBelow && !Covered(map, new IntVec3(pc.x, 0, pc.z - zF + zK)))
+                {
+                    continue;
+                }
+                Vector3 d = p.DrawPos;
+                Matrix4x4 m = lift * Matrix4x4.TRS(new Vector3(d.x, 0f, d.z - zF + zK), Quaternion.identity, new Vector3(0.55f, 1f, 0.55f));
+                Graphics.DrawMesh(Disc, m, mat, 0, null, 0, Block(p.Faction != null && p.Faction == Faction.OfPlayer ? Colonist : Other));
+            }
+            return true;
         }
 
         // The rock tops the Mine tool points at on the viewed floor (kept while the pointer is over open cells).
@@ -179,14 +223,15 @@ namespace IsoRim
             return up.InBounds(map) && (!map.terrainGrid.TerrainAt(up).dontRender || up.GetEdifice(map) != null);
         }
 
-        private static void Build(Map map, int floor, int zB, int zK, int rows)
+        private static void Build(Map map, Layer l, int floor, int k, int zF, int zK, int rows, bool isBelow)
         {
             System.Diagnostics.Stopwatch sw = System.Diagnostics.Stopwatch.StartNew();
-            dirty = false;
-            builtAt = Time.realtimeSinceStartup;
-            outlineMap = map;
-            outlineFloor = floor;
-            outlineRows = rows;
+            l.dirty = false;
+            l.builtAt = Time.realtimeSinceStartup;
+            l.map = map;
+            l.floor = floor;
+            l.viewed = k;
+            l.rows = rows;
             verts.Clear();
             cols.Clear();
             tris.Clear();
@@ -197,13 +242,13 @@ namespace IsoRim
             {
                 for (int x = 0; x < w; x++)
                 {
-                    bool o = Open(map, new IntVec3(x, 0, z + zB), floor);
+                    bool o = Open(map, new IntVec3(x, 0, z + zF), floor);
                     open[z * w + x] = o;
-                    shown[z * w + x] = o && Covered(map, new IntVec3(x, 0, z + zK));
+                    shown[z * w + x] = o && (!isBelow || Covered(map, new IntVec3(x, 0, z + zK)));
                 }
             }
-            Color32 fill = Fill;
-            Color32 edge = Edge;
+            Color32 fill = isBelow ? Fill : FillUp;
+            Color32 edge = isBelow ? Edge : EdgeUp;
             for (int z = 0; z < rows; z++)
             {
                 for (int x = 0; x < w; x++)
@@ -221,7 +266,7 @@ namespace IsoRim
                         }
                         Add(x, z, run, z + 1, fill);
                     }
-                    // edges: only toward what is solid below (a tunnel's mouth under open air gets none)
+                    // edges: only toward what is solid there (a tunnel's mouth under open air gets none)
                     if (x == 0 || !open[z * w + x - 1])
                     {
                         Add(x, z, x + Line, z + 1, edge);
@@ -240,18 +285,18 @@ namespace IsoRim
                     }
                 }
             }
-            if (outline == null)
+            if (l.mesh == null)
             {
-                outline = new Mesh();
-                outline.name = "IsoRim_MineXray";
-                outline.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+                l.mesh = new Mesh();
+                l.mesh.name = isBelow ? "IsoRim_MineXray" : "IsoRim_MineXrayUp";
+                l.mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
             }
-            outline.Clear();
-            outline.SetVertices(verts);
-            outline.SetColors(cols);
-            outline.SetTriangles(tris, 0);
-            outline.RecalculateBounds();
-            OutlineQuads = verts.Count / 4;
+            l.mesh.Clear();
+            l.mesh.SetVertices(verts);
+            l.mesh.SetColors(cols);
+            l.mesh.SetTriangles(tris, 0);
+            l.mesh.RecalculateBounds();
+            l.quads = verts.Count / 4;
             BuildMs = sw.Elapsed.TotalMilliseconds;
             Builds++;
         }
