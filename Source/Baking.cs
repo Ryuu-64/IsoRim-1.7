@@ -839,6 +839,8 @@ namespace IsoRim
             Color tint = t.DrawColor;
             Color capTint = tint;
             BlockTones(t, ref tint, ref capTint);
+            tint = MineMarks.Tint(t, tint);   // marked for mining: toward the mark's colour
+            capTint = MineMarks.Tint(t, capTint);
             Material topMat = MaterialFor(kind, true, 0, false, capTint);
             if (topMat == null)
             {
@@ -981,7 +983,7 @@ namespace IsoRim
         // Corners in the middle of a rock mass stay put, keeping the top level with the fog.
         private static bool PrintRock(SectionLayer layer, Thing t, float height, WallKind kind)
         {
-            Color tint = t.DrawColor;
+            Color tint = MineMarks.Tint(t, t.DrawColor);   // marked for mining: toward the mark's colour
             Material topMat = MaterialFor(kind, true, 0, false, tint);
             if (topMat == null)
             {
@@ -1144,7 +1146,7 @@ namespace IsoRim
 
             Map map = t.Map;
             IntVec3 c = t.Position;
-            Color color = t.DrawColor;
+            Color color = MineMarks.Tint(t, t.DrawColor);   // marked for mining: toward the mark's colour
             float squash = View3D.Squash;
             float topY = t.def.Altitude + height / squash;
             Vector3 centre = new Vector3(c.x + 0.5f, 0f, c.z + 0.5f);
