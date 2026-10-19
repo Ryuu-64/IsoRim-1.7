@@ -461,6 +461,10 @@ namespace IsoRim
 
             for (int f = 0; f < 4; f++)
             {
+                markRim[f] = false;
+            }
+            for (int f = 0; f < 4; f++)
+            {
                 int cond = 0;
                 if (!Exposed(map, c + FaceOut[f], height))
                 {
@@ -545,6 +549,7 @@ namespace IsoRim
                     Vector3 rr = smCovered[r] ? new Vector3(smTop[r].x, upH + 0.004f, smTop[r].z) : smTop[r] + lift;
                     Vector3 inner = outward * -OutlineWidth;
                     MeshWriter.Quad(solid, ToWorld(rl, squash), ToWorld(rl + inner, squash), ToWorld(rr + inner, squash), ToWorld(rr, squash), lineColor);
+                    markRim[f] = !smCovered[l] && !smCovered[r];   // the rim lies on the cap
                 }
 
                 // The line along the ground, not where this storey stands on rock (the face below carries on).
@@ -556,6 +561,12 @@ namespace IsoRim
                     MeshWriter.Quad(solid, ToWorld(q0, squash), ToWorld(q0 + lineTop, squash), ToWorld(q1 + lineTop, squash), ToWorld(q1, squash), lineColor);
                 }
                 CutTags.Apply(layer, faceMark, c, own | cond);
+            }
+            if (room)
+            {
+                // marked for mining: the faint top-edge line on the cap (under a floor, shown only while the floor is hidden)
+                MineMarks.PrintOutline(coveredCap ? MeshWriter.Sub(layer, CoveredTwin(solidMat)) : solid, t, smTop, markRim, OutlineWidth,
+                    capMat != null ? capMat.color : tint * TopShade, squash);
             }
             CutTags.Apply(layer, whole, c, own);
             return true;
