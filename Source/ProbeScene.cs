@@ -88,6 +88,8 @@ namespace IsoRim
     //   chaincheck=1                 logs each holding platform: what it holds, its chains (to the entity or across), floor height
     //   sealflag=x,z                 the portal in the cell marked sealed (CompSealable) and its map mesh redrawn
     //   portalcheck=1                logs each map portal: enterable (and why not), hacked, form
+    //   enterportal=x,z              the first free colonist ordered into the map portal in the cell (run tick= after)
+    //   pocketmap=x,z[,size[,keepfog]]  the portal in the cell opens its pocket map, made current (fog cleared unless keepfog), camera held over its exit
     //   dressed=x,z,rot,age[:Body[:M|F]],Def[:Stuff];...  a new drafted colonist (adults male body, or that BodyTypeDef)
     //                                wearing/holding exactly those ("-" for nothing), facing rot; items hair:<HairDef>
     //                                and beard:<BeardDef> set those styles instead; Def:Stuff:RRGGBB also dyes it that colour
@@ -133,6 +135,8 @@ namespace IsoRim
     //                                bullet drawn from there; 0: the game's flat flash and the bullet from the middle (before/after)
     //   clearflashes=1               the shot flashes in the air removed, no tick (the same frame without them, for diffs)
     //   interact=x,z                 the nearest free colonist is ordered to activate the building (as its float menu option)
+    //   opencrate=x,z                the crate in the cell (Building_Crate) opened by the nearest free colonist not already opening one:
+    //                                the game's Open job, as its float menu option (run tick= after it)
     //   social=x,z,chat|mood|thought the colonist there chats with the nearest other colonist, gains a mood bubble or a thought bubble
     //   lookcheck=1                  logs the free look key bindings (bound keys, labels) and whether they read as held
     //   manfire=x,z,tx,tz            the turret in the cell (a mortar: loaded with an HE shell) manned by the nearest free
@@ -1216,6 +1220,45 @@ namespace IsoRim
                     Log.Message("[IsoRim probe] hack " + hk.def.defName + " " + hk.Position + ": hacked " + ch.IsHacked + ", progress " + ch.ProgressPercent.ToString("0.00"));
                     break;
                 }
+                case "enterportal":
+                {
+                    // enterportal=x,z: the first free colonist ordered to go into the map portal in the cell (the game's
+                    // own job; its pocket map is made when the colonist steps in). Run tick= after it.
+                    MapPortal ep = new IntVec3(I(a[0]), 0, I(a[1])).GetFirstBuilding(map) as MapPortal;
+                    Pawn ec = map.mapPawns.FreeColonistsSpawned.FirstOrDefault();
+                    if (ep == null || ec == null)
+                    {
+                        Log.Warning("[IsoRim probe] enterportal: no portal or colonist at " + a[0] + "," + a[1]);
+                        return;
+                    }
+                    bool eok = ec.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.EnterPortal, ep), JobTag.Misc);
+                    Log.Message("[IsoRim probe] enterportal " + ec.LabelShort + " -> " + ep.def.defName + " " + ep.Position + ": ordered " + eok);
+                    break;
+                }
+                case "pocketmap":
+                {
+                    // pocketmap=x,z[,size]: the map portal in the cell opens its pocket map (generated as on entering), fog
+                    // cleared, made the current map; logs where the exit stands and how it is drawn. The camera is then
+                    // held over the exit (root size, default 4) for the shots, wherever the map put it.
+                    MapPortal pp = new IntVec3(I(a[0]), 0, I(a[1])).GetFirstBuilding(map) as MapPortal;
+                    if (pp == null)
+                    {
+                        Log.Warning("[IsoRim probe] pocketmap: no map portal at " + a[0] + "," + a[1]);
+                        return;
+                    }
+                    Map pm = pp.GetOtherMap();
+                    if (!(a.Length > 3 && a[3] == "keepfog"))
+                    {
+                        pm.fogGrid.ClearAllFog();
+                    }
+                    Current.Game.CurrentMap = pm;
+                    Thing px = pp.exit;
+                    pocketExit = px;
+                    pocketCamSize = a.Length > 2 ? F(a[2]) : 4f;
+                    Log.Message("[IsoRim probe] pocketmap " + pm.Size + " exit " + (px != null ? px.def.defName + " " + px.Position + " rot " + px.Rotation.AsInt
+                        + " drawPos " + px.DrawPos + " form " + Forms.For(px.def).form + " roofed " + px.Position.Roofed(pm) : "none"));
+                    break;
+                }
                 case "doorcheck":
                     foreach (Building_Door dc in map.listerThings.AllThings.OfType<Building_Door>())
                     {
@@ -1372,6 +1415,25 @@ namespace IsoRim
                     }
                     ic.OrderForceTarget(ip);   // as the float menu option does: the colonist walks over and activates it
                     Log.Message("[IsoRim probe] interact: " + ip.LabelShort + " at " + ip.Position + " activates " + ib.def.defName + " (" + (ip.CurJob != null ? ip.CurJob.def.defName : "no job") + ")");
+                    break;
+                }
+                case "opencrate":
+                {
+                    Building_Crate cr = new IntVec3(I(a[0]), 0, I(a[1])).GetFirstBuilding(map) as Building_Crate;
+                    Pawn op = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && (p.CurJob == null || p.CurJob.def != JobDefOf.Open))
+                        .OrderBy(p => p.Position.DistanceToSquared(cr != null ? cr.Position : IntVec3.Zero)).FirstOrDefault();
+                    if (cr == null || op == null)
+                    {
+                        Log.Warning("[IsoRim probe] opencrate: no crate at " + a[0] + "," + a[1] + " or no free colonist");
+                        return;
+                    }
+                    if (op.drafter != null)
+                    {
+                        op.drafter.Drafted = false;
+                    }
+                    op.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.Open, cr), JobTag.Misc);
+                    Log.Message("[IsoRim probe] opencrate: " + op.LabelShort + " at " + op.Position + " opens " + cr.def.defName + " at " + cr.Position
+                        + " (can open " + cr.CanOpen + ", job " + (op.CurJob != null ? op.CurJob.def.defName : "none") + ")");
                     break;
                 }
                 case "lookcheck":
@@ -2003,6 +2065,10 @@ namespace IsoRim
             Find.UIRoot.screenshotMode.Active = true;
         }
 
+        // pocketmap=: the camera is held over the pocket map's exit (wherever the map put it) for the shots there.
+        private static Thing pocketExit;
+        private static float pocketCamSize = 4f;
+
         // Every frame: what has to be kept up through the shots.
         private static void Sticky()
         {
@@ -2038,6 +2104,10 @@ namespace IsoRim
                 {
                     Find.Selector.Select(t, false, false);
                 }
+            }
+            if (pocketExit != null && pocketExit.Spawned && pocketExit.Map == map)
+            {
+                Find.CameraDriver.SetRootPosAndSize(pocketExit.TrueCenter(), pocketCamSize);
             }
             FilmTick(map);
             IxTick(map);

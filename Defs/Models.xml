@@ -864,12 +864,16 @@
   <IsoRim.ModelDef>
     <defName>R3D_Plant_TreeAnima</defName>
     <thingDef>Plant_TreeAnima</thingDef>
-    <model>Models/tree_anima.obj</model>
+    <models>   <!-- Grok 20261019-1132: two variants, picked by thing ID like the sprites -->
+      <li>Models/tree_anima_1.obj</li>
+      <li>Models/tree_anima_2.obj</li>
+    </models>
     <surfaceHeight>0.00</surfaceHeight>
     <randomRotation>true</randomRotation>
     <scaleJitter>0.12</scaleJitter>
     <growthScale>true</growthScale>
     <outline>0.55</outline>
+    <keepLeaves>true</keepLeaves>   <!-- vanilla has no leafless anima sprite; glow_anima stays lit in cut-away too -->
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -9546,6 +9550,156 @@
     </models>
     <surfaceHeight>0.00</surfaceHeight>
     <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <!-- Openable crates (Grok 20261019-1132, user-approved preview 1128): Odyssey openable containers and the Core hermetic crate,
+       all Building_Crate with a CompEmptyStateGraphic. Closed model while it holds its loot; the open model (no lid) once
+       emptied, through the existing emptyModel (StateModels.cs), as the game swaps to its _Open sprite. One shared
+       Models/cooler_anima_crates.mtl (fixed colours, no stuff* faces; glow_crate unlit). Exact thingDef entries; no match
+       word caught these defs before. The hermetic crate (Graphic_Multi) is built facing north; the cargo pod is a 1x1 thing
+       drawn over 2x2 and its model overhangs the same way; the open pallet's tarp hangs past its east edge. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientBox_ComponentIndustrial</defName>
+    <thingDef>AncientBox_ComponentIndustrial</thingDef>
+    <model>Models/ancient_component_box_closed.obj</model>
+    <emptyModel>Models/ancient_component_box_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientBox_ComponentSpacer</defName>
+    <thingDef>AncientBox_ComponentSpacer</thingDef>
+    <model>Models/ancient_spacer_component_box_closed.obj</model>
+    <emptyModel>Models/ancient_spacer_component_box_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientBox_SteelSlag</defName>
+    <thingDef>AncientBox_SteelSlag</thingDef>
+    <model>Models/ancient_steel_slag_box_closed.obj</model>
+    <emptyModel>Models/ancient_steel_slag_box_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientChemfuelCanister</defName>
+    <thingDef>AncientChemfuelCanister</thingDef>
+    <model>Models/ancient_chemfuel_canister_closed.obj</model>
+    <emptyModel>Models/ancient_chemfuel_canister_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientSafe</defName>
+    <thingDef>AncientSafe</thingDef>
+    <model>Models/ancient_safe_closed.obj</model>
+    <emptyModel>Models/ancient_safe_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_SealedCrate</defName>
+    <thingDef>SealedCrate</thingDef>
+    <model>Models/sealed_crate_closed.obj</model>
+    <emptyModel>Models/sealed_crate_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientSealedCrate</defName>
+    <thingDef>AncientSealedCrate</thingDef>
+    <model>Models/sealed_crate_closed.obj</model>
+    <emptyModel>Models/sealed_crate_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientSealedCrate_Gravlite</defName>
+    <thingDef>AncientSealedCrate_Gravlite</thingDef>
+    <model>Models/sealed_crate_closed.obj</model>
+    <emptyModel>Models/sealed_crate_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientSealedCrate_Shells</defName>
+    <thingDef>AncientSealedCrate_Shells</thingDef>
+    <model>Models/sealed_crate_closed.obj</model>
+    <emptyModel>Models/sealed_crate_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_MalfunctioningTransportPod</defName>
+    <thingDef>MalfunctioningTransportPod</thingDef>
+    <model>Models/malfunctioning_cargo_pod_closed.obj</model>
+    <emptyModel>Models/malfunctioning_cargo_pod_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientPallet_SteelSlag</defName>
+    <thingDef>AncientPallet_SteelSlag</thingDef>
+    <model>Models/ancient_steel_slag_pallet_closed.obj</model>
+    <emptyModel>Models/ancient_steel_slag_pallet_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientSealedContainer</defName>
+    <thingDef>AncientSealedContainer</thingDef>
+    <model>Models/ancient_sealed_container_closed.obj</model>
+    <emptyModel>Models/ancient_sealed_container_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientSealedContainer_GravshipUpgrade</defName>
+    <thingDef>AncientSealedContainer_GravshipUpgrade</thingDef>
+    <model>Models/ancient_sealed_container_closed.obj</model>
+    <emptyModel>Models/ancient_sealed_container_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_Pallet_Medicine</defName>
+    <thingDef>Pallet_Medicine</thingDef>
+    <model>Models/pallet_medicine_closed.obj</model>
+    <emptyModel>Models/pallet_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_Pallet_SurvivalMeals</defName>
+    <thingDef>Pallet_SurvivalMeals</thingDef>
+    <model>Models/pallet_survival_meals_closed.obj</model>
+    <emptyModel>Models/pallet_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientHermeticCrate</defName>
+    <thingDef>AncientHermeticCrate</thingDef>
+    <model>Models/ancient_hermetic_crate_closed.obj</model>
+    <emptyModel>Models/ancient_hermetic_crate_open.obj</emptyModel>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 2)</builtFor>
   </IsoRim.ModelDef>
 
 </Defs>
