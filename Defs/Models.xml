@@ -9464,4 +9464,107 @@
     <builtFor>(2, 2)</builtFor>
   </IsoRim.ModelDef>
 
+  <!-- Quest buildings, mechanitor ship, life support unit and busted turrets (Grok 20261018-2215, user-approved preview 2209):
+       Core VanometricPowerCell, BurningPowerCell, InfiniteChemreactor, PsychicEmanator, AncientSecurityTurret; Biotech
+       ShuttleCrashed_Exitable_Mechanitor; Odyssey LifeSupportUnit and the busted autocannon, uranium slug and mortar turrets.
+       One shared Models/quest_turrets.mtl (fixed colours, no stuff* faces; glow_* unlit; the burning cell's fire is
+       flame_burningcell). Exact thingDef entries; no match word caught these defs before, so they were extruded sprites.
+       Graphic_Random defs: two models each, picked by thing ID like the sprites. Graphic_Multi defs are built facing north.
+       The busted turrets are one piece (no turning gun). Vanometric cell, chemreactor, emanator, autocannon / slug barrels
+       and mortar spikes overhang their cells as their drawSize does. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_VanometricPowerCell</defName>
+    <thingDef>VanometricPowerCell</thingDef>
+    <model>Models/quest_vanometric_power_cell.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_BurningPowerCell</defName>
+    <thingDef>BurningPowerCell</thingDef>
+    <model>Models/quest_burning_power_cell.obj</model>
+    <liveFlame>true</liveFlame>   <!-- the live flame over its flame_burningcell parts (no fire overlay: the game burns it with effecters) -->
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_InfiniteChemreactor</defName>
+    <thingDef>InfiniteChemreactor</thingDef>
+    <model>Models/quest_infinite_chemreactor.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_PsychicEmanator</defName>
+    <thingDef>PsychicEmanator</thingDef>
+    <model>Models/quest_psychic_emanator.obj</model>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_ShuttleCrashed_Exitable_Mechanitor</defName>
+    <thingDef>ShuttleCrashed_Exitable_Mechanitor</thingDef>
+    <model>Models/shuttle_crashed_mechanitor.obj</model>   <!-- nose east, as the sprite -->
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(5, 3)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_LifeSupportUnit</defName>
+    <thingDef>LifeSupportUnit</thingDef>
+    <model>Models/life_support_unit.obj</model>   <!-- built hung 0.85-1.55 on a north wall: WallMount keeps that height on a full wall -->
+    <surfaceHeight>0.00</surfaceHeight>
+    <wallMounted>true</wallMounted>
+    <groundShadow>false</groundShadow>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientAutocannonTurret</defName>
+    <thingDef>AncientAutocannonTurret</thingDef>
+    <models>
+      <li>Models/ancient_autocannon_turret_1.obj</li>
+      <li>Models/ancient_autocannon_turret_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientUraniumSlugTurret</defName>
+    <thingDef>AncientUraniumSlugTurret</thingDef>
+    <models>
+      <li>Models/ancient_uranium_slug_turret_1.obj</li>
+      <li>Models/ancient_uranium_slug_turret_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientMortar</defName>
+    <thingDef>AncientMortar</thingDef>
+    <models>
+      <li>Models/ancient_mortar_1.obj</li>
+      <li>Models/ancient_mortar_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(2, 2)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_AncientSecurityTurret</defName>
+    <thingDef>AncientSecurityTurret</thingDef>
+    <models>
+      <li>Models/ancient_security_turret_1.obj</li>
+      <li>Models/ancient_security_turret_2.obj</li>
+    </models>
+    <surfaceHeight>0.00</surfaceHeight>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
 </Defs>
