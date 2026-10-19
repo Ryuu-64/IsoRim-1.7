@@ -195,6 +195,14 @@ namespace IsoRim
         public float legLength = 0f;        // height of the hip above the foot
         public float legSwing = 26f;        // how far the legs swing when walking, degrees
         public float legSplay = 0f;         // how far the legs lean outward (lizards, insects), degrees
+        // A bent leg (a spider's) built from its hip at the origin, reaching out along +x and down to its foot,
+        // instead of standing under its hip: drawn as it is on the right, turned half round on the left (not
+        // mirrored), and swung about the hip's upright axis so the foot stays on the ground, lifted as it comes
+        // forward. legSplay is not used; legLength is still the hip's height (asleep, carrying).
+        public bool legFromHip = false;
+        public List<float> legYaw;          // with legFromHip: how far each leg (in legs order) is turned toward the front, degrees
+        public float legLift = 12f;         // with legFromHip: how far a foot is raised as it comes forward, degrees
+        // (rotation, for an animal, turns its body model only; legs and hips are given facing north.)
         public float stride = 1f;           // cells walked for one full swing of the legs
         public float bodyCentre = 0f;       // height of the middle of the trunk
         public float bodyHalfWidth = 0.2f;  // half the width of the trunk; where it rests when on its side

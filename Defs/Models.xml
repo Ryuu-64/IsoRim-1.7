@@ -4278,29 +4278,44 @@
     <bodyHalfLength>0.315</bodyHalfLength>
   </IsoRim.ModelDef>
 
+  <!-- Megaspider v3 (2026-10-18, by the user's Grok, models_incoming\20261018-2038_InsectCocoons): the body is built
+       facing south (head at OBJ +z), turned round with rotation 180; one fixed bent leg (hip at the origin, foot at
+       (0.32, -0.40)) drawn with legFromHip, spread front to back by legYaw; hips facing north. insect_cocoons.mtl. -->
   <IsoRim.ModelDef>
     <defName>R3D_Animal_Megaspider</defName>
     <thingDef>Megaspider</thingDef>
     <model>Models/animal_megaspider.obj</model>
+    <rotation>180</rotation>
     <animal>true</animal>
     <legModel>Models/animal_megaspider_leg.obj</legModel>
+    <legFromHip>true</legFromHip>
     <legs>
-      <li>(-0.185, 0.246, 0.229)</li>
-      <li>(0.185, 0.246, 0.229)</li>
-      <li>(-0.185, 0.246, 0.082)</li>
-      <li>(0.185, 0.246, 0.082)</li>
-      <li>(-0.185, 0.246, -0.065)</li>
-      <li>(0.185, 0.246, -0.065)</li>
-      <li>(-0.185, 0.246, -0.211)</li>
-      <li>(0.185, 0.246, -0.211)</li>
+      <li>(-0.13, 0.40, 0.11)</li>
+      <li>(0.13, 0.40, 0.11)</li>
+      <li>(-0.13, 0.40, 0.03)</li>
+      <li>(0.13, 0.40, 0.03)</li>
+      <li>(-0.13, 0.40, -0.05)</li>
+      <li>(0.13, 0.40, -0.05)</li>
+      <li>(-0.13, 0.40, -0.13)</li>
+      <li>(0.13, 0.40, -0.13)</li>
     </legs>
-    <legLength>0.308</legLength>
+    <legYaw>
+      <li>40</li>
+      <li>40</li>
+      <li>14</li>
+      <li>14</li>
+      <li>-14</li>
+      <li>-14</li>
+      <li>-40</li>
+      <li>-40</li>
+    </legYaw>
+    <legLength>0.40</legLength>
     <legSwing>24</legSwing>
-    <legSplay>48</legSplay>
+    <legLift>12</legLift>
     <stride>0.53</stride>
-    <bodyCentre>0.282</bodyCentre>
-    <bodyHalfWidth>0.220</bodyHalfWidth>
-    <bodyHalfLength>0.528</bodyHalfLength>
+    <bodyCentre>0.42</bodyCentre>
+    <bodyHalfWidth>0.17</bodyHalfWidth>
+    <bodyHalfLength>0.60</bodyHalfLength>
   </IsoRim.ModelDef>
 
   <IsoRim.ModelDef>
@@ -7370,6 +7385,56 @@
     <model>Models/gauss_cannon.obj</model>
     <rotation>180</rotation>
     <builtFor>(9, 9)</builtFor>
+  </IsoRim.ModelDef>
+
+  <!-- Insect cocoons and the glow pod (2026-10-18, by the user's Grok, models_incoming\20261018-2038_InsectCocoons):
+       two looks per cocoon as the game picks one of its Graphic_Random sprites; fixed colours in insect_cocoons.mtl,
+       glow_glowpod lit. The megaspider cocoon reaches 0.7 cells out, as its sprite (drawSize 2). CocoonLocust is Odyssey. -->
+  <IsoRim.ModelDef>
+    <defName>R3D_GlowPod</defName>
+    <thingDef>GlowPod</thingDef>
+    <model>Models/glowpod.obj</model>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_CocoonMegascarab</defName>
+    <thingDef>CocoonMegascarab</thingDef>
+    <models>
+      <li>Models/cocoon_megascarab_1.obj</li>
+      <li>Models/cocoon_megascarab_2.obj</li>
+    </models>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_CocoonMegaspider</defName>
+    <thingDef>CocoonMegaspider</thingDef>
+    <models>
+      <li>Models/cocoon_megaspider_1.obj</li>
+      <li>Models/cocoon_megaspider_2.obj</li>
+    </models>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_CocoonSpelopede</defName>
+    <thingDef>CocoonSpelopede</thingDef>
+    <models>
+      <li>Models/cocoon_spelopede_1.obj</li>
+      <li>Models/cocoon_spelopede_2.obj</li>
+    </models>
+    <builtFor>(1, 1)</builtFor>
+  </IsoRim.ModelDef>
+
+  <IsoRim.ModelDef>
+    <defName>R3D_CocoonLocust</defName>
+    <thingDef>CocoonLocust</thingDef>
+    <models>
+      <li>Models/cocoon_locust_1.obj</li>
+      <li>Models/cocoon_locust_2.obj</li>
+    </models>
+    <builtFor>(1, 1)</builtFor>
   </IsoRim.ModelDef>
 
   <!-- Coverage batch D (2026-10-15): the remaining non-flying Odyssey animals without a model (Animals.cs); flying
