@@ -15,6 +15,8 @@ namespace IsoRim
     {
         // Things with an empty-state sprite whose model is in a built mesh, with the state it was built in.
         private static readonly Dictionary<int, bool> baked = new Dictionary<int, bool>();
+        // hackedGlowOff copies, by the id of the model they were made from.
+        private static readonly Dictionary<int, Model> glowOff = new Dictionary<int, Model>();
 
         public static CompEmptyStateGraphic CompOf(Thing t)
         {
@@ -39,12 +41,23 @@ namespace IsoRim
             }
             // A hacked model (relay stabilizer: its core goes dark), as the game's CompHackable.PostPrintOnto prints its
             // hacked sprite. Hacking redraws the map mesh (CompHackable.Hack: DirtyMapMesh), so the block is rebuilt.
-            if (entry.hacked != null)
+            // hackedGlowOff: the same model with its glow faces dark (the ancient grav reactor's panel).
+            if (entry.hacked != null || entry.def.hackedGlowOff)
             {
                 CompHackable hack = (t as ThingWithComps)?.GetComp<CompHackable>();
                 if (hack != null && hack.IsHacked)
                 {
-                    return entry.hacked;
+                    if (entry.hacked != null)
+                    {
+                        return entry.hacked;
+                    }
+                    Model off;
+                    if (!glowOff.TryGetValue(normal.id, out off))
+                    {
+                        off = ObjLoader.GlowOff(normal);
+                        glowOff[normal.id] = off;
+                    }
+                    return off;
                 }
             }
             CompEmptyStateGraphic c = CompOf(t);

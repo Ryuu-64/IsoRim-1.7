@@ -110,6 +110,9 @@ namespace IsoRim
         // Used instead of model once the thing's CompHackable is hacked, as the game prints its hackedGraphicData (the
         // relay stabilizer's dark core). Picked by StateModels.Choose; hacking redraws the map mesh (CompHackable.Hack).
         public string hackedModel;
+        // hackedGlowOff: once hacked, the model's own glow faces go dark instead (no second model file): the ancient grav
+        // reactor's panel, as the game's hackedGraphicData (_Off sprite). A hackedModel, if given, wins.
+        public bool hackedGlowOff;
         public List<Vector3> emitters;      // nozzles (x, height, z; model space, facing north) the game's thrown smoke or dust comes out of (Emitters.cs)
         public float emitterRise = 0.4f;    // how fast those puffs rise, in cells a second
         public string topModelLoaded;       // the gun while the game shows its loaded gun sprite (rocketswarm launcher: fully loaded)
@@ -195,6 +198,15 @@ namespace IsoRim
         public float legLength = 0f;        // height of the hip above the foot
         public float legSwing = 26f;        // how far the legs swing when walking, degrees
         public float legSplay = 0f;         // how far the legs lean outward (lizards, insects), degrees
+        // A bent leg (a spider's) built from its hip at the origin, reaching out along +x and down to its foot,
+        // instead of standing under its hip: drawn as it is on the right, turned half round on the left (not
+        // mirrored), and swung about the hip's upright axis so the foot stays on the ground, lifted as it comes
+        // forward. legSplay is not used; legLength is still the hip's height (asleep, carrying).
+        public bool legFromHip = false;
+        public List<float> legYaw;          // with legFromHip: how far each leg (in legs order) is turned toward the front, degrees
+        public float legLift = 12f;         // with legFromHip: how far a foot is raised as it comes forward, degrees
+        public bool deadBellyUp = false;    // dead (not downed), it lies on its back with its legs up and curled in (insects)
+        // (rotation, for an animal, turns its body model only; legs and hips are given facing north.)
         public float stride = 1f;           // cells walked for one full swing of the legs
         public float bodyCentre = 0f;       // height of the middle of the trunk
         public float bodyHalfWidth = 0.2f;  // half the width of the trunk; where it rests when on its side
@@ -1352,6 +1364,39 @@ namespace IsoRim
             }
             return m;
         }
+
+        // A copy of a model whose glowing faces (glow*, flame*, ember*) are switched off: shaded like the rest, in a dark
+        // shade of their own colour (a powered-down panel). The source itself if it has none.
+        public static Model GlowOff(Model src)
+        {
+            if (src == null || src.materials == null || src.material == null || !Array.Exists(src.materials, mm => mm.glow))
+            {
+                return src;
+            }
+            Model m = Merge(new List<Model> { src });   // an own copy with its own id (meshes are cached by id)
+            for (int i = 0; i < m.colors.Length; i++)
+            {
+                if (m.materials[m.material[i]].glow)
+                {
+                    Color c = m.colors[i];
+                    m.colors[i] = new Color(c.r * GlowOffShade, c.g * GlowOffShade, c.b * GlowOffShade, c.a);
+                }
+            }
+            ModelMaterial[] mats = new ModelMaterial[m.materials.Length];
+            for (int i = 0; i < mats.Length; i++)
+            {
+                ModelMaterial o = m.materials[i];
+                mats[i] = !o.glow ? o : new ModelMaterial
+                {
+                    name = o.name, texture = o.texture, tinted = o.tinted, leaf = o.leaf, twig = o.twig, glow = false, fire = o.fire,
+                    color = o.color * GlowOffShade
+                };
+            }
+            m.materials = mats;
+            return m;
+        }
+
+        private const float GlowOffShade = 0.3f;
 
         private static readonly Color Rust = new Color(0.42f, 0.24f, 0.13f);
         private static readonly Color RustDark = new Color(0.27f, 0.16f, 0.10f);
