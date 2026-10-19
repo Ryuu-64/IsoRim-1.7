@@ -60,7 +60,8 @@ namespace IsoRim
                 {
                     return false;
                 }
-                Vector3 to = target.ToVector3Shifted() - drawLoc;
+                // (flat, as drawn: work on another floor, such as rock mined from the cell below it, counts by its column)
+                Vector3 to = Floors.FlatDelta(pawn.DrawPos, target.ToVector3Shifted());
                 if (to.x * to.x + to.z * to.z > 0.04f)
                 {
                     yaw = to.AngleFlat();
@@ -159,11 +160,15 @@ namespace IsoRim
             }
             target = a.Cell;
             // Only once they have reached the work, not while fetching things for it.
-            if (target.IsValid && pawn.Position.DistanceToSquared(target) > 8)
+            if (target.IsValid && Floors.FlatDelta(pawn.Position.ToVector3Shifted(), target.ToVector3Shifted()).sqrMagnitude > 8f)
             {
                 return null;
             }
 
+            if (pawn.jobs?.curDriver is JobDriver_Mine)
+            {
+                return Pickaxe;   // (vanilla mining and any job built on it)
+            }
             switch (job.def.defName)
             {
                 case "CutPlant":
