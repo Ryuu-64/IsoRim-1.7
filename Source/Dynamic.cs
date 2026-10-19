@@ -289,7 +289,8 @@ namespace IsoRim
             {
                 Sweep();
             }
-            matrix = Floors.DrawnMatrix(matrix);   // a thing on an upper floor: before culling, tested where it shows
+            int floor;
+            matrix = Floors.DrawnMatrix(matrix, out floor);   // a thing on an upper floor: before culling, tested where it shows
             bool outlines = IsoRimMod.Settings.outlines;
             for (int i = 0; i < parts.Count; i++)
             {
@@ -302,9 +303,9 @@ namespace IsoRim
                 {
                     continue;
                 }
-                if (!PartBatches.Add(p.mesh, matrix, p.material))
+                if (!PartBatches.Add(p.mesh, matrix, p.material, floor))
                 {
-                    IsoGlow.DrawLit(p.mesh, matrix, p.material, 0);
+                    IsoGlow.DrawLit(p.mesh, matrix, p.material, 0, RoofClip.FloorBlock(floor));   // clipped on its own floor (RoofClip)
                 }
             }
         }

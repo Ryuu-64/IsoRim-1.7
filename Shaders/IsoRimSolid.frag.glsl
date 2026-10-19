@@ -49,6 +49,7 @@ layout(set = 2, binding = 0) uniform MaterialUniforms
     vec4 _IsoEye;     // global, no default: xyz = the eye in drawn space, w = 1 with a perspective camera (View3D)
     vec4 _IsoSee;     // global, no default: see-through while building (BuildSee): x, y = the pointer (drawn x, z), z = the viewed floor's height (true cells), w = coverage at the pointer (0 = off)
     vec4 _IsoSee2;    // global, no default: x = radius of full coverage, y = radius where it ends (cells), z = dither cell (pixels)
+    float _IsoOwnerFloor; // @default = 0.0   per draw (RoofClip.FloorBlock): 1 + the floor a moving model stands on; 0 = not given
 } uMaterial;
 
 layout(set = 2, binding = 1) uniform sampler2D _MainTex;

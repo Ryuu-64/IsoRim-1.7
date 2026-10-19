@@ -65,6 +65,7 @@ layout(set = 2, binding = 0) uniform MaterialUniforms
     vec4 _IsoEye;     // global, no default: xyz = the eye in drawn space, w = 1 with a perspective camera (View3D)
     vec4 _IsoSee;     // global, no default: see-through while building (BuildSee): x, y = the pointer (drawn x, z), z = the viewed floor's height (true cells), w = coverage at the pointer (0 = off)
     vec4 _IsoSee2;    // global, no default: x = radius of full coverage, y = radius where it ends (cells), z = dither cell (pixels)
+    float _IsoOwnerFloor; // @default = 0.0   per draw (RoofClip.FloorBlock): 1 + the floor a moving model stands on; 0 = not given
 } uMaterial;
 
 // ---- Step 7: the cut-away in the vertex stage (C# ShaderCut, Source\ShaderCut.cs). IsoRim's walls, damage,
@@ -169,12 +170,15 @@ bool RoofSpace(vec3 local, vec3 world, vec3 origin, out vec2 owner, out vec3 roo
     }
     if ((flags & 16384) != 0)
     {
-        // Stacked floors (Floors.GlowFloors): a thing at or above floor k's height is on floor k, whose cells are
-        // rows further north (as the light pass reads them).
+        // Stacked floors (Floors.GlowFloors): a thing on floor k is clipped in that floor's rows (further north, as the
+        // light pass reads them). k is the floor of the cell the thing stands in, given per draw (_IsoOwnerFloor,
+        // DynamicModels.Submit); only without it is it guessed from the height of the model's origin, which a pose
+        // can put under the floor (a work stroke's dip, a lying animal) or above the next one (a tall animal's parts).
         vec4 fg = uMaterial._IsoFloorGlow;
         float k = 0.0;
         if (fg.x > 0.5 && fg.y > 0.0)
-            k = clamp(floor((origin.y * squash - uMaterial._IsoLevel.x + 0.01) / fg.y), 0.0, fg.x);
+            k = uMaterial._IsoOwnerFloor > 0.5 ? clamp(uMaterial._IsoOwnerFloor - 1.0, 0.0, fg.x)
+                : clamp(floor((origin.y * squash - uMaterial._IsoLevel.x + 0.01) / fg.y), 0.0, fg.x);
         owner = vec2(origin.x, origin.z + k * fg.z);
         roofPos = vec3(world.x, world.y * squash - uMaterial._IsoLevel.x - k * fg.y, world.z + k * fg.z);
         return true;

@@ -332,6 +332,14 @@ namespace IsoRim
             return m;
         }
 
+        // The same, and the floor the thing stands on: the floor of the row its matrix is in, before the stair offset and
+        // the move onto its floor (0 on the ground, between floors and without floors). For RoofClip.FloorBlock.
+        public static Matrix4x4 DrawnMatrix(Matrix4x4 m, out int floor)
+        {
+            floor = On && m.m23 >= groundRows ? Mathf.Max(0, FloorOfRow(Mathf.FloorToInt(m.m23))) : 0;
+            return DrawnMatrix(m);
+        }
+
         // A world point moved to where its floor stands (as Drawn), whether that floor is shown now or hidden: for
         // geometry between floors (which way, how high), not for drawing.
         public static void Placed(ref Vector3 p)

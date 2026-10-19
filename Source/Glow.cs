@@ -267,17 +267,18 @@ namespace IsoRim
         }
 
         // Draws an IsoRim mesh and, for own-cell-lit materials, its stencil mark.
-        public static void DrawLit(Mesh mesh, Matrix4x4 matrix, Material mat, int layer)
+        // props: the moving model's floor (RoofClip.FloorBlock), or null.
+        public static void DrawLit(Mesh mesh, Matrix4x4 matrix, Material mat, int layer, MaterialPropertyBlock props = null)
         {
-            if (ShipCapture.Recording && ShipCapture.Note(mesh, matrix, mat, null))
+            if (ShipCapture.Recording && ShipCapture.Note(mesh, matrix, mat, props))
             {
                 return;   // a gravship's moving parts (ShipFlight): noted, and hidden while a landing ship waits under the frozen ground
             }
-            Graphics.DrawMesh(mesh, matrix, mat, layer);
+            Graphics.DrawMesh(mesh, matrix, mat, layer, null, 0, props);
             Material mark = View3D.Ready ? MarkFor(mat) : null;
             if (mark != null)
             {
-                Graphics.DrawMesh(mesh, matrix, mark, layer);
+                Graphics.DrawMesh(mesh, matrix, mark, layer, null, 0, props);
             }
         }
 

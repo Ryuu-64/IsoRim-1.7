@@ -182,6 +182,38 @@ namespace IsoRim
             }
         }
 
+        // ---- the floor of a moving model, per draw
+        // A moving model is clipped in the rows of the floor it stands on. The shaders used to guess that floor from the
+        // height of the model's origin (0.01 cells of slack), but a pose moves the origin: a work stroke dips the whole
+        // figure 0.02 cells (a miner on a mountain top was then clipped as if it stood in the rock under it, whose fog
+        // lid is lower than its feet: its body blinked out with every stroke, its pickaxe, placed higher, stayed), a
+        // lying animal's body drops below its feet, a tall animal's parts reach the next floor's height. So the floor
+        // is handed over with each draw instead (_IsoOwnerFloor = floor + 1, DynamicModels.Submit, PartBatches): the
+        // floor of the row the thing is drawn in, i.e. of the cell it stands in. Null without floors (everything is on
+        // the ground; the shader's guess gives 0 there).
+        private static readonly int ownerFloorId = Shader.PropertyToID("_IsoOwnerFloor");
+        private static readonly System.Collections.Generic.List<MaterialPropertyBlock> floorBlocks = new System.Collections.Generic.List<MaterialPropertyBlock>();
+
+        public static MaterialPropertyBlock FloorBlock(int floor)
+        {
+            if (floor < 0 || !Floors.On)
+            {
+                return null;
+            }
+            while (floorBlocks.Count <= floor)
+            {
+                floorBlocks.Add(null);
+            }
+            MaterialPropertyBlock b = floorBlocks[floor];
+            if (b == null)
+            {
+                b = new MaterialPropertyBlock();
+                b.SetFloat(ownerFloorId, floor + 1f);
+                floorBlocks[floor] = b;
+            }
+            return b;
+        }
+
         // The texture coordinate 1 of every vertex of a moving model's mesh.
         public static readonly Vector3 MovingTag = new Vector3(0f, 0f, Moving);
 

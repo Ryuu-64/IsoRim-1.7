@@ -30,6 +30,7 @@ namespace IsoRim
         {
             public Mesh mesh;
             public Material material;
+            public int floor;   // the floor the copies stand on (RoofClip.FloorBlock)
             public Matrix4x4[] matrices = new Matrix4x4[8];
             public int count;
         }
@@ -38,18 +39,19 @@ namespace IsoRim
         {
             public Mesh mesh;
             public Material material;
+            public int floor;
         }
 
         private sealed class KeyComparer : IEqualityComparer<Key>
         {
             public bool Equals(Key a, Key b)
             {
-                return ReferenceEquals(a.mesh, b.mesh) && ReferenceEquals(a.material, b.material);
+                return ReferenceEquals(a.mesh, b.mesh) && ReferenceEquals(a.material, b.material) && a.floor == b.floor;
             }
 
             public int GetHashCode(Key k)
             {
-                return RuntimeHelpers.GetHashCode(k.mesh) * 397 ^ RuntimeHelpers.GetHashCode(k.material);
+                return (RuntimeHelpers.GetHashCode(k.mesh) * 397 ^ RuntimeHelpers.GetHashCode(k.material)) * 31 + k.floor;
             }
         }
 
@@ -70,20 +72,22 @@ namespace IsoRim
                 && !WorldComponent_GravshipController.CutsceneInProgress && !WorldComponent_GravshipController.GravshipRenderInProgess;
         }
 
-        // Takes a part to draw at the end of the things, or returns false to have it drawn now.
-        public static bool Add(Mesh mesh, Matrix4x4 matrix, Material material)
+        // Takes a part to draw at the end of the things, or returns false to have it drawn now. floor: the floor it stands on
+        // (copies on different floors are drawn apart, each with its floor: RoofClip.FloorBlock).
+        public static bool Add(Mesh mesh, Matrix4x4 matrix, Material material, int floor = 0)
         {
             if (!collecting || mesh == null || material == null || !UnityData.IsInMainThread)
             {
                 return false;
             }
-            Key key = new Key { mesh = mesh, material = material };
+            Key key = new Key { mesh = mesh, material = material, floor = floor };
             Group g;
             if (!groups.TryGetValue(key, out g))
             {
                 g = pool.Count > 0 ? pool.Pop() : new Group();
                 g.mesh = mesh;
                 g.material = material;
+                g.floor = floor;
                 g.count = 0;
                 groups[key] = g;
                 order.Add(g);
@@ -110,17 +114,18 @@ namespace IsoRim
                 Group g = order[i];
                 if (g.mesh != null && g.material != null)
                 {
+                    MaterialPropertyBlock props = RoofClip.FloorBlock(g.floor);
                     if (g.count == 1)
                     {
-                        IsoGlow.DrawLit(g.mesh, g.matrices[0], g.material, 0);
+                        IsoGlow.DrawLit(g.mesh, g.matrices[0], g.material, 0, props);
                     }
                     else
                     {
-                        Graphics.DrawMeshInstanced(g.mesh, 0, g.material, g.matrices, g.count, null, UnityEngine.Rendering.ShadowCastingMode.Off, false, 0);
+                        Graphics.DrawMeshInstanced(g.mesh, 0, g.material, g.matrices, g.count, props, UnityEngine.Rendering.ShadowCastingMode.Off, false, 0);
                         Material mark = ready ? IsoGlow.MarkFor(g.material) : null;
                         if (mark != null)
                         {
-                            Graphics.DrawMeshInstanced(g.mesh, 0, mark, g.matrices, g.count, null, UnityEngine.Rendering.ShadowCastingMode.Off, false, 0);
+                            Graphics.DrawMeshInstanced(g.mesh, 0, mark, g.matrices, g.count, props, UnityEngine.Rendering.ShadowCastingMode.Off, false, 0);
                         }
                     }
                 }
