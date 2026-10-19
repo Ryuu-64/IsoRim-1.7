@@ -190,6 +190,11 @@ namespace IsoRim
             // its cell for the cell texture (IsoCellMap.FogDirty_Postfix).
             Patch("redrawing trees as they change", AccessTools.Method(typeof(MapDrawer), nameof(MapDrawer.MapMeshDirty), new[] { typeof(IntVec3), typeof(ulong), typeof(bool), typeof(bool) }),
                 postfix: nameof(TreesDirty_Postfix));
+            // Rock marked for mining is tinted (MineMarks): marking or unmarking a cell redraws its block.
+            Patch("tinting rock marked for mining", AccessTools.Method(typeof(DesignationManager), nameof(DesignationManager.AddDesignation)),
+                postfix: nameof(MineDesignation_Postfix));
+            Patch("tinting rock marked for mining", AccessTools.Method(typeof(DesignationManager), nameof(DesignationManager.RemoveDesignation)),
+                postfix: nameof(MineUndesignation_Postfix));
 
             // Sunk holes (pits, SinkHoles.cs): the layers the game paints on the ground leave out the cells a hole cuts.
             Patch("ground cut under sunk holes", FindMethod(typeof(SectionLayer_Terrain), "Regenerate"), postfix: nameof(SinkCut_Postfix));
@@ -1797,6 +1802,16 @@ namespace IsoRim
             NoteShapeChange(__instance, __instance != null ? __instance.MapHeld : null);
         }
 
+        public static void MineDesignation_Postfix(DesignationManager __instance, Designation newDes)
+        {
+            MineMarks.Changed(__instance.map, newDes);
+        }
+
+        public static void MineUndesignation_Postfix(DesignationManager __instance, Designation des)
+        {
+            MineMarks.Changed(__instance.map, des);
+        }
+
         public static void TreesDirty_Postfix(MapDrawer __instance, IntVec3 loc, ulong dirtyFlags)
         {
             SectionLayer_IsoRimTrees.MapMeshDirty_Postfix(__instance, loc, dirtyFlags);
@@ -3247,6 +3262,18 @@ namespace IsoRim
                 float h = 0f;
                 LocalTargetInfo target = __instance.target;
                 Map map = __instance.designationManager != null ? __instance.designationManager.map : Find.CurrentMap;
+                if (map != null && MineMarks.OnTop(__instance) && target.Cell.InBounds(map))
+                {
+                    // the game's mine mark lies flat on the top of the block it marks (over the fog lid where fogged), as
+                    // the game draws it on the ground (MineMarks); its own layer height is kept
+                    if (!DrawHook.active)
+                    {
+                        BeginBillboard(ref __state, 0f, false, Vector3.zero);
+                        DrawHook.billboard = false;
+                        DrawHook.xform = MineMarks.MarkMatrix(map, target.Cell);
+                    }
+                    return;
+                }
                 if (target.HasThing)
                 {
                     h = Interaction.PickHeight(target.Thing);

@@ -462,6 +462,28 @@ namespace IsoRim
             get { return View3D.Ready; }
         }
 
+        private static readonly AccessTools.FieldRef<MapDrawer, Section[,]> sectionsOf = AccessTools.FieldRefAccess<MapDrawer, Section[,]>("sections");
+
+        // A change flag no layer listens to: it only makes the game look at the section, where this layer alone is dirty.
+        private const ulong OwnFlag = 1UL << 63;
+
+        // Marks just this layer of the block holding the cell to be redrawn (by the game, when the block is in view), not
+        // the other layers of the block (MineMarks: a block marked for mining or unmarked).
+        public static void Mark(Map map, IntVec3 c)
+        {
+            if (map == null || map.mapDrawer == null || !c.InBounds(map) || sectionsOf(map.mapDrawer) == null)
+            {
+                return;
+            }
+            Section s = map.mapDrawer.SectionAt(c);
+            SectionLayer layer = s != null ? s.GetLayer(typeof(SectionLayer_IsoRimWalls)) : null;
+            if (layer != null)
+            {
+                layer.Dirty = true;
+                s.dirtyFlags |= OwnFlag;
+            }
+        }
+
         // Whether this layer draws the thing (a block with the mod's wall textures).
         public static bool Handles(Thing t)
         {

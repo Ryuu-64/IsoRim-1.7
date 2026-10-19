@@ -26,10 +26,31 @@ namespace IsoRim
     // viewed floor while a designator is in hand, Floors.PointerFloorAt); the floors below are left alone.
     public static class BuildSee
     {
-        public static float Coverage = 0.55f;   // share of pixels dropped at the pointer
-        public static float Inner = 1.5f;       // cells: full coverage out to here
-        public static float Outer = 4.5f;       // cells: solid again from here
+        // From the settings seeStrength and seeRadius (full coverage to Edge cells inside it); the harness key bsee
+        // overrides them (negative = the setting). Before the settings: coverage 0.55, inner 1.5, outer 4.5.
+        public const float Edge = 3f;           // cells over which it fades out to the radius
+        public static float CoverageOverride = -1f;
+        public static float InnerOverride = -1f;
+        public static float OuterOverride = -1f;
         public static float DitherPx = 1f;      // screen pixels per dither cell (harness: probe bsee)
+
+        // share of pixels dropped at the pointer
+        public static float Coverage
+        {
+            get { return CoverageOverride >= 0f ? CoverageOverride : Mathf.Clamp(IsoRimMod.Settings.seeStrength, 0.2f, 1f); }
+        }
+
+        // cells: solid again from here
+        public static float Outer
+        {
+            get { return OuterOverride >= 0f ? OuterOverride : Mathf.Clamp(IsoRimMod.Settings.seeRadius, 3f, 12f); }
+        }
+
+        // cells: full coverage out to here
+        public static float Inner
+        {
+            get { return InnerOverride >= 0f ? InnerOverride : Mathf.Max(0f, Outer - Edge); }
+        }
 
         private static readonly int seeId = Shader.PropertyToID("_IsoSee");
         private static readonly int see2Id = Shader.PropertyToID("_IsoSee2");
