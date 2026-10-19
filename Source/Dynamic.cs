@@ -1925,9 +1925,6 @@ namespace IsoRim
         // campfire's flickering flame there, every frame: in place of the still flame in its baked model
         // (ModelBaker.NoFlame) and of the game's flat fire sprite (SectionLayer_IsoRimBodies.FlameStandsIn). Placed with
         // the bake's own placement (ModelBaker.PointOnMap: a wall torch's flame is on its wall), sized by the model.
-        // A model can also ask for it with ModelDef.liveFlame, with no fire overlay of the game's: it burns while the thing
-        // stands (the burning power cell, whose own burning is the game's effecter flecks), baked in the map mesh or in
-        // SectionLayer_IsoRimBodies, and is gone with it (only spawned things are drawn).
 
         private struct FlameBox
         {
@@ -1980,9 +1977,12 @@ namespace IsoRim
             flameSet = new HashSet<ThingDef>();
             foreach (ThingDef def in DefDatabase<ThingDef>.AllDefsListForReading)
             {
-                bool overlay = def.drawerType == DrawerType.RealtimeOnly && def.GetCompProperties<CompProperties_FireOverlay>() != null;
+                if (def.drawerType != DrawerType.RealtimeOnly || def.GetCompProperties<CompProperties_FireOverlay>() == null)
+                {
+                    continue;
+                }
                 ModelEntry entry;
-                if (!ModelLibrary.TryGet(def, out entry) || !entry.HasModel || !(overlay || entry.def.liveFlame))
+                if (!ModelLibrary.TryGet(def, out entry) || !entry.HasModel)
                 {
                     continue;
                 }
@@ -2055,20 +2055,9 @@ namespace IsoRim
             return SectionLayer_IsoRimBodies.Lit(t);
         }
 
-        // Whether the thing's model stands in for its sprite now: a realtime body baked in SectionLayer_IsoRimBodies, or
-        // a map-mesh thing whose form is a model (the map mesh prints it as a model while the 3D view is on).
-        private static bool ModelStandsIn(Thing t)
-        {
-            if (t.def.drawerType == DrawerType.RealtimeOnly)
-            {
-                return SectionLayer_IsoRimBodies.StandsIn(t);
-            }
-            return View3D.Ready && t.Spawned && Forms.For(t.def).form == Form3D.Model;
-        }
-
         private static void LiveFlame(Thing t, float time)
         {
-            if (!Burning(t) || !ModelStandsIn(t))
+            if (!Burning(t) || !SectionLayer_IsoRimBodies.StandsIn(t))
             {
                 return;   // out, or its model is not standing in (the game's own sprite and fire are drawn)
             }

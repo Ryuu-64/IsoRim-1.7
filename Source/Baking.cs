@@ -1954,7 +1954,7 @@ namespace IsoRim
         private static void Mount(Thing t, ModelDef def, Model m, float fitY, ref Vector3 center, ref float yaw, ref float baseHeight)
         {
             float wall = WallMount.Wall(t.Map, t.Position, t.Rotation, ref center, ref yaw);
-            baseHeight = WallMount.ModelLift(def, wall, WallMount.Bottom(m) * fitY, m.maxY * fitY);
+            baseHeight = WallMount.ModelLift(def, wall, m.maxY * fitY);
         }
 
         // How big and which way round a thing's model is baked, before anything that depends on what kind of thing it

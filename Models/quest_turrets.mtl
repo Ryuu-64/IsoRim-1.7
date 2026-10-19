@@ -59,7 +59,7 @@ Kd 0.280 0.300 0.240
 newmtl emanator_panel
 Kd 0.440 0.480 0.370
 
-newmtl flame_burningcell
+newmtl glow_burningcell
 Kd 1.000 0.550 0.200
 
 newmtl glow_chemreactor

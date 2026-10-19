@@ -1427,23 +1427,11 @@ namespace IsoRim
                 switch (form.form)
                 {
                     case Form3D.Model:
-                    {
-                        bool baked;
-                        ModelBaker.NoFlame = Effects.Animates(__0.def);   // a live flame burns there instead (ModelDef.liveFlame)
-                        try
-                        {
-                            baked = ModelBaker.Bake(__instance, __0, form.model, resting);
-                        }
-                        finally
-                        {
-                            ModelBaker.NoFlame = false;
-                        }
-                        if (baked)
+                        if (ModelBaker.Bake(__instance, __0, form.model, resting))
                         {
                             return false;   // the model replaces the sprite
                         }
                         break;
-                    }
 
                     case Form3D.Block:
                     {
