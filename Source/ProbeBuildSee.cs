@@ -6,6 +6,7 @@ namespace IsoRim
 {
     // Harness-only keys for the see-through while building (BuildSee; the setting itself: set=buildSeeThrough,0|1):
     //   bsee=coverage,inner,outer[,px]  the see-through's coverage at the pointer, its radii (cells) and dither cell (pixels)
+    //                                (overrides the settings seeStrength, seeRadius; bsee=off: the settings again)
     //   designator=def|off           the game's build designator of that def (terrain or thing) in hand, or none
     //   bsptr=x,z|off                the cut-away's pointer (cutptr) at that map point AND the real pointer over it every
     //                                frame, so the designator's ghost follows it (U<z>: floor 2)
@@ -18,9 +19,14 @@ namespace IsoRim
             switch (key)
             {
                 case "bsee":
-                    BuildSee.Coverage = F(a[0]);
-                    BuildSee.Inner = F(a[1]);
-                    BuildSee.Outer = F(a[2]);
+                    if (a[0] == "off")
+                    {
+                        BuildSee.CoverageOverride = BuildSee.InnerOverride = BuildSee.OuterOverride = -1f;   // the settings again
+                        return true;
+                    }
+                    BuildSee.CoverageOverride = F(a[0]);
+                    BuildSee.InnerOverride = F(a[1]);
+                    BuildSee.OuterOverride = F(a[2]);
                     if (a.Length > 3)
                     {
                         BuildSee.DitherPx = F(a[3]);
