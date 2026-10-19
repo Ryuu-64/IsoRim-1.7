@@ -32,7 +32,9 @@
   <R3D_Settings_Isometric>等距视角</R3D_Settings_Isometric>
   <R3D_Settings_IsometricTip>镜头转 45 度并压低，类似等距视角游戏。关闭：北方朝上。</R3D_Settings_IsometricTip>
   <R3D_Settings_Snap45>每次转 45°</R3D_Settings_Snap45>
-  <R3D_Settings_Snap45Tip>Q 和 E 每次将镜头转八分之一圈。关闭：每次四分之一圈。两种方式镜头都会平滑转动。</R3D_Settings_Snap45Tip>
+  <R3D_Settings_Snap45Tip>Q 和 E 每次将镜头转八分之一圈。关闭：每次四分之一圈。</R3D_Settings_Snap45Tip>
+  <R3D_Settings_InstantTurn>视角秒切</R3D_Settings_InstantTurn>
+  <R3D_Settings_InstantTurnTip>按 Q 和 E 时直接切到新角度，没有旋转过渡。转动视角会头晕时可以打开。</R3D_Settings_InstantTurnTip>
   <R3D_Settings_FreeLook>自由视角</R3D_Settings_FreeLook>
   <R3D_Settings_FreeLookTip>用鼠标拖动可将镜头任意旋转和俯仰（5° 至 89°）。Q 和 E 转到下一档。重置键（默认未设置）在游戏的按键设置中。</R3D_Settings_FreeLookTip>
   <R3D_Settings_LookMiddle>自由视角：鼠标中键</R3D_Settings_LookMiddle>

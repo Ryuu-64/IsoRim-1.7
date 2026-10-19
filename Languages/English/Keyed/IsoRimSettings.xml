@@ -32,7 +32,9 @@
   <R3D_Settings_Isometric>Isometric view</R3D_Settings_Isometric>
   <R3D_Settings_IsometricTip>The camera turned 45 degrees and lowered, as in isometric games. Off: north is up.</R3D_Settings_IsometricTip>
   <R3D_Settings_Snap45>Turn in 45° steps</R3D_Settings_Snap45>
-  <R3D_Settings_Snap45Tip>Q and E turn the camera an eighth of a turn at a time. Off: a quarter turn. Either way the camera swings smoothly.</R3D_Settings_Snap45Tip>
+  <R3D_Settings_Snap45Tip>Q and E turn the camera an eighth of a turn at a time. Off: a quarter turn.</R3D_Settings_Snap45Tip>
+  <R3D_Settings_InstantTurn>Instant camera turns</R3D_Settings_InstantTurn>
+  <R3D_Settings_InstantTurnTip>Q and E jump straight to the new angle, with no swing. Can help if turning the view makes you dizzy.</R3D_Settings_InstantTurnTip>
   <R3D_Settings_FreeLook>Free look</R3D_Settings_FreeLook>
   <R3D_Settings_FreeLookTip>Drag with the mouse to turn the camera all the way round and tilt it (5° to 89°). Q and E snap to the next step. The reset key (unbound at first) is in the game's keyboard options.</R3D_Settings_FreeLookTip>
   <R3D_Settings_LookMiddle>Free look: middle button</R3D_Settings_LookMiddle>
