@@ -13,7 +13,8 @@ namespace IsoRim
     // entries in Defs/Models.xml). Unlike a sprite, which only has four facings, the model
     // turns to face the way the animal is actually walking, and its legs swing in step with
     // the ground it covers. Asleep it settles onto its belly with its legs folded away; downed
-    // or dead it lies on its side. Flying (birds) it rises over its cell with its legs tucked away.
+    // or dead it lies on its side (dead insects, deadBellyUp: on their backs, legs up and curled in).
+    // Flying (birds) it rises over its cell with its legs tucked away.
     public static class Animals
     {
         // What has to be remembered about one animal from frame to frame.
@@ -27,6 +28,9 @@ namespace IsoRim
             public Vector3 last;    // where it was drawn last
             public int frame;       // and when
         }
+
+        // How far a dead insect's legs are curled in over its belly (deadBellyUp), degrees.
+        private const float BellyUpCurl = 30f;
 
         private static readonly Dictionary<int, State> states = new Dictionary<int, State>();
         private static readonly List<int> stale = new List<int>();
@@ -50,7 +54,8 @@ namespace IsoRim
             float size = def.scale * SizeOf(pawn);
             bool dead = pawn.Dead;
             bool lying = dead || pawn.GetPosture() != PawnPosture.Standing;
-            bool onSide = dead || pawn.Downed;
+            bool bellyUp = dead && def.deadBellyUp;
+            bool onSide = (dead || pawn.Downed) && !bellyUp;
             float lift = Carried.LiftOf(pawn, ref drawLoc) + Corpses.RestHeight(pawn);   // carried by a 3D pawn, or a corpse on a shelf
             float flight = FlightOf(pawn, ref drawLoc);       // in the air (before the facing: taking off is not a step north)
 
@@ -100,7 +105,15 @@ namespace IsoRim
             Matrix4x4 bodyPose;
             Matrix4x4 legPose = Matrix4x4.identity;
             bool drawLegs = true;
-            if (onSide)
+            if (bellyUp)
+            {
+                // Rolled half round about its forward axis, lifted so the top of its back rests on the ground.
+                bodyPose = Matrix4x4.Translate(new Vector3(0f, body.maxY * size, 0f))
+                    * Matrix4x4.Rotate(Quaternion.AngleAxis(180f, Vector3.forward));
+                legPose = bodyPose;
+                gait = 0f;
+            }
+            else if (onSide)
             {
                 // Rolled over about the middle of its trunk, which then rests on the ground.
                 bodyPose = Matrix4x4.Translate(new Vector3(0f, def.bodyHalfWidth * size, 0f))
@@ -154,6 +167,12 @@ namespace IsoRim
                         // its height); the foot raised (about the leg's own side axis) while it swings forward.
                         float spread = def.legYaw != null && i < def.legYaw.Count ? def.legYaw[i] : 0f;
                         float raise = gait > 0.01f ? Mathf.Max(0f, Mathf.Cos(phase + beat)) * def.legLift * Mathf.Clamp01(gait) : 0f;
+                        if (bellyUp)
+                        {
+                            // Curled in: bunched together, the feet drawn in over the belly.
+                            spread *= 0.5f;
+                            raise = -BellyUpCurl;
+                        }
                         float forward = spread + swing;
                         Quaternion side = hip.x >= 0f ? Quaternion.AngleAxis(-forward, Vector3.up) : Quaternion.AngleAxis(180f + forward, Vector3.up);
                         local = legPose * sized * Matrix4x4.Translate(hip) * Matrix4x4.Rotate(side * Quaternion.AngleAxis(raise, Vector3.forward));
@@ -161,6 +180,12 @@ namespace IsoRim
                     else
                     {
                         float splay = hip.x >= 0f ? def.legSplay : -def.legSplay;
+                        if (bellyUp)
+                        {
+                            // Short straight legs: only leaning a little over the belly and toward its middle (more would lay them flat).
+                            splay = hip.x >= 0f ? -BellyUpCurl * 0.4f : BellyUpCurl * 0.4f;
+                            swing = Mathf.Abs(hip.z) > 0.02f ? Mathf.Sign(hip.z) * BellyUpCurl * 0.3f : 0f;
+                        }
                         Quaternion turn = Quaternion.AngleAxis(splay, Vector3.forward) * Quaternion.AngleAxis(swing, Vector3.right);
                         local = legPose * sized * Matrix4x4.Translate(hip) * Matrix4x4.Rotate(turn) * drop;
                     }

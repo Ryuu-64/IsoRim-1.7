@@ -202,6 +202,7 @@ namespace IsoRim
         public bool legFromHip = false;
         public List<float> legYaw;          // with legFromHip: how far each leg (in legs order) is turned toward the front, degrees
         public float legLift = 12f;         // with legFromHip: how far a foot is raised as it comes forward, degrees
+        public bool deadBellyUp = false;    // dead (not downed), it lies on its back with its legs up and curled in (insects)
         // (rotation, for an animal, turns its body model only; legs and hips are given facing north.)
         public float stride = 1f;           // cells walked for one full swing of the legs
         public float bodyCentre = 0f;       // height of the middle of the trunk

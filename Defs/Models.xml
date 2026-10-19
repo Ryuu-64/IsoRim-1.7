@@ -4260,6 +4260,7 @@
     <thingDef>Megascarab</thingDef>
     <model>Models/animal_megascarab.obj</model>
     <animal>true</animal>
+    <deadBellyUp>true</deadBellyUp>
     <legModel>Models/animal_megascarab_leg.obj</legModel>
     <legs>
       <li>(-0.110, 0.116, 0.137)</li>
@@ -4287,6 +4288,7 @@
     <model>Models/animal_megaspider.obj</model>
     <rotation>180</rotation>
     <animal>true</animal>
+    <deadBellyUp>true</deadBellyUp>
     <legModel>Models/animal_megaspider_leg.obj</legModel>
     <legFromHip>true</legFromHip>
     <legs>
@@ -4323,6 +4325,7 @@
     <thingDef>Spelopede</thingDef>
     <model>Models/animal_spelopede.obj</model>
     <animal>true</animal>
+    <deadBellyUp>true</deadBellyUp>
     <legModel>Models/animal_spelopede_leg.obj</legModel>
     <legs>
       <li>(-0.185, 0.211, 0.229)</li>
@@ -7605,6 +7608,7 @@
     <thingDef>Larva</thingDef>
     <model>Models/animal_larva.obj</model>
     <animal>true</animal>
+    <deadBellyUp>true</deadBellyUp>
     <stride>0.25</stride>
     <bodyCentre>0.132</bodyCentre>
     <bodyHalfWidth>0.116</bodyHalfWidth>
@@ -7615,6 +7619,7 @@
     <thingDef>HiveQueen</thingDef>
     <model>Models/animal_hivequeen.obj</model>
     <animal>true</animal>
+    <deadBellyUp>true</deadBellyUp>
     <stride>0.80</stride>
     <bodyCentre>1.135</bodyCentre>
     <bodyHalfWidth>0.613</bodyHalfWidth>
