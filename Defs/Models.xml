@@ -7619,7 +7619,6 @@
     <thingDef>HiveQueen</thingDef>
     <model>Models/animal_hivequeen.obj</model>
     <animal>true</animal>
-    <deadBellyUp>true</deadBellyUp>
     <stride>0.80</stride>
     <bodyCentre>1.135</bodyCentre>
     <bodyHalfWidth>0.613</bodyHalfWidth>
