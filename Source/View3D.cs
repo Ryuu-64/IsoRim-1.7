@@ -903,8 +903,23 @@ namespace IsoRim
             {
                 return;
             }
-            ApplyCamera(main);
+            BeginView(main);
             RegenerateIfStateChanged();
+        }
+
+        // The 3D view set up for the build that switches it on, shared by a switch-on (SwitchOnNow) and a game that
+        // starts with 3D on (PrepareForFirstBuild): the camera turned straight to where it points, then placed; and the
+        // facing noted that the parts built for the camera's direction (the map edge, cut walls) are built for, so the
+        // first frame finds nothing turned. Before, the load-time build ran before the first frame had set the turn at
+        // all (yaw 0 on a fresh start): the map edge was built for a north-facing camera and its south-west sides were
+        // missing until the next turn.
+        private static void BeginView(Camera main)
+        {
+            yawSet = false;   // no swing left over: TurnCamera goes straight to the target
+            TurnCamera();
+            ApplyCamera(main);
+            litFacing = Facing;
+            wasTurning = false;
         }
 
         private static readonly AccessTools.FieldRef<MapDrawer, Map> drawerMap = AccessTools.FieldRefAccess<MapDrawer, Map>("map");
@@ -926,7 +941,7 @@ namespace IsoRim
             {
                 return;   // the first frame of play switches on as usual ("Preparing 3D…")
             }
-            ApplyCamera(main);
+            BeginView(main);
             lastActive = true;
             NoteSwitch();
             int sig = StateSignature();
