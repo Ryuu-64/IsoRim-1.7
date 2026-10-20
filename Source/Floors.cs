@@ -148,6 +148,14 @@ namespace IsoRim
             {
                 Log.Error("[IsoRim] Could not hook the drawing of stacked floors: " + e);
             }
+            try
+            {
+                FloorSounds.Patch(h);
+            }
+            catch (Exception e)
+            {
+                Log.Error("[IsoRim] Could not hook the sounds of stacked floors: " + e);
+            }
         }
 
         // Works out this frame's floors for the current map (once a frame; cheap when the map has none).
