@@ -359,6 +359,22 @@ namespace IsoRim
                 return;
             }
 
+            // Switching on rebuilds the whole map for 3D (a second or more on a big base). That runs in a
+            // short long event with a message ("Preparing 3D…"); the flat view stays until it runs.
+            if (Active && !lastActive)
+            {
+                if (!switchQueued)
+                {
+                    switchQueued = true;
+                    LongEventHandler.QueueLongEvent(SwitchOnNow, "R3D_Preparing3D", false, null);
+                }
+                if (camerasOverridden)
+                {
+                    ResetCamera();
+                }
+                return;
+            }
+
             if (Active)
             {
                 ApplyCamera(main);
@@ -848,6 +864,81 @@ namespace IsoRim
             }
         }
 
+        // Crash trail (log only): what the 3D view runs with, for graphics crash reports.
+        private static void NoteSwitch()
+        {
+            IsoRimSettings ts = IsoRimMod.Settings;
+            Map tm = Find.CurrentMap;
+            CrashTrail.Note("3D view " + (Active ? "on" : "off") + ": grade " + ts.grade + ", shader cut " + ShaderCut.On
+                + ", fog lid " + FogLid + (FogLidLocked ? " (locked)" : "") + ", screen " + Screen.width + "x" + Screen.height
+                + ", map " + (tm != null ? tm.Size.x + "x" + tm.Size.z : "none"));
+        }
+
+        // -isorim3d (screenshot harness): every game starts with the 3D view on, as with a lock.
+        public static bool HarnessStartsOn;
+
+        private static bool switchQueued;
+
+        // A new or loaded game (Game constructor, possibly off the main thread): the 3D view starts off unless an addon
+        // locks it on. Nothing of the last game's view is kept (its cameras are gone with its scene).
+        public static void NewGame()
+        {
+            Active = LockedOn || HarnessStartsOn;
+            lastActive = false;
+            appliedSig = 0;
+            pendingSig = 0;
+            haveFrame = false;
+            cams = null;
+            camerasOverridden = false;
+            switchQueued = false;
+            stale.Clear();
+        }
+
+        // The long event of a switch-on (TickInner): the map rebuilt for 3D while "Preparing 3D…" shows.
+        private static void SwitchOnNow()
+        {
+            switchQueued = false;
+            Camera main = Find.Camera;
+            if (!Active || lastActive || main == null || Current.ProgramState != ProgramState.Playing || Current.Game == null)
+            {
+                return;
+            }
+            ApplyCamera(main);
+            RegenerateIfStateChanged();
+        }
+
+        private static readonly AccessTools.FieldRef<MapDrawer, Map> drawerMap = AccessTools.FieldRefAccess<MapDrawer, Map>("map");
+
+        // Before the game builds a map's drawing (MapDrawer.RegenerateEverythingNow prefix). A game that starts with the
+        // 3D view on (locked by an addon) builds its maps at the end of loading, still inside the loading screen: the
+        // 3D state is set up here first, so that build is the 3D one and the first frame of play has nothing to rebuild
+        // (before, the map was built flat while loading and again for 3D on the first frame of play: a stall of a second
+        // or more right after the loading screen). Exactly what the first frame would do: camera, light, rebuild.
+        public static void PrepareForFirstBuild(MapDrawer drawer)
+        {
+            if (!Active || haveFrame || lastActive || !UnityData.IsInMainThread)
+            {
+                return;   // flat, an ordinary rebuild, or this game's 3D is already set up
+            }
+            Camera main = Find.Camera;
+            Map map = drawerMap(drawer);
+            if (main == null || Current.Game == null || map == null || Find.CurrentMap == null)
+            {
+                return;   // the first frame of play switches on as usual ("Preparing 3D…")
+            }
+            ApplyCamera(main);
+            lastActive = true;
+            NoteSwitch();
+            int sig = StateSignature();
+            Stamp = sig;
+            appliedSig = sig;
+            pendingSig = sig;
+            R3DMaterials.SetLight(LightNow());
+            MapSections.Clear();
+            stale.Clear();
+            IsoCellMap.Rebuilt(map);
+        }
+
         private static void RegenerateIfStateChanged()
         {
             int sig = StateSignature();
@@ -856,12 +947,7 @@ namespace IsoRim
             lastActive = Active;
             if (toggled)
             {
-                // Crash trail (log only): what the 3D view runs with, for graphics crash reports.
-                IsoRimSettings ts = IsoRimMod.Settings;
-                Map tm = Find.CurrentMap;
-                CrashTrail.Note("3D view " + (Active ? "on" : "off") + ": grade " + ts.grade + ", shader cut " + ShaderCut.On
-                    + ", fog lid " + FogLid + (FogLidLocked ? " (locked)" : "") + ", screen " + Screen.width + "x" + Screen.height
-                    + ", map " + (tm != null ? tm.Size.x + "x" + tm.Size.z : "none"));
+                NoteSwitch();
             }
 
             if (sig == appliedSig)

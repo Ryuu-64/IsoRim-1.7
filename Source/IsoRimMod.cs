@@ -1114,6 +1114,7 @@ namespace IsoRim
             if (GenCommandLine.CommandLineArgPassed("isorim3d") && !Probe.StartOff)
             {
                 View3D.Active = true;
+                View3D.HarnessStartsOn = true;
                 Log.Message("[IsoRim] -isorim3d: 3D view starts on.");
             }
             // A gameplay addon that needs the 3D view locks it on (set in the addon's mod constructor, before this runs).

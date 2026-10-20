@@ -282,6 +282,7 @@
 
   <!-- ==================== In-game messages and corner buttons ==================== -->
   <R3D_Msg_ViewOn>IsoRim: 3D view on</R3D_Msg_ViewOn>
+  <R3D_Preparing3D>Preparing 3D…</R3D_Preparing3D>
   <R3D_Msg_ViewOff>IsoRim: 3D view off</R3D_Msg_ViewOff>
   <R3D_Msg_AlwaysOnWith>IsoRim: 3D view is always on with {0}</R3D_Msg_AlwaysOnWith>
   <R3D_Msg_Isometric>IsoRim: isometric view</R3D_Msg_Isometric>
