@@ -1583,6 +1583,29 @@ namespace IsoRim
             Vector3 along = Quaternion.AngleAxis(yaw, Vector3.up) * Vector3.right;
             Vector3 centre = new Vector3(c.x + 0.5f, 0f, c.z + 0.5f);
 
+            // A door of a style with its own models (ModelDef.style: a pack's Viking door): its frame (model) and two
+            // leaves (doorLeafModel, the other the same turned half round) in place of the plain ones, slid as those;
+            // as tall as the walls, cut down with them.
+            ModelEntry own = IsoRimMod.Settings.models3D ? ModelLibrary.StyledEntry(door) : null;
+            if (own != null && own.HasModel)
+            {
+                float ownHeight = View3D.WallHeight * (WallBoxes.CellCut(map, c) ? WallBoxes.CutFraction : 1f);
+                float s = own.def.scale;
+                Matrix4x4 ownSized = Matrix4x4.Scale(new Vector3(s, s * ownHeight / BuiltForWallHeight, s));
+                float ownYaw = yaw + own.def.rotation;
+                Vector3 ownAlong = Quaternion.AngleAxis(ownYaw, Vector3.up) * Vector3.right;
+                Color ownTint = door.DrawColor;
+                string ownSwatch = R3DTextures.StuffSwatch(door);
+                DynamicModels.DrawLocal(own.variants[0], centre, ownYaw, ownSized, ownTint, ownSwatch);
+                if (own.doorLeaf != null)
+                {
+                    float slide = Mathf.Clamp(openDistance, 0f, 0.48f) * s;
+                    DynamicModels.DrawLocal(own.doorLeaf, centre + ownAlong * slide, ownYaw, ownSized, ownTint, ownSwatch);
+                    DynamicModels.DrawLocal(own.doorLeaf, centre - ownAlong * slide, ownYaw + 180f, ownSized, ownTint, ownSwatch);
+                }
+                return true;
+            }
+
             // A gate in a fence: two low leaves between a pair of posts, with no beam over them.
             string defName = door.def.defName ?? "";
             if (gateLeaf != null && (defName.IndexOf("Gate", StringComparison.OrdinalIgnoreCase) >= 0 || defName.Contains("Fence")))
