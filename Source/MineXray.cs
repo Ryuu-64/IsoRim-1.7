@@ -8,13 +8,14 @@ namespace IsoRim
 {
     // X-ray of the floors next to the viewed one (stacked floors, Floors), both ways: with the game's Mine tool in hand
     // (Designator_Mine, MineVein too) the floor directly below the viewed one and the floor directly above it are drawn
-    // faintly over the viewed one, at the height of the rock tops (the floor above's own height): their open cells
-    // (tunnels, rooms, mountain tops, built floors) outlined, with a light fill, rock and walls left empty; the pawns there
-    // as dots. Below: only under what the viewed floor covers (its rock, floors, buildings); below the open air the floor is
-    // seen anyway. Above: everywhere (the floors above the viewed one are not drawn). While placing stairs only the floor
-    // above is shown (where the exit lands). A crosshair (Mine tool) runs Reach cells along x and z from the pointer's cell,
-    // to line the marks up with the tunnels and tops. All on the overlay shader (no depth test), so the rock never hides
-    // it. Only what the player knows is shown: fogged cells count as solid and pawns on them are left out.
+    // faintly, each on its own floor's plane (where its cells really are in the 3D view, so the floor below shows lower
+    // and the floor above higher than the viewed one): their open cells (tunnels, rooms, mountain tops, built floors)
+    // outlined, with a light fill, rock and walls left empty; the pawns there as dots. Below: only under what the viewed
+    // floor covers (its rock, floors, buildings); below the open air the floor is seen anyway. Above: everywhere (the floors
+    // above the viewed one are not drawn). While placing stairs only the floor above is shown (where the exit lands). A
+    // crosshair (Mine tool) runs Reach cells along x and z from the pointer's cell on the viewed floor, at the rock tops the
+    // Mine tool points at. All on the overlay shader (no depth test), so the rock never hides it. Only what the player
+    // knows is shown: fogged cells count as solid and pawns on them are left out.
     //
     // Cheap per frame: the outline is one mesh per floor shown, remade only when something on the map that changes it
     // (buildings, terrain, fog: Floors.MapMeshDirty_Postfix -> Dirty) has happened, at most every RebuildSeconds.
@@ -49,7 +50,7 @@ namespace IsoRim
 
         private static readonly Layer down = new Layer();
         private static readonly Layer up = new Layer();
-        private static float top = -1f;             // drawn height over the viewed floor (the rock tops), last known
+        private static float top = -1f;             // the crosshair's height over the viewed floor (the rock tops), last known
         private static Mesh quad;
         private static Mesh disc;
         private static Material mat;
@@ -113,9 +114,7 @@ namespace IsoRim
             {
                 return;
             }
-            float hK;
-            int zK;
-            Floors.FloorPlane(k, out hK, out zK);
+            Floors.FloorPlane(k, out float hK, out int zK);
 
             IntVec3 cell = Interaction.DesignatorMouseCell();
             UpdateTop(map, cell, k);
@@ -126,12 +125,12 @@ namespace IsoRim
             if (st.mineXray && below >= 0)
             {
                 Floors.FloorPlane(below, out float hB, out int zB);
-                ShownDown = DrawLayer(map, down, below, k, zB, zK, rows, top, true);
+                ShownDown = DrawLayer(map, down, below, k, hB, zB, zK, rows, true);
             }
             if (st.mineXray && above >= 0)
             {
                 Floors.FloorPlane(above, out float hA, out int zA);
-                ShownUp = DrawLayer(map, up, above, k, zA, zK, rows, Mathf.Max(hA - hK, 0.1f), false);
+                ShownUp = DrawLayer(map, up, above, k, hA, zA, zK, rows, false);
             }
             OutlineQuads = down.quads;
             OutlineQuadsUp = up.quads;
@@ -153,19 +152,20 @@ namespace IsoRim
             Shown = ShownDown || ShownUp || cross;
         }
 
-        // One floor's outline and its pawns, moved into the viewed floor's rows (the drawing map puts them there) at height
-        // 'height' over it. Below: only under what the viewed floor covers.
-        private static bool DrawLayer(Map map, Layer l, int floor, int k, int zF, int zK, int rows, float height, bool isBelow)
+        // One floor's outline and its pawns on that floor's own plane: its rows moved down to the ground's (zF) and lifted to
+        // its height hF, as the drawing map draws that floor (Floors.Drawn); done here because the floor above is hidden.
+        // Below: only under what the viewed floor covers.
+        private static bool DrawLayer(Map map, Layer l, int floor, int k, float hF, int zF, int zK, int rows, bool isBelow)
         {
             if (l.mesh == null || l.map != map || l.floor != floor || l.viewed != k || l.rows != rows
                 || l.dirty && Time.realtimeSinceStartup - l.builtAt >= RebuildSeconds)
             {
                 Build(map, l, floor, k, zF, zK, rows, isBelow);
             }
-            Matrix4x4 lift = View3D.LiftMatrix(height + 0.03f);
+            Matrix4x4 lift = View3D.LiftMatrix(hF + 0.03f);
             if (l.mesh != null)
             {
-                Graphics.DrawMesh(l.mesh, lift * Matrix4x4.Translate(new Vector3(0f, 0f, zK)), mat, 0, null, 0, Block(Color.white));
+                Graphics.DrawMesh(l.mesh, lift, mat, 0, null, 0, Block(Color.white));
             }
             // Pawns there, where the player can see them.
             IReadOnlyList<Pawn> pawns = map.mapPawns.AllPawnsSpawned;
@@ -179,7 +179,7 @@ namespace IsoRim
                     continue;
                 }
                 Vector3 d = p.DrawPos;
-                Matrix4x4 m = lift * Matrix4x4.TRS(new Vector3(d.x, 0f, d.z - zF + zK), Quaternion.identity, new Vector3(0.55f, 1f, 0.55f));
+                Matrix4x4 m = lift * Matrix4x4.TRS(new Vector3(d.x, 0f, d.z - zF), Quaternion.identity, new Vector3(0.55f, 1f, 0.55f));
                 Graphics.DrawMesh(Disc, m, mat, 0, null, 0, Block(p.Faction != null && p.Faction == Faction.OfPlayer ? Colonist : Other));
             }
             return true;
