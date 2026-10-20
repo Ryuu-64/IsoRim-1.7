@@ -109,6 +109,11 @@ namespace IsoRim
         // built centred and shut) that rises this far (cells, at the walls the models are built for) as the door opens,
         // OpenPct of the way, instead of two leaves sliding apart.
         public float doorLeafRise = 0f;
+        // crownTop (wide doors, optional): > 0 gives the frame a crown over the walls: its top stands this many wall
+        // heights high at any wall height (frame, leaves and doorLeafRise scaled to it, in height only). Under a floor
+        // built right over the door (a slab) there is no room for the crown: everything above the wall top is left out,
+        // not squeezed, and a flat lintel closes the frame flush with the walls (Doors.DrawWide).
+        public float crownTop = 0f;
         // One-cell supported doors (vac barrier, ancient blast door; Doors.DrawSupported) use model (frame),
         // doorTopModel (lintel) and doorLeafModel (optional, two sliding leaves) the same way, plus
         // hackTerminalModel: drawn while the door's CompHackable is not hacked (the blast door's terminal).
@@ -1936,6 +1941,121 @@ namespace IsoRim
             T t = list[a];
             list[a] = list[b];
             list[b] = t;
+        }
+
+        // The part of a model below height top (model space): every face cut off there, nothing squeezed. lid: a flat
+        // slab (the model's stuff colour) over the model's whole ground box closes the cut at that height. Its own
+        // outline. Null if nothing is left.
+        public static Model ClipBelow(Model src, float top, bool lid)
+        {
+            if (src == null || src.positions == null)
+            {
+                return null;
+            }
+            List<Vector3> pos = new List<Vector3>(), nor = new List<Vector3>();
+            List<Color> col = new List<Color>();
+            List<bool> tint = new List<bool>(), none = src.noOutline != null ? new List<bool>() : null;
+            List<Vector2> uv = new List<Vector2>();
+            List<int> mat = new List<int>();
+            int n = src.positions.Length;
+            int[] poly = new int[4];
+            float[] polyT = new float[4];
+            int[] polyB = new int[4];
+            for (int i = 0; i + 2 < n; i += 3)
+            {
+                // Sutherland-Hodgman against y <= top: a corner is (a, b, t), the point t of the way from corner a to b.
+                int count = 0;
+                for (int k = 0; k < 3; k++)
+                {
+                    int a = i + k;
+                    int b = i + (k + 1) % 3;
+                    bool ina = src.positions[a].y <= top;
+                    bool inb = src.positions[b].y <= top;
+                    if (ina)
+                    {
+                        poly[count] = a;
+                        polyB[count] = a;
+                        polyT[count] = 0f;
+                        count++;
+                    }
+                    if (ina != inb)
+                    {
+                        float ya = src.positions[a].y;
+                        float yb = src.positions[b].y;
+                        poly[count] = a;
+                        polyB[count] = b;
+                        polyT[count] = Mathf.Clamp01((top - ya) / (yb - ya));
+                        count++;
+                    }
+                }
+                for (int k = 1; k + 1 < count; k++)
+                {
+                    foreach (int j in new[] { 0, k, k + 1 })
+                    {
+                        int a = poly[j];
+                        int b = polyB[j];
+                        float t = polyT[j];
+                        pos.Add(Vector3.Lerp(src.positions[a], src.positions[b], t));
+                        Vector3 nn = Vector3.Lerp(src.normals[a], src.normals[b], t);
+                        nor.Add(nn.sqrMagnitude > 1e-8f ? nn.normalized : src.normals[a]);
+                        col.Add(Color.Lerp(src.colors[a], src.colors[b], t));
+                        tint.Add(src.tinted[i]);
+                        uv.Add(Vector2.Lerp(src.uvs[a], src.uvs[b], t));
+                        mat.Add(src.material[i]);
+                        if (none != null)
+                        {
+                            none.Add(src.noOutline[i]);
+                        }
+                    }
+                }
+            }
+            List<ModelMaterial> mats = new List<ModelMaterial>(src.materials);
+            if (lid && top > 0.05f && src.maxX > src.minX && src.maxZ > src.minZ)
+            {
+                Model box = Box(new Vector3(src.minX, top - 0.06f, src.minZ), new Vector3(src.maxX, top, src.maxZ));
+                int offset = mats.Count;
+                mats.AddRange(box.materials);
+                for (int i = 0; i < box.positions.Length; i++)
+                {
+                    pos.Add(box.positions[i]);
+                    nor.Add(box.normals[i]);
+                    col.Add(box.colors[i]);
+                    tint.Add(box.tinted[i]);
+                    uv.Add(box.uvs[i]);
+                    mat.Add(box.material[i] + offset);
+                    none?.Add(false);
+                }
+            }
+            if (pos.Count == 0)
+            {
+                return null;
+            }
+            Model m = new Model();
+            m.positions = pos.ToArray();
+            m.normals = nor.ToArray();
+            m.colors = col.ToArray();
+            m.tinted = tint.ToArray();
+            m.uvs = uv.ToArray();
+            m.material = mat.ToArray();
+            m.materials = mats.ToArray();
+            m.noOutline = none?.ToArray();
+            m.minX = float.MaxValue;
+            m.minZ = float.MaxValue;
+            m.maxX = float.MinValue;
+            m.maxZ = float.MinValue;
+            for (int i = 0; i < m.positions.Length; i++)
+            {
+                Vector3 p = m.positions[i];
+                m.maxY = Mathf.Max(m.maxY, p.y);
+                m.halfDepth = Mathf.Max(m.halfDepth, Mathf.Abs(p.z));
+                m.minX = Mathf.Min(m.minX, p.x);
+                m.maxX = Mathf.Max(m.maxX, p.x);
+                m.minZ = Mathf.Min(m.minZ, p.z);
+                m.maxZ = Mathf.Max(m.maxZ, p.z);
+            }
+            m.hull = BuildHull(m.positions, m.normals, OutlineWidth);
+            m.id = nextId++;
+            return m;
         }
 
         // A plain box from min to max (game axes), coloured by the tint it is drawn with (its top,
