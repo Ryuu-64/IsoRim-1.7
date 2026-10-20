@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using HarmonyLib;
 using RimWorld;
@@ -19,8 +20,8 @@ namespace IsoRim
     public static partial class Api
     {
         // Raised when members are added (2: view, projectile, skyfaller, drawing and option members of this file; 3: the
-        // fog lid lock; 4: collapse debris, Debris.cs; 5: XrayDesignator).
-        public static int Version => 5;
+        // fog lid lock; 4: collapse debris, Debris.cs; 5: XrayDesignator; 6: model states and ModelStandsIn).
+        public static int Version => 6;
 
         // ---- the view
 
@@ -138,6 +139,25 @@ namespace IsoRim
         // Replaces the matrix of projectile cards (e.g. shots between floors pitched along their 3D flight). Null:
         // drawn as usual.
         public static ProjectileCardHook ProjectileCard;
+
+        // ---- models (Version 6)
+
+        // For an addon whose things look different in a state the game shows with sprites of its own (a mod's processor
+        // drawing a "working" overlay): state names the thing's state now, or returns null for things it does not know.
+        // A thing whose ModelDef has that state in byState is built with that state's model, and rebuilt when the state
+        // changes (checked each frame the game draws the thing). Call once, at startup.
+        public static void AddModelState(Func<Thing, string> state) => StateModels.AddState(state);
+
+        // Whether a 3D model stands in for the thing's body now (the game's own sprite of it is not drawn), so an addon
+        // can leave out flat overlays it would draw over that body.
+        public static bool ModelStandsIn(Thing t)
+        {
+            if (t == null || t.def == null || !t.Spawned || !View3D.Ready || Forms.For(t.def).form != Form3D.Model)
+            {
+                return false;
+            }
+            return t.def.drawerType != DrawerType.RealtimeOnly || SectionLayer_IsoRimBodies.StandsIn(t);
+        }
 
         // ---- skyfallers
 

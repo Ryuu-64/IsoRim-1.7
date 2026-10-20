@@ -27,6 +27,10 @@ namespace IsoRim
         public float scale = 1f;
         public Vector3 offset = Vector3.zero;
         public float rotation = 0f;         // extra turn around the vertical axis, degrees
+        public List<float> rotationByFacing; // optional: one more turn (degrees) for each facing of the thing, north, east,
+                                            // south, west, added to rotation (ModelEntry.Yaw): (0, 180, 0, 0) draws a thing
+                                            // facing east as it looks facing west, where the game's east sprite is its west
+                                            // one (VFEM2 forge bellows). Not used by style defs (ModelDef.style)
         public float surfaceHeight = -1f;   // where a pawn lying on it rests; -1 uses the top of the model
                                             // (also the height the game's per-frame drawing of it is raised to:
                                             // contents such as a reliquary's relic, a gibbet's corpse, a cocoon's dryad)
@@ -46,10 +50,20 @@ namespace IsoRim
                                             // (setting "3D raw materials")
         public List<AppearanceModel> byAppearance;  // a different model for things made of stuff of this look (the
                                             // game's Graphic_Appearances: Planks, Bricks, Smooth ...); others use model
+        public List<StateModel> byState;    // a different model for things in a state an addon names (Api.AddModelState):
+                                            // <li><state>full</state><model>Models/x.obj</model></li>; others use model
         public List<StyleModel> byStyle;    // a different model for things of this style (Ideology's ThingStyleDef):
                                             // <li><style>Morbid_AltarSmall</style><model>Models/x.obj</model></li>;
                                             // wins over byAppearance; things of no listed style use model
-        public string thingCategory;        // apply to every thing in this category instead of one thingDef
+        public string style;                // with thingDef: a def of its own for things of that thing in this ThingStyleDef
+                                            // only, from any mod (a pack's style models for a thing whose own entry another
+                                            // mod gives). Its own builtFor, rotation, offset and scale; several models are
+                                            // picked per thing as the game's Graphic_Random. Fitted into the thing's own
+                                            // entry as its byStyle (ModelLibrary.AddStyles), so everything draws it as
+                                            // the thing's model; a one-cell door draws its model as the frame and its
+                                            // doorLeafModel as the two leaves (Doors.DrawOne). Never an entry by itself.
+                                            // Its surfaceHeight, if set, is where things rest on it (Forms.SurfaceOf: a shelf's items)
+        public string thingCategory;       // apply to every thing in this category instead of one thingDef
         public bool randomRotation = false; // give each thing its own turn
         public float scaleJitter = 0f;      // vary each thing's size by up to this fraction
         public bool growthScale = false;    // scale with how grown a plant is
@@ -103,6 +117,15 @@ namespace IsoRim
         // upperMoverGraphic does, 0.35 * clamp01(OpenPct * 2.5) door widths, so it is fully back at 40 % open (security
         // door: the armour plates retract first, then the slabs part).
         public string doorUpperLeafModel;
+        // doorLeafRise (wide doors, optional): > 0 makes doorLeafModel one piece across the whole doorway (a portcullis,
+        // built centred and shut) that rises this far (cells, at the walls the models are built for) as the door opens,
+        // OpenPct of the way, instead of two leaves sliding apart.
+        public float doorLeafRise = 0f;
+        // crownTop (wide doors, optional): > 0 gives the frame a crown over the walls: its top stands this many wall
+        // heights high at any wall height (frame, leaves and doorLeafRise scaled to it, in height only). Under a floor
+        // built right over the door (a slab) there is no room for the crown: everything above the wall top is left out,
+        // not squeezed, and a flat lintel closes the frame flush with the walls (Doors.DrawWide).
+        public float crownTop = 0f;
         // One-cell supported doors (vac barrier, ancient blast door; Doors.DrawSupported) use model (frame),
         // doorTopModel (lintel) and doorLeafModel (optional, two sliding leaves) the same way, plus
         // hackTerminalModel: drawn while the door's CompHackable is not hacked (the blast door's terminal).
@@ -502,6 +525,13 @@ namespace IsoRim
         public string model;
     }
 
+    // One entry of ModelDef.byState.
+    public class StateModel
+    {
+        public string state;    // a state name an addon gives things (Api.AddModelState)
+        public string model;
+    }
+
     // One entry of ModelDef.byStyle.
     public class StyleModel
     {
@@ -515,7 +545,8 @@ namespace IsoRim
         public Model[] variants;
         public Model[] stack;     // stackModels (a, b, c), or null
         public Dictionary<string, Model> byAppearance;   // StuffAppearanceDef defName -> model; null if none
-        public Dictionary<string, Model> byStyle;        // ThingStyleDef defName -> model; null if none
+        public Dictionary<string, Model[]> byStyle;      // ThingStyleDef defName -> its models (one per random variant); null if none
+        public Dictionary<string, Model> byState;        // addon state name -> model (byState); null if none
         public Model leg;   // animals only
         public Model top;   // turrets only
         public Model empty;       // emptyModel, or null
@@ -554,7 +585,7 @@ namespace IsoRim
 
         // How much the model is stretched along x, up and along z to fit a thing of this kind:
         // (1, 1, 1) unless the model was built for a different footprint.
-        private Vector3 FootprintFit(ThingDef thing)
+        internal Vector3 FootprintFit(ThingDef thing)
         {
             if (def.builtFor.x <= 0f || def.builtFor.y <= 0f || thing == null)
             {
@@ -608,10 +639,15 @@ namespace IsoRim
         }
 
         // The turn (degrees) a thing's model is drawn at for the thing's rotation: the rotation (none with
-        // ignoreRotation) plus the def's extra rotation. Every drawer of a building's model uses this.
+        // ignoreRotation) plus the def's extra rotation and its rotationByFacing for that facing. Every drawer of a building's model uses this.
         public float Yaw(Rot4 rot)
         {
-            return (def.ignoreRotation ? 0f : rot.AsAngle) + def.rotation;
+            float yaw = (def.ignoreRotation ? 0f : rot.AsAngle) + def.rotation;
+            if (def.rotationByFacing != null && rot.AsInt < def.rotationByFacing.Count)
+            {
+                yaw += def.rotationByFacing[rot.AsInt];
+            }
+            return yaw;
         }
 
         // The same thing always gets the same variant.
@@ -623,7 +659,7 @@ namespace IsoRim
             }
             if (byStyle != null && t != null)
             {
-                Model styled = ForStyle(StyleOf(t));
+                Model styled = ForStyle(StyleOf(t), t);
                 if (styled != null)
                 {
                     return styled;
@@ -679,11 +715,27 @@ namespace IsoRim
             return bp != null ? bp.EntityToBuildStyle() : t.StyleDef;
         }
 
-        // The model of byStyle for things of this style; null if there is none.
-        public Model ForStyle(ThingStyleDef style)
+        // The model of byStyle for things of this style; null if there is none. Of several (a style's Graphic_Random), the
+        // one the game's sprite is for thing t (forced index first, else by ID), the first for no thing.
+        public Model ForStyle(ThingStyleDef style, Thing t = null)
         {
-            Model own;
-            return byStyle != null && style != null && byStyle.TryGetValue(style.defName, out own) ? own : null;
+            Model[] own;
+            if (byStyle == null || style == null || !byStyle.TryGetValue(style.defName, out own) || own.Length == 0)
+            {
+                return null;
+            }
+            return own[RandomIndex(t, own.Length)];
+        }
+
+        // Graphic_Random's pick of n sprites for thing t: its forced index (Thing.OverrideGraphicIndex) or its ID; 0 for none.
+        public static int RandomIndex(Thing t, int n)
+        {
+            if (t == null || n <= 1)
+            {
+                return 0;
+            }
+            int k = t.OverrideGraphicIndex ?? t.thingIDNumber;
+            return (k < 0 ? -k : k) % n;
         }
 
         // The model of byAppearance for things of this stuff; null if there is none.
@@ -751,7 +803,17 @@ namespace IsoRim
             }
             if (byStyle != null)
             {
-                foreach (Model m in byStyle.Values)
+                foreach (Model[] ms in byStyle.Values)
+                {
+                    foreach (Model m in ms)
+                    {
+                        tallest = Mathf.Max(tallest, m != null ? m.maxY : 0f);
+                    }
+                }
+            }
+            if (byState != null)
+            {
+                foreach (Model m in byState.Values)
                 {
                     tallest = Mathf.Max(tallest, m != null ? m.maxY : 0f);
                 }
@@ -766,9 +828,22 @@ namespace IsoRim
         private static readonly Dictionary<string, Model> byPath = new Dictionary<string, Model>();
         private static readonly Dictionary<ThingDef, string> how = new Dictionary<ThingDef, string>();
 
+        // ModelDefs with a style (ModelDef.style): thing -> style defName -> that def's own entry.
+        private static readonly Dictionary<ThingDef, Dictionary<string, ModelEntry>> styled = new Dictionary<ThingDef, Dictionary<string, ModelEntry>>();
+
         public static bool TryGet(ThingDef def, out ModelEntry entry)
         {
             return byThing.TryGetValue(def, out entry);
+        }
+
+        // The own entry of a style def (ModelDef.style) for thing t's style (a blueprint: the style it will be built in);
+        // null if there is none. Drawers that do not use the thing's entry (one-cell doors) draw it directly.
+        public static ModelEntry StyledEntry(Thing t)
+        {
+            Dictionary<string, ModelEntry> forThing;
+            ThingStyleDef style = t != null && styled.TryGetValue(t.def, out forThing) ? ModelEntry.StyleOf(t) : null;
+            ModelEntry own;
+            return style != null && styled[t.def].TryGetValue(style.defName, out own) ? own : null;
         }
 
         // How a thing got its entry: "thingDef", "category:<name>", "match:<name part>" or
@@ -935,9 +1010,26 @@ namespace IsoRim
                     {
                         if (entry.byStyle == null)
                         {
-                            entry.byStyle = new Dictionary<string, Model>();
+                            entry.byStyle = new Dictionary<string, Model[]>();
                         }
-                        entry.byStyle[sm.style] = m;
+                        entry.byStyle[sm.style] = new[] { m };
+                    }
+                }
+            }
+            if (md.byState != null && md.modContentPack != null)
+            {
+                for (int i = 0; i < md.byState.Count; i++)
+                {
+                    StateModel st = md.byState[i];
+                    Model m = st != null && !st.state.NullOrEmpty() && !st.model.NullOrEmpty()
+                        ? LoadFile(Path.Combine(md.modContentPack.RootDir, st.model)) : null;
+                    if (m != null)
+                    {
+                        if (entry.byState == null)
+                        {
+                            entry.byState = new Dictionary<string, Model>();
+                        }
+                        entry.byState[st.state] = m;
                     }
                 }
             }
@@ -1042,9 +1134,9 @@ namespace IsoRim
             for (int i = 0; i < all.Count; i++)
             {
                 ModelDef md = all[i];
-                if (md.thingDef.NullOrEmpty())
+                if (md.thingDef.NullOrEmpty() || !md.style.NullOrEmpty())
                 {
-                    continue;
+                    continue;   // style defs are added last (AddStyles)
                 }
                 // A thing from a DLC or mod that is not installed is skipped quietly.
                 ThingDef thing = DefDatabase<ThingDef>.GetNamedSilentFail(md.thingDef);
@@ -1149,6 +1241,8 @@ namespace IsoRim
                 }
             }
 
+            AddStyles(all);
+
             int models = 0;
             foreach (KeyValuePair<ThingDef, ModelEntry> pair in byThing)
             {
@@ -1158,6 +1252,80 @@ namespace IsoRim
                 }
             }
             ModLog.Note("[IsoRim] " + models + " things have a hand-made 3D model.");
+        }
+
+        // Style defs (ModelDef.style), from any mod: each gets its own entry (StyledEntry), and its models, fitted from
+        // its own space (builtFor, rotation, offset, scale) into that of the thing's own entry, become that entry's byStyle
+        // for the style, so every drawer of the thing's model draws them as it is placed. A thing with no model entry
+        // keeps only the own entry (one-cell doors draw it, Doors.DrawOne).
+        private static void AddStyles(List<ModelDef> all)
+        {
+            styled.Clear();
+            for (int i = 0; i < all.Count; i++)
+            {
+                ModelDef md = all[i];
+                if (md.style.NullOrEmpty() || md.thingDef.NullOrEmpty())
+                {
+                    continue;
+                }
+                ThingDef thing = DefDatabase<ThingDef>.GetNamedSilentFail(md.thingDef);
+                if (thing == null || DefDatabase<ThingStyleDef>.GetNamedSilentFail(md.style) == null)
+                {
+                    continue;   // a thing or style from a mod that is not loaded
+                }
+                ModelEntry own = MakeEntry(md);
+                if (!own.HasModel)
+                {
+                    continue;
+                }
+                Dictionary<string, ModelEntry> forThing;
+                if (!styled.TryGetValue(thing, out forThing))
+                {
+                    forThing = new Dictionary<string, ModelEntry>();
+                    styled[thing] = forThing;
+                }
+                forThing[md.style] = own;
+
+                ModelEntry entry;
+                if (!byThing.TryGetValue(thing, out entry) || !entry.HasModel)
+                {
+                    continue;
+                }
+                Model[] fitted = new Model[own.variants.Length];
+                for (int k = 0; k < fitted.Length; k++)
+                {
+                    fitted[k] = FitInto(own.variants[k], own, entry, thing);
+                }
+                if (entry.byStyle == null)
+                {
+                    entry.byStyle = new Dictionary<string, Model[]>();
+                }
+                entry.byStyle[md.style] = fitted;
+            }
+        }
+
+        // Model m of entry from, moved into the model space of entry to so that, drawn as to places its models on a thing
+        // of this kind (Baking.Place: turned by Yaw and a quarter turn if Swapped, footprint fit times scale, offset), it
+        // stands as from would place it.
+        private static Model FitInto(Model m, ModelEntry from, ModelEntry to, ThingDef thing)
+        {
+            Vector3 fitFrom = from.FootprintFit(thing) * from.def.scale;
+            Vector3 fitTo = to.FootprintFit(thing) * to.def.scale;
+            float turn = (from.def.rotation + (from.Swapped(thing) ? 90f : 0f)) - (to.def.rotation + (to.Swapped(thing) ? 90f : 0f));
+            Quaternion q = Quaternion.AngleAxis(turn, Vector3.up);
+            Vector3 offFrom = from.def.offset, offTo = to.def.offset;
+            if (Mathf.Abs(Mathf.DeltaAngle(0f, turn)) < 0.01f && (fitFrom - fitTo).sqrMagnitude < 1e-8f && (offFrom - offTo).sqrMagnitude < 1e-8f)
+            {
+                return m;   // the same space
+            }
+            return ObjLoader.Transformed(m,
+                p => Div(q * (Vector3.Scale(p, fitFrom) + offFrom) - offTo, fitTo),
+                n => Vector3.Scale(q * Div(n, fitFrom), fitTo).normalized);
+        }
+
+        private static Vector3 Div(Vector3 a, Vector3 b)
+        {
+            return new Vector3(a.x / b.x, a.y / b.y, a.z / b.z);
         }
     }
 
@@ -1369,27 +1537,35 @@ namespace IsoRim
         // shade of their own colour (a powered-down panel). The source itself if it has none.
         public static Model GlowOff(Model src)
         {
-            if (src == null || src.materials == null || src.material == null || !Array.Exists(src.materials, mm => mm.glow))
+            return GlowOff(src, GlowOffShade, false);
+        }
+
+        // The same, the switched-off faces in shade times their own colour; keepFire leaves flames and embers
+        // (ModelMaterial.fire) glowing, for the fuel to rule (ModelBaker.NoFire). An unlit lamp: shade 1, keepFire.
+        public static Model GlowOff(Model src, float shade, bool keepFire)
+        {
+            if (src == null || src.materials == null || src.material == null || !Array.Exists(src.materials, mm => mm.glow && !(keepFire && mm.fire)))
             {
                 return src;
             }
             Model m = Merge(new List<Model> { src });   // an own copy with its own id (meshes are cached by id)
             for (int i = 0; i < m.colors.Length; i++)
             {
-                if (m.materials[m.material[i]].glow)
+                ModelMaterial mm = m.materials[m.material[i]];
+                if (mm.glow && !(keepFire && mm.fire))
                 {
                     Color c = m.colors[i];
-                    m.colors[i] = new Color(c.r * GlowOffShade, c.g * GlowOffShade, c.b * GlowOffShade, c.a);
+                    m.colors[i] = new Color(c.r * shade, c.g * shade, c.b * shade, c.a);
                 }
             }
             ModelMaterial[] mats = new ModelMaterial[m.materials.Length];
             for (int i = 0; i < mats.Length; i++)
             {
                 ModelMaterial o = m.materials[i];
-                mats[i] = !o.glow ? o : new ModelMaterial
+                mats[i] = !o.glow || (keepFire && o.fire) ? o : new ModelMaterial
                 {
                     name = o.name, texture = o.texture, tinted = o.tinted, leaf = o.leaf, twig = o.twig, glow = false, fire = o.fire,
-                    color = o.color * GlowOffShade
+                    color = o.color * shade
                 };
             }
             m.materials = mats;
@@ -1898,6 +2074,159 @@ namespace IsoRim
             T t = list[a];
             list[a] = list[b];
             list[b] = t;
+        }
+
+        // A copy of a model with every corner moved by point and every normal by normal (a turn and stretch that keeps
+        // faces the same way out); colours, materials and outline choices kept, its box and outline worked out anew.
+        public static Model Transformed(Model src, Func<Vector3, Vector3> point, Func<Vector3, Vector3> normal)
+        {
+            int n = src.positions.Length;
+            Model m = new Model();
+            m.positions = new Vector3[n];
+            m.normals = new Vector3[n];
+            for (int i = 0; i < n; i++)
+            {
+                m.positions[i] = point(src.positions[i]);
+                m.normals[i] = normal(src.normals[i]);
+            }
+            m.colors = src.colors;
+            m.tinted = src.tinted;
+            m.uvs = src.uvs;
+            m.material = src.material;
+            m.materials = src.materials;
+            m.noOutline = src.noOutline;
+            m.minX = float.MaxValue;
+            m.minZ = float.MaxValue;
+            m.maxX = float.MinValue;
+            m.maxZ = float.MinValue;
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 p = m.positions[i];
+                m.maxY = Mathf.Max(m.maxY, p.y);
+                m.halfDepth = Mathf.Max(m.halfDepth, Mathf.Abs(p.z));
+                m.minX = Mathf.Min(m.minX, p.x);
+                m.maxX = Mathf.Max(m.maxX, p.x);
+                m.minZ = Mathf.Min(m.minZ, p.z);
+                m.maxZ = Mathf.Max(m.maxZ, p.z);
+            }
+            m.hull = BuildHull(m.positions, m.normals, OutlineWidth);
+            m.id = nextId++;
+            return m;
+        }
+
+        // The part of a model below height top (model space): every face cut off there, nothing squeezed. lid: a flat
+        // slab (the model's stuff colour) over the model's whole ground box closes the cut at that height. Its own
+        // outline. Null if nothing is left.
+        public static Model ClipBelow(Model src, float top, bool lid)
+        {
+            if (src == null || src.positions == null)
+            {
+                return null;
+            }
+            List<Vector3> pos = new List<Vector3>(), nor = new List<Vector3>();
+            List<Color> col = new List<Color>();
+            List<bool> tint = new List<bool>(), none = src.noOutline != null ? new List<bool>() : null;
+            List<Vector2> uv = new List<Vector2>();
+            List<int> mat = new List<int>();
+            int n = src.positions.Length;
+            int[] poly = new int[4];
+            float[] polyT = new float[4];
+            int[] polyB = new int[4];
+            for (int i = 0; i + 2 < n; i += 3)
+            {
+                // Sutherland-Hodgman against y <= top: a corner is (a, b, t), the point t of the way from corner a to b.
+                int count = 0;
+                for (int k = 0; k < 3; k++)
+                {
+                    int a = i + k;
+                    int b = i + (k + 1) % 3;
+                    bool ina = src.positions[a].y <= top;
+                    bool inb = src.positions[b].y <= top;
+                    if (ina)
+                    {
+                        poly[count] = a;
+                        polyB[count] = a;
+                        polyT[count] = 0f;
+                        count++;
+                    }
+                    if (ina != inb)
+                    {
+                        float ya = src.positions[a].y;
+                        float yb = src.positions[b].y;
+                        poly[count] = a;
+                        polyB[count] = b;
+                        polyT[count] = Mathf.Clamp01((top - ya) / (yb - ya));
+                        count++;
+                    }
+                }
+                for (int k = 1; k + 1 < count; k++)
+                {
+                    foreach (int j in new[] { 0, k, k + 1 })
+                    {
+                        int a = poly[j];
+                        int b = polyB[j];
+                        float t = polyT[j];
+                        pos.Add(Vector3.Lerp(src.positions[a], src.positions[b], t));
+                        Vector3 nn = Vector3.Lerp(src.normals[a], src.normals[b], t);
+                        nor.Add(nn.sqrMagnitude > 1e-8f ? nn.normalized : src.normals[a]);
+                        col.Add(Color.Lerp(src.colors[a], src.colors[b], t));
+                        tint.Add(src.tinted[i]);
+                        uv.Add(Vector2.Lerp(src.uvs[a], src.uvs[b], t));
+                        mat.Add(src.material[i]);
+                        if (none != null)
+                        {
+                            none.Add(src.noOutline[i]);
+                        }
+                    }
+                }
+            }
+            List<ModelMaterial> mats = new List<ModelMaterial>(src.materials);
+            if (lid && top > 0.05f && src.maxX > src.minX && src.maxZ > src.minZ)
+            {
+                Model box = Box(new Vector3(src.minX, top - 0.06f, src.minZ), new Vector3(src.maxX, top, src.maxZ));
+                int offset = mats.Count;
+                mats.AddRange(box.materials);
+                for (int i = 0; i < box.positions.Length; i++)
+                {
+                    pos.Add(box.positions[i]);
+                    nor.Add(box.normals[i]);
+                    col.Add(box.colors[i]);
+                    tint.Add(box.tinted[i]);
+                    uv.Add(box.uvs[i]);
+                    mat.Add(box.material[i] + offset);
+                    none?.Add(false);
+                }
+            }
+            if (pos.Count == 0)
+            {
+                return null;
+            }
+            Model m = new Model();
+            m.positions = pos.ToArray();
+            m.normals = nor.ToArray();
+            m.colors = col.ToArray();
+            m.tinted = tint.ToArray();
+            m.uvs = uv.ToArray();
+            m.material = mat.ToArray();
+            m.materials = mats.ToArray();
+            m.noOutline = none?.ToArray();
+            m.minX = float.MaxValue;
+            m.minZ = float.MaxValue;
+            m.maxX = float.MinValue;
+            m.maxZ = float.MinValue;
+            for (int i = 0; i < m.positions.Length; i++)
+            {
+                Vector3 p = m.positions[i];
+                m.maxY = Mathf.Max(m.maxY, p.y);
+                m.halfDepth = Mathf.Max(m.halfDepth, Mathf.Abs(p.z));
+                m.minX = Mathf.Min(m.minX, p.x);
+                m.maxX = Mathf.Max(m.maxX, p.x);
+                m.minZ = Mathf.Min(m.minZ, p.z);
+                m.maxZ = Mathf.Max(m.maxZ, p.z);
+            }
+            m.hull = BuildHull(m.positions, m.normals, OutlineWidth);
+            m.id = nextId++;
+            return m;
         }
 
         // A plain box from min to max (game axes), coloured by the tint it is drawn with (its top,

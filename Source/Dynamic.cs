@@ -1466,6 +1466,43 @@ namespace IsoRim
     // A door drawn as two 3D leaves that slide apart into the walls either side, with a beam
     // across the top that carries the wall line over the doorway. It is as tall as the walls
     // and takes the texture and colour of what the door is built from.
+    // A door frame's crown under a floor (ModelDef.crownTop): the frame and its leaves cut off at the wall top, kept
+    // once made. The heights are in model space, where the wall top of a crowned door is the same at any wall height.
+    public static class Crowns
+    {
+        private const float Below = 0.005f;   // the cut sits this far under the wall top, so the walls' own caps win
+        private const float Step = 0.01f;     // cut heights are kept at steps this far apart (a rising portcullis)
+
+        private static readonly Dictionary<long, Model> cut = new Dictionary<long, Model>();
+
+        // The part of m under height top (model space), with a flat lintel over its ground box if lid. Null if nothing
+        // of it is left (a portcullis risen into the floor above).
+        public static Model Under(Model m, float top, bool lid)
+        {
+            if (m == null)
+            {
+                return null;
+            }
+            int step = Mathf.RoundToInt(top / Step);
+            if (step <= 0)
+            {
+                return null;
+            }
+            if (step * Step >= m.maxY + Below)
+            {
+                return m;
+            }
+            long key = ((long)m.id << 20) | ((long)step << 1) | (lid ? 1L : 0L);
+            Model c;
+            if (!cut.TryGetValue(key, out c))
+            {
+                c = ObjLoader.ClipBelow(m, step * Step - Below, lid);
+                cut[key] = c;
+            }
+            return c;
+        }
+    }
+
     public static class Doors
     {
         private const float BuiltForWallHeight = 1.2f;
@@ -1546,6 +1583,29 @@ namespace IsoRim
             Vector3 along = Quaternion.AngleAxis(yaw, Vector3.up) * Vector3.right;
             Vector3 centre = new Vector3(c.x + 0.5f, 0f, c.z + 0.5f);
 
+            // A door of a style with its own models (ModelDef.style: a pack's Viking door): its frame (model) and two
+            // leaves (doorLeafModel, the other the same turned half round) in place of the plain ones, slid as those;
+            // as tall as the walls, cut down with them.
+            ModelEntry own = IsoRimMod.Settings.models3D ? ModelLibrary.StyledEntry(door) : null;
+            if (own != null && own.HasModel)
+            {
+                float ownHeight = View3D.WallHeight * (WallBoxes.CellCut(map, c) ? WallBoxes.CutFraction : 1f);
+                float s = own.def.scale;
+                Matrix4x4 ownSized = Matrix4x4.Scale(new Vector3(s, s * ownHeight / BuiltForWallHeight, s));
+                float ownYaw = yaw + own.def.rotation;
+                Vector3 ownAlong = Quaternion.AngleAxis(ownYaw, Vector3.up) * Vector3.right;
+                Color ownTint = door.DrawColor;
+                string ownSwatch = R3DTextures.StuffSwatch(door);
+                DynamicModels.DrawLocal(own.variants[0], centre, ownYaw, ownSized, ownTint, ownSwatch);
+                if (own.doorLeaf != null)
+                {
+                    float slide = Mathf.Clamp(openDistance, 0f, 0.48f) * s;
+                    DynamicModels.DrawLocal(own.doorLeaf, centre + ownAlong * slide, ownYaw, ownSized, ownTint, ownSwatch);
+                    DynamicModels.DrawLocal(own.doorLeaf, centre - ownAlong * slide, ownYaw + 180f, ownSized, ownTint, ownSwatch);
+                }
+                return true;
+            }
+
             // A gate in a fence: two low leaves between a pair of posts, with no beam over them.
             string defName = door.def.defName ?? "";
             if (gateLeaf != null && (defName.IndexOf("Gate", StringComparison.OrdinalIgnoreCase) >= 0 || defName.Contains("Fence")))
@@ -1617,26 +1677,58 @@ namespace IsoRim
                 height *= WallBoxes.CutFraction;
             }
             float s = def.scale;
-            Matrix4x4 sized = Matrix4x4.Scale(new Vector3(s, s * height / BuiltForWallHeight, s));
+            Model frame = entry.variants[0];
+            // How tall one model cell is drawn: as the walls the models are built for, or (crownTop) so that the
+            // frame's top stands crownTop wall heights high.
+            float up = s * height / BuiltForWallHeight;
+            bool crowned = def.crownTop > 0f && frame.maxY > 0.01f;
+            float wallTop = 0f;   // with a crown under a slab: the wall top in model space, where everything is cut off
+            if (crowned)
+            {
+                up = def.crownTop * height / frame.maxY;
+                if (slab)
+                {
+                    wallTop = frame.maxY / def.crownTop;   // the same at any wall height and cut-down
+                }
+            }
+            Matrix4x4 sized = Matrix4x4.Scale(new Vector3(s, up, s));
             Color tint = door.DrawColor;
             string swatch = R3DTextures.StuffSwatch(door);
 
-            DynamicModels.DrawLocal(entry.variants[0], centre, yaw, sized, tint, swatch);
+            DynamicModels.DrawLocal(wallTop > 0f ? Crowns.Under(frame, wallTop, true) : frame, centre, yaw, sized, tint, swatch);
             if (entry.doorTop != null && !cut && !slab)
             {
                 DynamicModels.DrawLocal(entry.doorTop, centre, yaw, sized, tint, swatch);
             }
-            if (!stuckOpen)
+            if (!stuckOpen && def.doorLeafRise > 0f)
+            {
+                // A portcullis: one leaf across the doorway, raised as the door opens (doorLeafRise).
+                float lift = def.doorLeafRise * Mathf.Clamp01(openPct);   // model cells
+                float rise = lift * up;
+                Model portcullis = entry.doorLeaf;
+                if (wallTop > 0f)
+                {
+                    // Under a slab it rises into the floor above: only what is still under the wall top shows.
+                    portcullis = Crowns.Under(entry.doorLeaf, wallTop - lift, false);
+                }
+                if (portcullis != null)
+                {
+                    DynamicModels.DrawLocal(portcullis, centre + Vector3.up * rise, yaw, sized, tint, swatch);
+                }
+            }
+            else if (!stuckOpen)
             {
                 // The game: each leaf's middle sits 0.25 + 0.35 * OpenPct door widths from the centre.
                 float slide = 0.35f * Mathf.Clamp01(openPct) * door.def.size.x * s;
-                DynamicModels.DrawLocal(entry.doorLeaf, centre + along * slide, yaw, sized, tint, swatch);
-                DynamicModels.DrawLocal(entry.doorLeaf, centre - along * slide, yaw + 180f, sized, tint, swatch);
+                Model leaf = wallTop > 0f ? Crowns.Under(entry.doorLeaf, wallTop, false) : entry.doorLeaf;
+                DynamicModels.DrawLocal(leaf, centre + along * slide, yaw, sized, tint, swatch);
+                DynamicModels.DrawLocal(leaf, centre - along * slide, yaw + 180f, sized, tint, swatch);
                 if (entry.doorUpperLeaf != null)
                 {
                     float slide2 = 0.35f * Mathf.Clamp01(openPct * 2.5f) * door.def.size.x * s;
-                    DynamicModels.DrawLocal(entry.doorUpperLeaf, centre + along * slide2, yaw, sized, tint, swatch);
-                    DynamicModels.DrawLocal(entry.doorUpperLeaf, centre - along * slide2, yaw + 180f, sized, tint, swatch);
+                    Model upper = wallTop > 0f ? Crowns.Under(entry.doorUpperLeaf, wallTop, false) : entry.doorUpperLeaf;
+                    DynamicModels.DrawLocal(upper, centre + along * slide2, yaw, sized, tint, swatch);
+                    DynamicModels.DrawLocal(upper, centre - along * slide2, yaw + 180f, sized, tint, swatch);
                 }
             }
             return true;
@@ -2084,7 +2176,9 @@ namespace IsoRim
             float sy = b.height * fit.y / FlameHeight;
             float sxz = b.width * Mathf.Max(fit.x, fit.z) / FlameWidth;
             foot.y -= FlameBase * sy;
-            Flame(foot, sy, sxz, b.dark, t.thingIDNumber * 0.37f, time);
+            // Blue as the game's darklight overlay, also for a model that only gives the flame's place (flameAt).
+            bool dark = b.dark || t.TryGetComp<CompDarklightOverlay>() != null;
+            Flame(foot, sy, sxz, dark, t.thingIDNumber * 0.37f, time);
         }
 
         // Three tongues of flame round a brighter heart, each flickering to its own beat; the campfire's at sizes 1, 1.

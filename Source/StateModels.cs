@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using RimWorld;
 using Verse;
@@ -11,8 +12,46 @@ namespace IsoRim
     // a model stands in, the game's flat "empty" sprite drawn every frame over the body is left
     // out (Patches.EmptyStatePostDraw_Prefix); the one it prints into the map mesh already is,
     // with the rest of the sprite.
+    // Addon states (ModelDef.byState): an addon names a thing's state (Api.AddModelState: a VFE boilpot that holds a
+    // brew), ModelBaker.Bake picks that state's model, and the block is rebuilt when the state changes (same check).
     public static class StateModels
     {
+        // The addons' state functions (Api.AddModelState), asked in turn.
+        private static readonly List<Func<Thing, string>> stateFuncs = new List<Func<Thing, string>>();
+        // Things with byState models in a built mesh, with the state they were built in ("" for none).
+        private static readonly Dictionary<int, string> stateBaked = new Dictionary<int, string>();
+
+        public static void AddState(Func<Thing, string> f)
+        {
+            if (f != null && !stateFuncs.Contains(f))
+            {
+                stateFuncs.Add(f);
+            }
+        }
+
+        // The thing's state as the first addon that knows it names it; null if none does (or an addon failed).
+        public static string StateOf(Thing t)
+        {
+            for (int i = 0; i < stateFuncs.Count; i++)
+            {
+                string s;
+                try
+                {
+                    s = stateFuncs[i](t);
+                }
+                catch (Exception e)
+                {
+                    Log.ErrorOnce("[IsoRim] An addon's model state failed: " + e, 93611291);
+                    continue;
+                }
+                if (s != null)
+                {
+                    return s;
+                }
+            }
+            return null;
+        }
+
         // Things with an empty-state sprite whose model is in a built mesh, with the state it was built in.
         private static readonly Dictionary<int, bool> baked = new Dictionary<int, bool>();
         // hackedGlowOff copies, by the id of the model they were made from.
@@ -60,6 +99,16 @@ namespace IsoRim
                     return off;
                 }
             }
+            if (entry.byState != null)
+            {
+                string key = StateOf(t);
+                stateBaked[t.thingIDNumber] = key ?? "";
+                Model own;
+                if (key != null && entry.byState.TryGetValue(key, out own))
+                {
+                    return own;
+                }
+            }
             CompEmptyStateGraphic c = CompOf(t);
             if (c == null)
             {
@@ -68,6 +117,54 @@ namespace IsoRim
             bool empty = c.ParentIsEmpty;
             baked[t.thingIDNumber] = empty;
             return empty && entry.empty != null ? entry.empty : normal;
+        }
+
+        // Unlit copies (glow faces in their own colour, shaded), by the id of the model they were made from.
+        private static readonly Dictionary<int, Model> unlit = new Dictionary<int, Model>();
+
+        // Called by ModelBaker.Bake after Choose for the real thing: a lamp whose light is out draws its glow* faces unlit,
+        // in their own colour, as the rest of the model. Out is the game's own state: a spawned thing with a CompGlower
+        // none of whose glowers is lit (CompGlower.Glows: power, fuel, a flick switch, a sun lamp's schedule ...).
+        // Flames and embers are left to the fuel (ModelBaker.NoFire). The game redraws the map mesh at the thing when its
+        // light goes on or off (CompGlower.UpdateLit: MapMeshDirty Things), so the block is rebuilt.
+        public static Model ForLight(Thing t, Model m)
+        {
+            if (m == null || !LightOut(t))
+            {
+                return m;
+            }
+            Model off;
+            if (!unlit.TryGetValue(m.id, out off))
+            {
+                off = ObjLoader.GlowOff(m, 1f, true);
+                unlit[m.id] = off;
+            }
+            return off;
+        }
+
+        // True for a spawned thing with a CompGlower that is not lit now.
+        public static bool LightOut(Thing t)
+        {
+            ThingWithComps twc = t as ThingWithComps;
+            if (twc == null || !twc.Spawned)
+            {
+                return false;
+            }
+            bool any = false;
+            List<ThingComp> comps = twc.AllComps;
+            for (int i = 0; i < comps.Count; i++)
+            {
+                CompGlower g = comps[i] as CompGlower;
+                if (g != null)
+                {
+                    if (g.Glows)
+                    {
+                        return false;
+                    }
+                    any = true;
+                }
+            }
+            return any;
         }
 
         // True while a model stands in for this thing's body (and so for its empty-state sprite).
@@ -79,6 +176,7 @@ namespace IsoRim
         // Each frame the game draws the thing: rebuilds its block when it has just been emptied (or filled).
         public static void Track(Thing t)
         {
+            TrackState(t);
             bool was;
             if (!View3D.Ready || !baked.TryGetValue(t.thingIDNumber, out was))
             {
@@ -103,6 +201,42 @@ namespace IsoRim
             {
                 t.DirtyMapMesh(t.Map);
             }
+        }
+
+        // Each frame the game draws the thing: rebuilds its block when an addon's state for it has changed.
+        private static void TrackState(Thing t)
+        {
+            string was;
+            if (stateFuncs.Count == 0 || !View3D.Ready || !stateBaked.TryGetValue(t.thingIDNumber, out was))
+            {
+                return;
+            }
+            ThingForm f = Forms.For(t.def);
+            if (f.form != Form3D.Model || f.model == null || f.model.byState == null || t.Map == null)
+            {
+                return;
+            }
+            string now = StateOf(t) ?? "";
+            if (now == was)
+            {
+                return;
+            }
+            stateBaked[t.thingIDNumber] = now;
+            if (t.def.drawerType == DrawerType.RealtimeOnly)
+            {
+                MapSections.QueueAround(t.Map, t.Position, 0, typeof(SectionLayer_IsoRimBodies), true);
+            }
+            else
+            {
+                t.DirtyMapMesh(t.Map);
+            }
+        }
+
+        // For the harness: the addon state a thing was last built in; null if none.
+        public static string StateReport(Thing t)
+        {
+            string was;
+            return stateBaked.TryGetValue(t.thingIDNumber, out was) ? was : null;
         }
 
         // For the harness: the state each such thing was last built in.
