@@ -45,6 +45,12 @@ namespace IsoRim
             Patch("camera", AccessTools.Method(typeof(CameraDriver), "Update"),
                 postfix: nameof(CameraUpdate_Postfix));
 
+            // Each game starts with the 3D view off unless an addon locks it on: the last game's switch is not kept.
+            Patch("3D view state per game", AccessTools.Constructor(typeof(Game)), postfix: nameof(GameCtor_Postfix));
+            // A game that starts in 3D (locked on) gets its map built for 3D inside the loading screen, not after it.
+            Patch("3D view built while loading", AccessTools.Method(typeof(MapDrawer), "RegenerateEverythingNow"),
+                prefix: nameof(RegenerateEverythingNow_Prefix));
+
             // Moving the camera: the game moves it along the map's own axes, which only match
             // the screen while north is up.
             Patch("camera movement in the isometric view", AccessTools.Method(typeof(CameraDriver), "CalculateCurInputDollyVect"),
@@ -883,6 +889,23 @@ namespace IsoRim
             catch (Exception e)
             {
                 Log.ErrorOnce("[IsoRim] Camera update failed: " + e, 93611010);
+            }
+        }
+
+        public static void GameCtor_Postfix()
+        {
+            View3D.NewGame();
+        }
+
+        public static void RegenerateEverythingNow_Prefix(MapDrawer __instance)
+        {
+            try
+            {
+                View3D.PrepareForFirstBuild(__instance);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Preparing the 3D view while loading failed: " + e, 93611190);
             }
         }
 

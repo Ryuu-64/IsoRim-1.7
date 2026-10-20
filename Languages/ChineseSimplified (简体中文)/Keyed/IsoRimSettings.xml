@@ -282,6 +282,7 @@
 
   <!-- ==================== 游戏内提示与右下角按钮 ==================== -->
   <R3D_Msg_ViewOn>IsoRim：3D 视图已开启</R3D_Msg_ViewOn>
+  <R3D_Preparing3D>正在准备 3D…</R3D_Preparing3D>
   <R3D_Msg_ViewOff>IsoRim：3D 视图已关闭</R3D_Msg_ViewOff>
   <R3D_Msg_AlwaysOnWith>IsoRim：{0} 要求 3D 视图始终开启</R3D_Msg_AlwaysOnWith>
   <R3D_Msg_Isometric>IsoRim：等距视角</R3D_Msg_Isometric>
