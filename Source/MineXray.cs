@@ -13,8 +13,8 @@ namespace IsoRim
     // outlined, with a light fill, rock and walls left empty; the pawns there as dots. Below: only under what the viewed
     // floor covers (its rock, floors, buildings); below the open air the floor is seen anyway. Above: everywhere (the floors
     // above the viewed one are not drawn). While placing stairs only the floor above is shown (where the exit lands). A
-    // crosshair (Mine tool) runs Reach cells along x and z from the pointer's cell on the viewed floor, each square on its
-    // own cell (on the rock top, or on the floor where the cell is open), the pointer's square where the pointer's frame is. All on the overlay shader (no depth test), so the rock never hides it. Only what the player
+    // crosshair (Mine tool) runs Reach cells along x and z from the pointer's cell on the viewed floor, all on the plane
+    // of the pointer's frame (so on screen its arms run straight through the pointer). All on the overlay shader (no depth test), so the rock never hides it. Only what the player
     // knows is shown: fogged cells count as solid and pawns on them are left out.
     //
     // Cheap per frame: the outline is one mesh per floor shown, remade only when something on the map that changes it
@@ -137,14 +137,15 @@ namespace IsoRim
             bool cross = mine && st.mineCrosshair && cell.InBounds(map) && Floors.FloorOfRow(cell.z) == k;
             if (cross)
             {
+                // all on the plane of the pointer's frame, so the arms run straight through the pointer on screen
+                Matrix4x4 lift = View3D.LiftMatrix(Interaction.MouseTop + 0.03f);
                 for (int i = 1; i <= Reach; i++)
                 {
-                    CrossSquare(map, cell.x - i, cell.z, k);
-                    CrossSquare(map, cell.x + i, cell.z, k);
-                    CrossSquare(map, cell.x, cell.z - i, k);
-                    CrossSquare(map, cell.x, cell.z + i, k);
+                    CrossSquare(map, lift, cell.x - i, cell.z, k);
+                    CrossSquare(map, lift, cell.x + i, cell.z, k);
+                    CrossSquare(map, lift, cell.x, cell.z - i, k);
+                    CrossSquare(map, lift, cell.x, cell.z + i, k);
                 }
-                Matrix4x4 lift = View3D.LiftMatrix(Interaction.MouseTop + 0.03f);   // where the pointer's frame is
                 Rect(lift, cell.x + CrossGap, cell.z + CrossGap, cell.x + 1f - CrossGap, cell.z + 1f - CrossGap, CrossCell);
             }
             Shown = ShownDown || ShownUp || cross;
@@ -302,16 +303,13 @@ namespace IsoRim
             tris.Add(b + 3);
         }
 
-        // One crosshair cell, inset so neighbouring squares stay apart, on its rock top or on the floor where it is open;
-        // none off the map or off the viewed floor.
-        private static void CrossSquare(Map map, int x, int z, int k)
+        // One crosshair cell, inset so neighbouring squares stay apart; none off the map or off the viewed floor.
+        private static void CrossSquare(Map map, Matrix4x4 lift, int x, int z, int k)
         {
             if (x < 0 || x >= map.Size.x || z < 0 || z >= map.Size.z || Floors.FloorOfRow(z) != k)
             {
                 return;
             }
-            Thing rock = new IntVec3(x, 0, z).GetFirstMineable(map);
-            Matrix4x4 lift = View3D.LiftMatrix((rock != null ? Interaction.PickHeight(rock) : 0f) + 0.03f);
             Rect(lift, x + CrossGap, z + CrossGap, x + 1f - CrossGap, z + 1f - CrossGap, Cross);
         }
 
