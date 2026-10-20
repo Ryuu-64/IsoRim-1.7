@@ -19,6 +19,8 @@ layout(set = 2, binding = 0) uniform MaterialUniforms
     vec4 _IsoCard;    // global, no default: sin a, cos a (a = pitch - 90), sin yaw, cos yaw
     vec4 _IsoCellMap; // global, no default: (origin x, origin z, W, H) of the cell texture (IsoCellMap)
     vec4 _IsoRoof;    // global, no default: roof and fog clipping (RoofClip): x = 1 roofs, 2 the fog, 3 both, y = wall height, z = Rise, w = Pitch
+    float _IsoFade;   // @default = 0.0   faded floors (FadeFloors): share of pixels kept, 0 = drawn solid
+    float _IsoFadeFrom; // @default = 0.0   faded floors: where in the dither pattern (0-1) the kept share starts
 } uMaterial;
 
 layout(set = 2, binding = 1) uniform sampler2D _MainTex;
@@ -144,8 +146,24 @@ bool RoofHides(vec3 p, vec2 owner)
     return p.y > h;
 }
 
+// ---- Faded floors (Source/FadeFloors.cs, prototype): a fragment of a floor above the viewed one is dropped where the
+// 4 x 4 ordered dither pattern, fixed on the screen, is outside the floor's kept range: _IsoFade wide (0 = drawn solid), from
+// _IsoFadeFrom, wrapping round (floors with overlapping ranges cover each other only there).
+const float FadeBayer[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+
+bool FadeDrop()
+{
+    float keep = uMaterial._IsoFade;
+    if (keep <= 0.0)
+        return false;
+    ivec2 q = ivec2(floor(gl_FragCoord.xy)) & 3;
+    return fract((FadeBayer[q.y * 4 + q.x] + 0.5) / 16.0 - uMaterial._IsoFadeFrom) >= keep;
+}
+
 void main()
 {
+    if (FadeDrop())
+        discard;
     if (RoofHides(vRoofPos, vRoofOwner))
         discard;
     outColor = texture(_MainTex, vUv * uMaterial._MainTex_ST.zw + uMaterial._MainTex_ST.xy);

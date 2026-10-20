@@ -91,6 +91,7 @@
   <R3D_Settings_KeyTiltDown>lower the camera</R3D_Settings_KeyTiltDown>
   <R3D_Settings_KeyTiltUp>raise the camera</R3D_Settings_KeyTiltUp>
   <R3D_Settings_KeyToggleRoofs>roofs on and off</R3D_Settings_KeyToggleRoofs>
+  <R3D_Settings_KeyPeekUpper>hold: show upper floors faded</R3D_Settings_KeyPeekUpper>
   <R3D_Settings_FreeLookKeys>Free look: {0}.</R3D_Settings_FreeLookKeys>
   <R3D_Settings_LookKeysRight>drag with the right button while nothing is selected</R3D_Settings_LookKeysRight>
   <R3D_Settings_LookKeysDrag>drag with {0}</R3D_Settings_LookKeysDrag>

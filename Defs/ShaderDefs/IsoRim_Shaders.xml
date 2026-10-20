@@ -384,4 +384,84 @@
     </shaderProgram>
   </ShaderDef>
 
+  <!-- Faded floors (FadeFloors, prototype): the game's Cutout, CutoutComplex and terrain shaders with the FadeFloors
+       drop (_IsoFade) in copies of their fragment stages; render state exactly as the game's defs. Materials of a floor
+       drawn faded are swapped for copies on these. -->
+  <ShaderDef>
+    <defName>IsoRimFadeCutout</defName>
+    <shaderProgram>
+      <fragmentShaderFileName>IsoRimFadeCutout.frag.glsl</fragmentShaderFileName>
+      <transparent>true</transparent>
+      <depthWrite>true</depthWrite>
+      <renderQueue>2900</renderQueue>
+    </shaderProgram>
+  </ShaderDef>
+
+  <ShaderDef>
+    <defName>IsoRimFadeCutoutComplex</defName>
+    <shaderProgram>
+      <fragmentShaderFileName>IsoRimFadeCutoutComplex.frag.glsl</fragmentShaderFileName>
+      <transparent>true</transparent>
+      <depthWrite>true</depthWrite>
+      <renderQueue>2900</renderQueue>
+    </shaderProgram>
+  </ShaderDef>
+
+  <ShaderDef>
+    <defName>IsoRimFadeTerrainHard</defName>
+    <shaderProgram>
+      <vertexShaderFileName>MapWorldUV.vert.glsl</vertexShaderFileName>
+      <fragmentShaderFileName>IsoRimFadeTerrainHard.frag.glsl</fragmentShaderFileName>
+      <flipTextureST>false</flipTextureST>
+      <depthWrite>false</depthWrite>
+      <renderQueue>2000</renderQueue>
+      <textureWrapOverrides>
+        <li>
+          <key>_MainTex</key>
+          <value>Repeat</value>
+        </li>
+      </textureWrapOverrides>
+    </shaderProgram>
+  </ShaderDef>
+
+  <ShaderDef>
+    <defName>IsoRimFadeTerrainFade</defName>
+    <shaderProgram>
+      <vertexShaderFileName>MapWorldUV.vert.glsl</vertexShaderFileName>
+      <fragmentShaderFileName>IsoRimFadeTerrainFade.frag.glsl</fragmentShaderFileName>
+      <flipTextureST>false</flipTextureST>
+      <transparent>true</transparent>
+      <depthWrite>false</depthWrite>
+      <renderQueue>2001</renderQueue>
+      <textureWrapOverrides>
+        <li>
+          <key>_MainTex</key>
+          <value>Repeat</value>
+        </li>
+      </textureWrapOverrides>
+    </shaderProgram>
+  </ShaderDef>
+
+  <ShaderDef>
+    <defName>IsoRimFadeTerrainFadeRough</defName>
+    <shaderProgram>
+      <vertexShaderFileName>MapWorldUV.vert.glsl</vertexShaderFileName>
+      <fragmentShaderFileName>IsoRimFadeTerrainFadeRough.frag.glsl</fragmentShaderFileName>
+      <flipTextureST>false</flipTextureST>
+      <transparent>true</transparent>
+      <depthWrite>false</depthWrite>
+      <renderQueue>2001</renderQueue>
+      <textureWrapOverrides>
+        <li>
+          <key>_MainTex</key>
+          <value>Repeat</value>
+        </li>
+        <li>
+          <key>_AlphaAddTex</key>
+          <value>Repeat</value>
+        </li>
+      </textureWrapOverrides>
+    </shaderProgram>
+  </ShaderDef>
+
 </Defs>

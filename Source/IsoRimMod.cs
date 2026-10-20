@@ -749,6 +749,7 @@ namespace IsoRim
                 KeyRow(r, R3DKeyDefOf.R3D_TiltDown, "R3D_Settings_KeyTiltDown".Translate());
                 KeyRow(r, R3DKeyDefOf.R3D_TiltUp, "R3D_Settings_KeyTiltUp".Translate());
                 KeyRow(r, R3DKeyDefOf.R3D_ToggleRoofs, "R3D_Settings_KeyToggleRoofs".Translate());
+                KeyRow(r, R3DKeyDefOf.R3D_PeekUpper, "R3D_Settings_KeyPeekUpper".Translate());
                 if (st.freeLook)
                 {
                     Note(r, "R3D_Settings_FreeLookKeys".Translate(LookKeysLabel(st)));
@@ -1085,6 +1086,7 @@ namespace IsoRim
         public static KeyBindingDef R3D_ResetCamera;
         public static KeyBindingDef R3D_LookModifier;
         public static KeyBindingDef R3D_FirstPerson;
+        public static KeyBindingDef R3D_PeekUpper;
 
         static R3DKeyDefOf()
         {

@@ -103,6 +103,10 @@ namespace IsoRim
         private static readonly float[] heights = new float[MaxFloors + 1];
         private static readonly int[] shifts = new int[MaxFloors + 1];
         private static readonly bool[] shown = new bool[MaxFloors + 1];
+        private static readonly int[] fade = new int[MaxFloors + 1];   // FadeFloors slot of a shown floor (0: drawn solid)
+
+        // FadeFloors: the slot of the faded floor being drawn now (0: none), set while one of its blocks or things is drawn.
+        public static int FadeSlot;
         private static readonly Matrix4x4[] matrices = new Matrix4x4[MaxFloors + 1];
 
         private static bool patched;
@@ -167,7 +171,7 @@ namespace IsoRim
             int sig = On ? groundRows * 31 + pointer : -1;
             for (int k = 1; k <= count; k++)
             {
-                sig = sig * 31 + (shown[k] ? 1 : 0) * 17 + Mathf.RoundToInt(heights[k] * 100f);
+                sig = sig * 31 + (shown[k] ? 1 : 0) * 17 + fade[k] * 7 + Mathf.RoundToInt(heights[k] * 100f);
             }
             if (sig != viewSig)
             {
@@ -208,6 +212,18 @@ namespace IsoRim
                     matrices[k] = Matrix4x4.Translate(new Vector3(0f, h / s, -z));
                 }
                 pointer = Mathf.Clamp(layout.PointerFloor(map), 0, n);
+                // Faded floors (FadeFloors): while the peek key is held, the hidden floors right above the viewed one are drawn, faded.
+                bool fadeOn = FadeFloors.Enabled;
+                for (int k = 0; k <= n; k++)
+                {
+                    fade[k] = 0;
+                    int up = k - pointer;
+                    if (fadeOn && k > 0 && !shown[k] && up >= 1 && up <= FadeFloors.Keep.Length)
+                    {
+                        shown[k] = true;
+                        fade[k] = up;
+                    }
+                }
                 count = n;
             }
             catch (Exception e)
@@ -489,6 +505,18 @@ namespace IsoRim
             return k == 0 || On && k <= count && shown[k];
         }
 
+        // Shown and drawn solid (not faded, FadeFloors): it covers what is under it.
+        public static bool ShownSolid(int k)
+        {
+            return Shown(k) && (k == 0 || fade[k] == 0);
+        }
+
+        // The FadeFloors slot of floor k (0: solid or hidden).
+        public static int FadeOf(int k)
+        {
+            return On && k > 0 && k <= count ? fade[k] : 0;
+        }
+
         // Height (cells) of floor k and how far its rows are from the ground's (zero for the ground or without floors).
         public static void FloorPlane(int k, out float height, out int zShift)
         {
@@ -567,6 +595,7 @@ namespace IsoRim
             {
                 sectionLifted = true;
                 sectionMatrix = m;
+                FadeSlot = fade[FloorOfRow(__instance.botLeft.z)];
             }
             return true;
         }
@@ -579,6 +608,7 @@ namespace IsoRim
         public static void Section_Finalizer()
         {
             sectionLifted = false;
+            FadeSlot = 0;
         }
 
         // Cull.SectionOverlaps: false for a section on a hidden floor (or between floors); otherwise true, with the
@@ -1008,6 +1038,15 @@ namespace IsoRim
             {
                 return false;
             }
+            if (On)
+            {
+                int fk = FloorOfRow(__instance.Position.z);
+                if (fk > 0 && fade[fk] > 0)
+                {
+                    FadeSlot = fade[fk];
+                    thingFade = true;
+                }
+            }
             Matrix4x4 m = ExtraMatrix(__instance);
             if (m == Matrix4x4.identity)
             {
@@ -1019,8 +1058,15 @@ namespace IsoRim
             return true;
         }
 
+        private static bool thingFade;
+
         public static void ThingPhase_Finalizer(bool __state)
         {
+            if (thingFade)
+            {
+                thingFade = false;
+                FadeSlot = 0;
+            }
             if (__state)
             {
                 DrawHook.floor = false;
@@ -1037,6 +1083,9 @@ namespace IsoRim
             HarmonyMethod single = new HarmonyMethod(typeof(Floors), nameof(Single_Prefix));
             HarmonyMethod array = new HarmonyMethod(typeof(Floors), nameof(InstancedArray_Prefix));
             HarmonyMethod list = new HarmonyMethod(typeof(Floors), nameof(InstancedList_Prefix));
+            // FadeFloors: before the floor mapping (it reads the world row of the matrix).
+            HarmonyMethod fadeSingle = new HarmonyMethod(typeof(Floors), nameof(Fade_Prefix)) { priority = Priority.First };
+            HarmonyMethod fadeInstanced = new HarmonyMethod(typeof(Floors), nameof(FadeInstanced_Prefix)) { priority = Priority.First };
             int n = 0;
             foreach (System.Reflection.MethodInfo m in AccessTools.GetDeclaredMethods(typeof(Graphics)))
             {
@@ -1053,14 +1102,27 @@ namespace IsoRim
                     hasList |= p.Name == "matrices" && p.ParameterType == typeof(List<Matrix4x4>);
                 }
                 string calls = Calls(m);
+                bool hasMaterial = false;
+                foreach (System.Reflection.ParameterInfo p in ps)
+                {
+                    hasMaterial |= p.Name == "material" && p.ParameterType == typeof(Material);
+                }
                 if ((m.Name == "DrawMesh" || m.Name == "DrawMeshCore") && hasMatrix && calls.Contains("|Enqueue|"))
                 {
                     h.Patch(m, prefix: single);
+                    if (hasMaterial)
+                    {
+                        h.Patch(m, prefix: fadeSingle);
+                    }
                     n++;
                 }
                 else if (m.Name == "DrawMeshInstanced" && calls.Contains("|EnqueueInstancedDirect|") && (hasArray || hasList))
                 {
                     h.Patch(m, prefix: hasArray ? array : list);
+                    if (hasMaterial)
+                    {
+                        h.Patch(m, prefix: fadeInstanced);
+                    }
                     n++;
                 }
             }
@@ -1101,6 +1163,43 @@ namespace IsoRim
         public static bool Single_Prefix(ref Matrix4x4 matrix)
         {
             return !On || InDrawnSpace || Drawn(ref matrix);
+        }
+
+        // FadeFloors: a draw for a faded floor (its block or thing being drawn, or a world matrix in its rows) takes the
+        // faded copy of its material. A draw found by its row alone (overlays, motes, fire: no block or thing being drawn)
+        // whose shader has no faded form is left out.
+        public static bool Fade_Prefix(ref Matrix4x4 matrix, ref Material material)
+        {
+            if (!On || material == null)
+            {
+                return true;
+            }
+            int slot = FadeSlot;
+            bool byRow = false;
+            if (slot == 0 && !InDrawnSpace && matrix.m23 >= groundRows)
+            {
+                int k = FloorOfRow(Mathf.FloorToInt(matrix.m23));
+                slot = k > 0 ? fade[k] : 0;
+                byRow = true;
+            }
+            if (slot > 0)
+            {
+                Material faded = FadeFloors.For(material, slot);
+                if (byRow && ReferenceEquals(faded, material))
+                {
+                    return false;
+                }
+                material = faded;
+            }
+            return true;
+        }
+
+        public static void FadeInstanced_Prefix(ref Material material)
+        {
+            if (On && FadeSlot > 0 && material != null)
+            {
+                material = FadeFloors.For(material, FadeSlot);
+            }
         }
 
         private static Matrix4x4[] instanceBuffer = new Matrix4x4[256];
