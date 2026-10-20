@@ -274,6 +274,8 @@ namespace IsoRim
             Patch("designators aim at blocks", AccessTools.Method(typeof(DesignationDragger), "StartDrag"), transpiler: nameof(DesignatorCell_Transpiler));
             Patch("designators aim at blocks", AccessTools.Method(typeof(DesignationDragger), "GetCurrentBoundary"), transpiler: nameof(DesignatorCell_Transpiler));
             Patch("designators aim at blocks", AccessTools.Method(typeof(GenUI), "RenderMouseoverBracket"), prefix: nameof(MouseoverBracket_Prefix));
+            Patch("designators aim at blocks", AccessTools.Method(typeof(DesignatorUtility), "RenderHighlightOverSelectableCells"), prefix: nameof(HighlightCells_Prefix));
+            Patch("designators aim at blocks", AccessTools.Method(typeof(DesignatorUtility), "RenderHighlightOverSelectableThings"), prefix: nameof(HighlightThings_Prefix));
 
             // The game lays dark sheets round the outside of the map to hide whatever lies past
             // its edge. In 3D they would cover the cut through the earth below the edge.
@@ -3644,6 +3646,32 @@ namespace IsoRim
                     ci.operand = to;
                 }
                 yield return ci;
+            }
+        }
+
+        public static bool HighlightCells_Prefix(Designator designator, List<IntVec3> dragCells)
+        {
+            try
+            {
+                return !Interaction.DrawDragHighlight(designator, dragCells, false);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Drawing the drag highlight failed: " + e, 93611167);
+                return true;
+            }
+        }
+
+        public static bool HighlightThings_Prefix(Designator designator, List<IntVec3> dragCells)
+        {
+            try
+            {
+                return !Interaction.DrawDragHighlight(designator, dragCells, true);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Drawing the drag highlight failed: " + e, 93611168);
+                return true;
             }
         }
 

@@ -76,8 +76,10 @@ namespace IsoRim
             block.SetColor(colorId, col);
             float y = 0.015f / View3D.Squash;
             Matrix4x4 m = Matrix4x4.TRS(new Vector3((x0 + x1) * 0.5f, y, (z0 + z1) * 0.5f), Quaternion.identity, new Vector3(x1 - x0, 1f, z1 - z0));
-            Graphics.DrawMesh(Quad, m, mat, 0, null, 0, block);
+            Graphics.DrawMesh(Quad, rectLift * m, mat, 0, null, 0, block);
         }
+
+        private static Matrix4x4 rectLift = Matrix4x4.identity;   // Rect raised off the ground (a block designator's drag)
 
         // How thick lines on the ground are, so they stay about two pixels wide at any zoom.
         private static float LineWidth
@@ -92,8 +94,23 @@ namespace IsoRim
 
         // ---- the drag box
 
-        // The area of a designation drag (zones, orders, building), outlined on the ground.
+        // The area of a designation drag (zones, orders, building), outlined on the ground (a block designator's: on
+        // its drag's plane, with the bracket and the highlights).
         public static void DrawDesignationDrag()
+        {
+            float top = DragTop;
+            rectLift = top >= 0f ? View3D.LiftMatrix(top + 0.02f) : Matrix4x4.identity;
+            try
+            {
+                DrawDragOutline();
+            }
+            finally
+            {
+                rectLift = Matrix4x4.identity;
+            }
+        }
+
+        private static void DrawDragOutline()
         {
             DesignatorManager dm = Find.DesignatorManager;
             DesignationDragger dragger = dm != null ? dm.Dragger : null;
@@ -302,21 +319,111 @@ namespace IsoRim
                 return ground;
             }
             Vector2 mouse = Input.mousePosition;
-            if (snapFrame == Time.frameCount && snapMouse == mouse)
+            bool dragging = dm.Dragger != null && dm.Dragger.Dragging;
+            if (!dragging)
             {
+                dragLocked = false;
+            }
+            if (snapFrame == Time.frameCount && snapMouse == mouse && snapLocked == dragLocked)
+            {
+                LockDrag(map, dragging);
                 return snapCell;
             }
             snapFrame = Time.frameCount;
             snapMouse = mouse;
             IntVec3 hit;
-            if (!PickBlockCell(map, mouse, out hit, out snapTop))
+            if (dragLocked)
+            {
+                // a drag: the far corner on the plane of the corner it started from, so a drag straight across
+                // the screen keeps to one row or one column whatever the blocks under the pointer
+                Floors.FloorPlane(dragFloor, out float floorH, out int floorZ);
+                Vector3 p = View3D.ScreenToHeight(mouse, dragTop + floorH);
+                hit = new IntVec3(Mathf.FloorToInt(p.x), 0, Mathf.FloorToInt(p.z) + floorZ);
+                snapTop = dragTop;
+            }
+            else if (!PickBlockCell(map, mouse, out hit, out snapTop))
             {
                 hit = ground;
                 snapTop = 0f;
             }
             snapCell = hit;
+            snapLocked = dragLocked;
+            LockDrag(map, dragging);
             return hit;
         }
+
+        // A drag starting (DesignationDragger.StartDrag): keep the start corner's plane until it ends.
+        private static void LockDrag(Map map, bool dragging)
+        {
+            if (dragging && !dragLocked)
+            {
+                dragLocked = true;
+                dragTop = snapTop;
+                dragFloor = Floors.On && snapCell.InBounds(map) ? Floors.FloorOfRow(snapCell.z) : 0;
+            }
+        }
+
+        private static bool dragLocked;     // a block designator's drag is on, its plane kept (dragTop, dragFloor)
+        private static bool snapLocked;     // snapCell was picked on the drag's plane
+        private static float dragTop;
+        private static int dragFloor;
+
+        // The height a block designator's drag is drawn at (-1: no such drag).
+        internal static float DragTop
+        {
+            get
+            {
+                DesignatorManager dm = Find.DesignatorManager;
+                if (!dragLocked || !View3D.Ready || dm == null || dm.Dragger == null || !dm.Dragger.Dragging
+                    || !TargetsBlocks(dm.SelectedDesignator))
+                {
+                    return -1f;
+                }
+                return dragTop;
+            }
+        }
+
+        // The game's drag highlights (DesignatorUtility) for a block designator, on the drag's plane like the bracket
+        // instead of on the ground. False: the game draws its own.
+        public static bool DrawDragHighlight(Designator designator, List<IntVec3> dragCells, bool things)
+        {
+            float top = DragTop;
+            if (top < 0f || designator == null || designator.Map == null || dragCells == null)
+            {
+                return false;
+            }
+            Matrix4x4 lift = View3D.LiftMatrix(top + 0.02f);
+            float y = AltitudeLayer.MetaOverlays.AltitudeFor();
+            if (!things)
+            {
+                for (int i = 0; i < dragCells.Count; i++)
+                {
+                    Vector3 pos = dragCells[i].ToVector3Shifted();
+                    pos.y = y;
+                    Graphics.DrawMesh(MeshPool.plane10, lift * Matrix4x4.Translate(pos), DesignatorUtility.DragHighlightCellMat, 0);
+                }
+                return true;
+            }
+            highlighted.Clear();
+            for (int i = 0; i < dragCells.Count; i++)
+            {
+                List<Thing> list = dragCells[i].GetThingList(designator.Map);
+                for (int j = 0; j < list.Count; j++)
+                {
+                    Thing t = list[j];
+                    if (!highlighted.Contains(t) && designator.CanDesignateThing(t).Accepted)
+                    {
+                        highlighted.Add(t);
+                        Vector3 pos = t.DrawPos;
+                        pos.y = y;
+                        Graphics.DrawMesh(MeshPool.plane10, lift * Matrix4x4.Translate(pos), DesignatorUtility.DragHighlightThingMat, 0);
+                    }
+                }
+            }
+            return true;
+        }
+
+        private static readonly HashSet<Thing> highlighted = new HashSet<Thing>();
 
         // The cell of the first building the line of sight through a screen point meets, nearest the
         // camera first (walls cut down near the pointer count at their lowered height).
