@@ -542,6 +542,17 @@ namespace IsoRim
 
             RedirectDrawCalls();
 
+            // Beams and streams drawn in 3D from one end to the other, on one floor and between stacked floors (FloorSprays).
+            try
+            {
+                FloorSprays.Patch(harmony);
+                hooked.Add("FloorSprays (beams and streams in 3D)");
+            }
+            catch (Exception e)
+            {
+                Log.Error("[IsoRim] Could not hook beams and streams: " + e);
+            }
+
             // Stacked floors (Floors): only when a gameplay addon has registered a floor layout.
             Ready = true;
             Floors.ApplyPatches();

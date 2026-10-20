@@ -15,6 +15,10 @@ namespace IsoRim
     //   shieldfull=x,z             the shield belt worn by the pawn in (x,z) charged full
     //   weaponcheck=1              logs every standing colonist's held weapon as drawn (FigureWeapons.Report, by reflection:
     //                              builds without it too), its jitter and lean
+    //   cast=x,z,<AbilityDef>,tx,tz  the pawn in (x,z) given that ability (if it lacks it) and ordered to cast it at the pawn
+    //                              in (tx,tz), else at the cell (the game's casting job: run tick= or burst= after it)
+    //   beamcheck=1                logs FloorSprays' counters (sprays, beams between floors, streams, lines on one floor,
+    //                              strips drawn) and every line mote between two ends on the map
     public static partial class Probe
     {
         private static readonly AccessTools.FieldRef<Pawn_DrawTracker, JitterHandler> probeJitter =
@@ -24,6 +28,63 @@ namespace IsoRim
         {
             switch (key)
             {
+                case "cast":
+                {
+                    Pawn p = PawnAt(map, I(a[0]), I(a[1]));
+                    AbilityDef def = DefDatabase<AbilityDef>.GetNamedSilentFail(a[2]);
+                    if (p == null || def == null || p.abilities == null)
+                    {
+                        Log.Warning("[IsoRim probe] cast: no pawn or ability " + a[2]);
+                        return true;
+                    }
+                    if (p.abilities.GetAbility(def) == null)
+                    {
+                        p.abilities.GainAbility(def);
+                    }
+                    Ability ab = p.abilities.GetAbility(def);
+                    IntVec3 tc = new IntVec3(I(a[3]), 0, I(a[4]));
+                    Pawn tp = tc.GetThingList(map).OfType<Pawn>().FirstOrDefault();
+                    LocalTargetInfo target = tp != null ? new LocalTargetInfo(tp) : new LocalTargetInfo(tc);
+                    ab.QueueCastingJob(target, LocalTargetInfo.Invalid);
+                    Log.Message("[IsoRim probe] cast " + def.defName + " by " + p.LabelShort + " at " + target + ": job " + (p.CurJob != null ? p.CurJob.def.defName : "-"));
+                    return true;
+                }
+                case "clearflecks":
+                {
+                    // clearflecks=1: every fleck on the map removed (burn marks and sparks of earlier passes, which a paused
+                    // harness game never ages out)
+                    int cleared = 0;
+                    if (Traverse.Create(map.flecks).Field("systems").GetValue() is System.Collections.IDictionary systems)
+                    {
+                        foreach (object sys in systems.Values)
+                        {
+                            for (System.Type st = sys.GetType(); st != null && st != typeof(object); st = st.BaseType)
+                            {
+                                foreach (System.Reflection.FieldInfo f in AccessTools.GetDeclaredFields(st))
+                                {
+                                    if (!f.IsStatic && f.GetValue(sys) is System.Collections.IList list)
+                                    {
+                                        cleared += list.Count;
+                                        list.Clear();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Log.Message("[IsoRim probe] clearflecks: " + cleared + " removed");
+                    return true;
+                }
+                case "beamcheck":
+                {
+                    Log.Message("[IsoRim probe] beamcheck: sprays " + FloorSprays.Sprays + ", beams between floors " + FloorSprays.Duals + ", streams between floors "
+                        + FloorSprays.Streams + ", lines on one floor " + FloorSprays.Lines + ", strips drawn " + FloorSprays.Tilts);
+                    foreach (Thing t in map.listerThings.AllThings.OfType<MoteDualAttached>().ToList())
+                    {
+                        Log.Message("[IsoRim probe] beamcheck mote " + t.def.defName + " layer " + t.def.altitudeLayer + " at " + ((Mote)t).exactPosition.ToString("F2")
+                            + " rot " + ((Mote)t).exactRotation.ToString("0") + " scale " + ((Mote)t).ExactScale.ToString("F2"));
+                    }
+                    return true;
+                }
                 case "carrydowned":
                 {
                     Pawn p = PawnAt(map, I(a[0]), I(a[1]));

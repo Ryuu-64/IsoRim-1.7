@@ -18,14 +18,34 @@ namespace IsoRim
     //     and stretched along them, at their mean height;
     //   - IncineratorProjectileMotion (incinerator and burner streams): each stream piece moves from its source to its
     //     target as drawn, at the height between.
-    // The gameplay side (where it burns) is the addon's (ProjectZ AimFloor). Without floors nothing changes.
+    // The gameplay side (where it burns) is the addon's (ProjectZ AimFloor). Without floors these change nothing.
+    // In the 3D view, a line mote between two ends (MoteDualAttached) is drawn as a strip in 3D from one end to the other
+    // (Tilt): between floors any such line, on one floor (and without floors) the lines the game draws overhead (beams,
+    // incinerator streams, aim lines), which would otherwise stand up as a card whose slant on screen is not their way on
+    // the map. Lines on the ground (psychic and command links, charging cables) already lie the right way and stay flat.
     internal static class FloorSprays
     {
-        public static int Sprays, Duals, Streams, Tilts;   // probes: how often each ran between floors
-        public static Matrix4x4 LastTilt;   // probe: the last mote matrix tilted between floors (pre-squash world space)
+        public static int Sprays, Duals, Streams, Tilts, Lines;   // probes: how often each ran (Lines: one-floor lines in 3D)
+        public static Matrix4x4 LastTilt;   // probe: the last mote matrix tilted (pre-squash world space)
 
         internal static void Patch(Harmony h)
         {
+            // The strip replaces the mote's matrix where the mesh is queued (every single mesh passes one of these): after
+            // FadeFloors reads its row (Priority.First), before the floor mapping (Floors.Single_Prefix, normal priority).
+            HarmonyMethod tilt = new HarmonyMethod(typeof(FloorSprays), nameof(Tilt_Prefix)) { priority = Priority.VeryHigh };
+            int n = 0;
+            foreach (MethodInfo m in AccessTools.GetDeclaredMethods(typeof(Graphics)))
+            {
+                if (Floors.IsSingleEntry(m))
+                {
+                    h.Patch(m, prefix: tilt);
+                    n++;
+                }
+            }
+            if (n == 0)
+            {
+                Log.Warning("[IsoRim] Beams in 3D: no Graphics.DrawMesh entry point found; beams stay as the game draws them.");
+            }
             h.Patch(AccessTools.Method(typeof(SubEffecter_Sprayer), "MakeMote"),
                 prefix: new HarmonyMethod(typeof(FloorSprays), nameof(MakeMote_Prefix)),
                 transpiler: new HarmonyMethod(typeof(FloorSprays), nameof(MakeMote_Transpiler)),
@@ -159,6 +179,7 @@ namespace IsoRim
         {
             public Vector3 a, b;   // the two ends as placed (pre-squash, y = their floor's height, Floors.Placed)
             public float width;    // the mote's drawn width (cells)
+            public float stretch;  // the mote's drawn length over the flat distance between its ends (1 for a beam end to end)
             public bool flip;      // the mesh's length axis runs from b to a
         }
 
@@ -173,22 +194,39 @@ namespace IsoRim
             return p;
         }
 
+        // A line the game draws overhead between its two ends (beams, incinerator streams, aim lines): in the 3D view it
+        // would stand up as a card over its middle, so it is drawn in 3D on one floor too. Work and status icons that are
+        // attached to two things (MetaOverlays) stay icons; lines on the ground lie flat already.
+        private static bool OverheadLine(ThingDef def)
+        {
+            return def.altitudeLayer == AltitudeLayer.MoteOverhead && def.mote != null && def.mote.rotateTowardsTarget;
+        }
+
         public static void Dual_Postfix(MoteDualAttached __instance)
         {
-            if (!Floors.On)
+            if (!View3D.Ready)
             {
+                raised.Remove(__instance);
                 return;
             }
             Vector3 pa, pb;
-            if (streamEnds.TryGetValue(__instance, out Ends e))
+            bool cross;
+            if (Floors.On && streamEnds.TryGetValue(__instance, out Ends e))
             {
                 pa = e.a;
                 pb = e.b;
+                cross = true;
             }
             else
             {
                 MoteAttachLink l2 = link2(__instance);
-                if (!__instance.link1.Linked || !l2.Linked || !Floors.CrossFloor(__instance.link1.LastDrawPos, l2.LastDrawPos))
+                if (!__instance.link1.Linked || !l2.Linked)
+                {
+                    raised.Remove(__instance);
+                    return;
+                }
+                cross = Floors.CrossFloor(__instance.link1.LastDrawPos, l2.LastDrawPos);
+                if (!cross && !OverheadLine(__instance.def))
                 {
                     raised.Remove(__instance);
                     return;
@@ -196,22 +234,40 @@ namespace IsoRim
                 pa = PlacedFlat(__instance.link1.LastDrawPos);
                 pb = PlacedFlat(l2.LastDrawPos);
             }
-            Duals++;
-            __instance.exactPosition = new Vector3((pa.x + pb.x) * 0.5f, __instance.exactPosition.y, (pa.z + pb.z) * 0.5f);
-            if (__instance.def.mote.rotateTowardsTarget)
+            float flat = (pb - pa).MagnitudeHorizontal();
+            if (cross)
             {
-                __instance.exactRotation = pa.AngleToFlat(pb) + 90f;
+                // between floors the game's place, turn and length come from rows a band apart: from the ends as drawn
+                Duals++;
+                __instance.exactPosition = new Vector3((pa.x + pb.x) * 0.5f, __instance.exactPosition.y, (pa.z + pb.z) * 0.5f);
+                if (__instance.def.mote.rotateTowardsTarget)
+                {
+                    __instance.exactRotation = pa.AngleToFlat(pb) + 90f;
+                }
+                if (__instance.def.mote.scaleToConnectTargets)
+                {
+                    __instance.linearScale = new Vector3(__instance.def.graphicData.drawSize.y, 1f, Mathf.Max(flat, 0.0001f));
+                }
             }
-            if (__instance.def.mote.scaleToConnectTargets)
+            else
             {
-                __instance.linearScale = new Vector3(__instance.def.graphicData.drawSize.y, 1f, Mathf.Max((pb - pa).MagnitudeHorizontal(), 0.0001f));
+                Lines++;   // on one floor the game's own place, turn and length stand
             }
             Vector3 along = Quaternion.AngleAxis(__instance.exactRotation, Vector3.up) * Vector3.forward;
-            float width = __instance.ExactScale.x * __instance.def.graphicData.drawSize.x;
-            raised.AddOrUpdate(__instance, new Raise { a = pa, b = pb, width = width, flip = Vector3.Dot(along, pb - pa) < 0f });
+            Vector3 scale = __instance.ExactScale;
+            float width = scale.x * __instance.def.graphicData.drawSize.x;
+            float length = scale.z * __instance.def.graphicData.drawSize.y;
+            raised.AddOrUpdate(__instance, new Raise
+            {
+                a = pa,
+                b = pb,
+                width = width,
+                stretch = flat > 0.0001f ? length / flat : 1f,
+                flip = Vector3.Dot(along, pb - pa) < 0f
+            });
         }
 
-        // The mote being drawn between two floors (set in DrawMote_Prefix, used once by its mesh draw: Tilt).
+        // The mote being drawn in 3D (set in DrawMote_Prefix, used once by its mesh draw: Tilt).
         private static Raise tilting;
 
         public static void DualDraw_Finalizer()
@@ -221,9 +277,15 @@ namespace IsoRim
 
         private const float EndHeight = 0.8f;   // the line's ends over their floors (a shooter's chest, the target's)
 
-        // The game draws such a mote as a card standing over its middle (an overhead mote) or flat: between two floors it
-        // is drawn instead as a straight strip in 3D from one end to the other, each end over its own floor, turned to
-        // face the camera. Called by Floors.Single_Prefix for the mote's mesh (its matrix is replaced).
+        public static void Tilt_Prefix(ref Matrix4x4 matrix)
+        {
+            Tilt(ref matrix);
+        }
+
+        // The game draws such a mote as a card standing over its middle (an overhead mote) or flat: it is drawn instead as
+        // a straight strip in 3D along the line between its two ends, each end over its own floor, turned to face the
+        // camera, as long and wide as the game draws it (its length along the slope between floors). Called where the
+        // mote's mesh is queued (Graphics, Tilt_Prefix): its matrix is replaced.
         internal static void Tilt(ref Matrix4x4 m)
         {
             Raise r = tilting;
@@ -241,7 +303,7 @@ namespace IsoRim
                 a = b;
                 b = t;
             }
-            Vector3 seg = b - a;
+            Vector3 seg = (b - a) * r.stretch;
             if (seg.sqrMagnitude < 0.0001f)
             {
                 return;
@@ -269,7 +331,7 @@ namespace IsoRim
 
         public static void DrawMote_Prefix(Mote __instance)
         {
-            if (Floors.On && __instance is MoteDualAttached && raised.TryGetValue(__instance, out Raise r))
+            if (__instance is MoteDualAttached && View3D.Ready && raised.TryGetValue(__instance, out Raise r))
             {
                 tilting = r;
             }

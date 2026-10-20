@@ -156,14 +156,6 @@ namespace IsoRim
             {
                 Log.Error("[IsoRim] Could not hook the sounds of stacked floors: " + e);
             }
-            try
-            {
-                FloorSprays.Patch(h);
-            }
-            catch (Exception e)
-            {
-                Log.Error("[IsoRim] Could not hook sprays and beams between stacked floors: " + e);
-            }
         }
 
         // Works out this frame's floors for the current map (once a frame; cheap when the map has none).
@@ -1134,10 +1126,9 @@ namespace IsoRim
                     continue;
                 }
                 System.Reflection.ParameterInfo[] ps = m.GetParameters();
-                bool hasMatrix = false, hasArray = false, hasList = false;
+                bool hasArray = false, hasList = false;
                 foreach (System.Reflection.ParameterInfo p in ps)
                 {
-                    hasMatrix |= p.Name == "matrix" && p.ParameterType == typeof(Matrix4x4);
                     hasArray |= p.Name == "matrices" && p.ParameterType == typeof(Matrix4x4[]);
                     hasList |= p.Name == "matrices" && p.ParameterType == typeof(List<Matrix4x4>);
                 }
@@ -1147,7 +1138,7 @@ namespace IsoRim
                 {
                     hasMaterial |= p.Name == "material" && p.ParameterType == typeof(Material);
                 }
-                if ((m.Name == "DrawMesh" || m.Name == "DrawMeshCore") && hasMatrix && calls.Contains("|Enqueue|"))
+                if (IsSingleEntry(m))
                 {
                     h.Patch(m, prefix: single);
                     if (hasMaterial)
@@ -1176,6 +1167,22 @@ namespace IsoRim
             ModLog.Note("[IsoRim] Floors: " + n + " Graphics entry points mapped to the floors.");
         }
 
+        // A Graphics method that queues one mesh draw with its world matrix itself (DrawMesh, DrawMeshCore): every single
+        // mesh drawn passes exactly one of these. Also hooked for beams drawn in 3D (FloorSprays.Tilt), with or without floors.
+        internal static bool IsSingleEntry(System.Reflection.MethodInfo m)
+        {
+            if (!m.IsStatic || m.ContainsGenericParameters || (m.Name != "DrawMesh" && m.Name != "DrawMeshCore"))
+            {
+                return false;
+            }
+            bool hasMatrix = false;
+            foreach (System.Reflection.ParameterInfo p in m.GetParameters())
+            {
+                hasMatrix |= p.Name == "matrix" && p.ParameterType == typeof(Matrix4x4);
+            }
+            return hasMatrix && Calls(m).Contains("|Enqueue|");
+        }
+
         // The names of the methods a method calls, as "|a|b|".
         private static string Calls(System.Reflection.MethodInfo m)
         {
@@ -1202,7 +1209,6 @@ namespace IsoRim
 
         public static bool Single_Prefix(ref Matrix4x4 matrix)
         {
-            FloorSprays.Tilt(ref matrix);   // a beam or stream mote between two floors: its two ends at their own heights
             return !On || InDrawnSpace || Drawn(ref matrix);
         }
 
