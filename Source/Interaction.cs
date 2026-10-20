@@ -336,9 +336,9 @@ namespace IsoRim
             {
                 // a drag: the far corner on the plane of the corner it started from, so a drag straight across
                 // the screen keeps to one row or one column whatever the blocks under the pointer
-                Floors.FloorPlane(dragFloor, out float floorH, out int floorZ);
-                Vector3 p = View3D.ScreenToHeight(mouse, dragTop + floorH);
-                hit = new IntVec3(Mathf.FloorToInt(p.x), 0, Mathf.FloorToInt(p.z) + floorZ);
+                // (moved by the start's own offset: a click on a wall or rock face hits the face below the top
+                // plane, and the same screen point on that plane lies a cell away; the start cell stays the start)
+                hit = OnDragPlane(mouse) + dragOffset;
                 snapTop = dragTop;
             }
             else if (!PickBlockCell(map, mouse, out hit, out snapTop))
@@ -360,8 +360,19 @@ namespace IsoRim
                 dragLocked = true;
                 dragTop = snapTop;
                 dragFloor = Floors.On && snapCell.InBounds(map) ? Floors.FloorOfRow(snapCell.z) : 0;
+                dragOffset = snapCell - OnDragPlane(snapMouse);
             }
         }
+
+        // The cell under a screen point on the drag's plane.
+        private static IntVec3 OnDragPlane(Vector2 mouse)
+        {
+            Floors.FloorPlane(dragFloor, out float floorH, out int floorZ);
+            Vector3 p = View3D.ScreenToHeight(mouse, dragTop + floorH);
+            return new IntVec3(Mathf.FloorToInt(p.x), 0, Mathf.FloorToInt(p.z) + floorZ);
+        }
+
+        private static IntVec3 dragOffset;  // start cell minus the start point's cell on the drag's plane
 
         private static bool dragLocked;     // a block designator's drag is on, its plane kept (dragTop, dragFloor)
         private static bool snapLocked;     // snapCell was picked on the drag's plane
