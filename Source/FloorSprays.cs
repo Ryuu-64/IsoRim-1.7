@@ -1,0 +1,303 @@
+using System.Collections.Generic;
+using System.Reflection;
+using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
+using HarmonyLib;
+using RimWorld;
+using UnityEngine;
+using Verse;
+
+namespace IsoRim
+{
+    // Sprays, beams and streams between stacked floors (a flame spew from a roof at a raider on the ground): the game
+    // works out their way, place and length from map rows, where another floor is a whole band of rows away. Drawn as
+    // seen instead (Floors.Placed / FlatDelta), only when the two ends are on two different floors:
+    //   - SubEffecter_Sprayer.MakeMote (fire spew, acid/foam spray, burner flecks): the angle toward the target, the
+    //     offset toward it and the spot between the two ends (on the nearer end's floor);
+    //   - MoteDualAttached (incinerator and graser beams, interaction lines): placed between its two ends as drawn, turned
+    //     and stretched along them, at their mean height;
+    //   - IncineratorProjectileMotion (incinerator and burner streams): each stream piece moves from its source to its
+    //     target as drawn, at the height between.
+    // The gameplay side (where it burns) is the addon's (ProjectZ AimFloor). Without floors nothing changes.
+    internal static class FloorSprays
+    {
+        public static int Sprays, Duals, Streams, Tilts;   // probes: how often each ran between floors
+        public static Matrix4x4 LastTilt;   // probe: the last mote matrix tilted between floors (pre-squash world space)
+
+        internal static void Patch(Harmony h)
+        {
+            h.Patch(AccessTools.Method(typeof(SubEffecter_Sprayer), "MakeMote"),
+                prefix: new HarmonyMethod(typeof(FloorSprays), nameof(MakeMote_Prefix)),
+                transpiler: new HarmonyMethod(typeof(FloorSprays), nameof(MakeMote_Transpiler)),
+                finalizer: new HarmonyMethod(typeof(FloorSprays), nameof(MakeMote_Finalizer)));
+            h.Patch(AccessTools.Method(typeof(MoteDualAttached), "UpdatePositionAndRotation"),
+                postfix: new HarmonyMethod(typeof(FloorSprays), nameof(Dual_Postfix)));
+            h.Patch(AccessTools.Method(typeof(Mote), "DrawMote"),
+                prefix: new HarmonyMethod(typeof(FloorSprays), nameof(DrawMote_Prefix)));
+            h.Patch(AccessTools.Method(typeof(MoteDualAttached), "DrawAt"),
+                finalizer: new HarmonyMethod(typeof(FloorSprays), nameof(DualDraw_Finalizer)));
+            h.Patch(AccessTools.Method(typeof(IncineratorProjectileMotion), nameof(IncineratorProjectileMotion.Tick)),
+                prefix: new HarmonyMethod(typeof(FloorSprays), nameof(MotionTick_Prefix)));
+        }
+
+        // ---- SubEffecter_Sprayer.MakeMote
+
+        private static bool cross;
+        private static Vector3 lerpA, lerpB;
+        private static float lerpF;
+
+        private static Vector3 PosOf(TargetInfo t) => t.HasThing ? t.Thing.DrawPos : t.Cell.ToVector3Shifted();
+
+        public static void MakeMote_Prefix(TargetInfo A, TargetInfo B)
+        {
+            cross = Floors.On && A.IsValid && B.IsValid && Floors.CrossFloor(PosOf(A), PosOf(B));
+            if (cross)
+            {
+                Sprays++;
+            }
+        }
+
+        public static void MakeMote_Finalizer()
+        {
+            cross = false;
+        }
+
+        // a - b (two points of the two ends): as drawn between floors
+        public static Vector3 Sub(Vector3 a, Vector3 b) => cross ? Floors.FlatDelta(b, a) : a - b;
+
+        // (b - a).AngleFlat of two cells
+        public static float CellAngle(IntVec3 b, IntVec3 a)
+        {
+            if (cross)
+            {
+                return Floors.FlatDelta(a.ToVector3Shifted(), b.ToVector3Shifted()).AngleFlat();
+            }
+            return (b - a).AngleFlat;
+        }
+
+        // A * f + B * (1 - f), the spot between the two ends
+        public static Vector3 LerpA(Vector3 a, float f)
+        {
+            lerpA = a;
+            lerpF = f;
+            return a * f;
+        }
+
+        public static Vector3 LerpB(Vector3 b, float f)
+        {
+            lerpB = b;
+            return b * f;
+        }
+
+        public static Vector3 LerpSum(Vector3 x, Vector3 y) => cross ? Floors.FlatLerp(lerpA, lerpB, lerpF) : x + y;
+
+        public static IEnumerable<CodeInstruction> MakeMote_Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            List<CodeInstruction> code = new List<CodeInstruction>(instructions);
+            MethodInfo vSub = AccessTools.Method(typeof(Vector3), "op_Subtraction", new[] { typeof(Vector3), typeof(Vector3) });
+            MethodInfo vMul = AccessTools.Method(typeof(Vector3), "op_Multiply", new[] { typeof(Vector3), typeof(float) });
+            MethodInfo vAdd = AccessTools.Method(typeof(Vector3), "op_Addition", new[] { typeof(Vector3), typeof(Vector3) });
+            MethodInfo norm = AccessTools.PropertyGetter(typeof(Vector3), nameof(Vector3.normalized));
+            MethodInfo angleV = AccessTools.Method(typeof(Vector3Utility), nameof(Vector3Utility.AngleFlat), new[] { typeof(Vector3) });
+            MethodInfo iSub = AccessTools.Method(typeof(IntVec3), "op_Subtraction", new[] { typeof(IntVec3), typeof(IntVec3) });
+            MethodInfo angleI = AccessTools.PropertyGetter(typeof(IntVec3), nameof(IntVec3.AngleFlat));
+            FieldInfo lerp = AccessTools.Field(typeof(SubEffecterDef), nameof(SubEffecterDef.positionLerpFactor));
+            int subs = 0, angles = 0, lerps = 0;
+            bool lerpOpen = false;
+            for (int i = 0; i < code.Count; i++)
+            {
+                CodeInstruction ci = code[i];
+                if (ci.Calls(vSub) && i + 1 < code.Count && (code[i + 1].Calls(angleV)
+                    || i + 3 < code.Count && code[i + 1].IsStloc() && code[i + 2].opcode.Name.StartsWith("ldloca") && code[i + 3].Calls(norm)))
+                {
+                    ci.operand = AccessTools.Method(typeof(FloorSprays), nameof(Sub));
+                    subs++;
+                }
+                else if (ci.Calls(iSub) && i + 3 < code.Count && code[i + 1].IsStloc() && code[i + 2].opcode.Name.StartsWith("ldloca") && code[i + 3].Calls(angleI))
+                {
+                    ci.operand = AccessTools.Method(typeof(FloorSprays), nameof(CellAngle));
+                    for (int j = 1; j <= 3; j++)
+                    {
+                        code[i + j].opcode = OpCodes.Nop;
+                        code[i + j].operand = null;
+                    }
+                    angles++;
+                }
+                else if (ci.Calls(vMul) && i >= 1 && code[i - 1].LoadsField(lerp) && lerps == 0)
+                {
+                    ci.operand = AccessTools.Method(typeof(FloorSprays), nameof(LerpA));
+                    lerpOpen = true;
+                    lerps++;
+                }
+                else if (lerpOpen && ci.Calls(vMul) && i >= 2 && code[i - 1].opcode == OpCodes.Sub && code[i - 2].LoadsField(lerp))
+                {
+                    ci.operand = AccessTools.Method(typeof(FloorSprays), nameof(LerpB));
+                    lerps++;
+                }
+                else if (lerpOpen && lerps == 2 && ci.Calls(vAdd))
+                {
+                    ci.operand = AccessTools.Method(typeof(FloorSprays), nameof(LerpSum));
+                    lerpOpen = false;
+                    lerps++;
+                }
+            }
+            if (subs != 2 || angles != 1 || lerps != 3)
+            {
+                Log.Warning($"[IsoRim] Sprays between floors: SubEffecter_Sprayer.MakeMote changed (swapped {subs}/2 subtractions, {angles}/1 angles, {lerps}/3 lerp steps)");
+            }
+            return code;
+        }
+
+        // ---- MoteDualAttached: between its two ends as drawn
+
+        private sealed class Ends
+        {
+            public Vector3 a, b;   // placed (drawn) points, y = height over the ground (Floors.Placed)
+        }
+
+        private sealed class Raise
+        {
+            public Vector3 a, b;   // the two ends as placed (pre-squash, y = their floor's height, Floors.Placed)
+            public float width;    // the mote's drawn width (cells)
+            public bool flip;      // the mesh's length axis runs from b to a
+        }
+
+        private static readonly ConditionalWeakTable<MoteDualAttached, Ends> streamEnds = new ConditionalWeakTable<MoteDualAttached, Ends>();
+        private static readonly ConditionalWeakTable<Mote, Raise> raised = new ConditionalWeakTable<Mote, Raise>();
+        private static readonly AccessTools.FieldRef<MoteDualAttached, MoteAttachLink> link2 = AccessTools.FieldRefAccess<MoteDualAttached, MoteAttachLink>("link2");
+
+        private static Vector3 PlacedFlat(Vector3 p)
+        {
+            p.y = 0f;
+            Floors.Placed(ref p);
+            return p;
+        }
+
+        public static void Dual_Postfix(MoteDualAttached __instance)
+        {
+            if (!Floors.On)
+            {
+                return;
+            }
+            Vector3 pa, pb;
+            if (streamEnds.TryGetValue(__instance, out Ends e))
+            {
+                pa = e.a;
+                pb = e.b;
+            }
+            else
+            {
+                MoteAttachLink l2 = link2(__instance);
+                if (!__instance.link1.Linked || !l2.Linked || !Floors.CrossFloor(__instance.link1.LastDrawPos, l2.LastDrawPos))
+                {
+                    raised.Remove(__instance);
+                    return;
+                }
+                pa = PlacedFlat(__instance.link1.LastDrawPos);
+                pb = PlacedFlat(l2.LastDrawPos);
+            }
+            Duals++;
+            __instance.exactPosition = new Vector3((pa.x + pb.x) * 0.5f, __instance.exactPosition.y, (pa.z + pb.z) * 0.5f);
+            if (__instance.def.mote.rotateTowardsTarget)
+            {
+                __instance.exactRotation = pa.AngleToFlat(pb) + 90f;
+            }
+            if (__instance.def.mote.scaleToConnectTargets)
+            {
+                __instance.linearScale = new Vector3(__instance.def.graphicData.drawSize.y, 1f, Mathf.Max((pb - pa).MagnitudeHorizontal(), 0.0001f));
+            }
+            Vector3 along = Quaternion.AngleAxis(__instance.exactRotation, Vector3.up) * Vector3.forward;
+            float width = __instance.ExactScale.x * __instance.def.graphicData.drawSize.x;
+            raised.AddOrUpdate(__instance, new Raise { a = pa, b = pb, width = width, flip = Vector3.Dot(along, pb - pa) < 0f });
+        }
+
+        // The mote being drawn between two floors (set in DrawMote_Prefix, used once by its mesh draw: Tilt).
+        private static Raise tilting;
+
+        public static void DualDraw_Finalizer()
+        {
+            tilting = null;
+        }
+
+        private const float EndHeight = 0.8f;   // the line's ends over their floors (a shooter's chest, the target's)
+
+        // The game draws such a mote as a card standing over its middle (an overhead mote) or flat: between two floors it
+        // is drawn instead as a straight strip in 3D from one end to the other, each end over its own floor, turned to
+        // face the camera. Called by Floors.Single_Prefix for the mote's mesh (its matrix is replaced).
+        internal static void Tilt(ref Matrix4x4 m)
+        {
+            Raise r = tilting;
+            if (r == null)
+            {
+                return;
+            }
+            tilting = null;
+            float s = View3D.Squash;
+            Vector3 a = new Vector3(r.a.x, r.a.y * s + EndHeight, r.a.z);   // true space (y = height in cells)
+            Vector3 b = new Vector3(r.b.x, r.b.y * s + EndHeight, r.b.z);
+            if (r.flip)
+            {
+                Vector3 t = a;
+                a = b;
+                b = t;
+            }
+            Vector3 seg = b - a;
+            if (seg.sqrMagnitude < 0.0001f)
+            {
+                return;
+            }
+            Vector3 view = Quaternion.Euler(View3D.Pitch, View3D.Yaw, 0f) * Vector3.forward;
+            Vector3 w = Vector3.Cross(seg, view);
+            if (w.sqrMagnitude < 0.000001f)
+            {
+                w = Vector3.Cross(seg, Vector3.up);
+            }
+            w = w.normalized * r.width;
+            if (Vector3.Dot(Vector3.Cross(seg, w), view) > 0f)
+            {
+                w = -w;   // the strip's face toward the camera
+            }
+            Vector3 mid = (a + b) * 0.5f;
+            m = Matrix4x4.identity;
+            m.SetColumn(0, new Vector4(w.x, w.y / s, w.z, 0f));
+            m.SetColumn(1, new Vector4(0f, 1f, 0f, 0f));
+            m.SetColumn(2, new Vector4(seg.x, seg.y / s, seg.z, 0f));
+            m.SetColumn(3, new Vector4(mid.x, mid.y / s, mid.z, 1f));
+            Tilts++;
+            LastTilt = m;
+        }
+
+        public static void DrawMote_Prefix(Mote __instance)
+        {
+            if (Floors.On && __instance is MoteDualAttached && raised.TryGetValue(__instance, out Raise r))
+            {
+                tilting = r;
+            }
+        }
+
+        // ---- IncineratorProjectileMotion: a stream piece from its source to its target as drawn
+
+        public static bool MotionTick_Prefix(ref IncineratorProjectileMotion __instance)
+        {
+            if (__instance.mote == null || !Floors.CrossFloor(__instance.worldSource, __instance.worldTarget))
+            {
+                return true;
+            }
+            Streams++;
+            __instance.ticks++;
+            Vector3 s = PlacedFlat(__instance.worldSource);
+            Vector3 t = PlacedFlat(__instance.worldTarget);
+            float alpha = __instance.Alpha;
+            Vector3 head = Vector3.Lerp(s, t, alpha);
+            float len = Mathf.Max((t - s).MagnitudeHorizontal(), 0.01f);
+            Vector3 tail = Vector3.Lerp(s, t, alpha - 2f / len);
+            __instance.mote.Scale = Mathf.Lerp(__instance.startScale, __instance.endScale, alpha);
+            streamEnds.AddOrUpdate(__instance.mote, new Ends { a = head, b = tail });
+            if (alpha < 1f)
+            {
+                __instance.mote.Maintain();
+            }
+            return false;
+        }
+    }
+}

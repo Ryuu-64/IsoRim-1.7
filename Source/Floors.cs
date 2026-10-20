@@ -156,6 +156,14 @@ namespace IsoRim
             {
                 Log.Error("[IsoRim] Could not hook the sounds of stacked floors: " + e);
             }
+            try
+            {
+                FloorSprays.Patch(h);
+            }
+            catch (Exception e)
+            {
+                Log.Error("[IsoRim] Could not hook sprays and beams between stacked floors: " + e);
+            }
         }
 
         // Works out this frame's floors for the current map (once a frame; cheap when the map has none).
@@ -386,6 +394,30 @@ namespace IsoRim
             Vector3 d = to - from;
             d.y = 0f;
             return d;
+        }
+
+        // Two world points on two different floors (neither between floors): a spray, beam or stream from one to the other.
+        public static bool CrossFloor(Vector3 a, Vector3 b)
+        {
+            if (!On)
+            {
+                return false;
+            }
+            int ka = FloorOfRow(Mathf.FloorToInt(a.z));
+            int kb = FloorOfRow(Mathf.FloorToInt(b.z));
+            return ka != kb && ka >= 0 && kb >= 0;
+        }
+
+        // A point between two floors' points as drawn (Placed, weight f on a), put back in the rows of the floor of the
+        // nearer end (things such as flecks are drawn by their row: they stand on that floor).
+        public static Vector3 FlatLerp(Vector3 a, Vector3 b, float f)
+        {
+            Vector3 like = f >= 0.5f ? a : b;
+            Placed(ref a);
+            Placed(ref b);
+            Vector3 p = a * f + b * (1f - f);
+            int k = FloorOfRow(Mathf.FloorToInt(like.z));
+            return new Vector3(p.x, like.y, p.z + (k > 0 ? shifts[k] : 0));
         }
 
         // The layout's extra offset of one thing (a pawn on a stair step) and its lift onto a bridge deck (Bridges), as a
@@ -1170,6 +1202,7 @@ namespace IsoRim
 
         public static bool Single_Prefix(ref Matrix4x4 matrix)
         {
+            FloorSprays.Tilt(ref matrix);   // a beam or stream mote between two floors: its two ends at their own heights
             return !On || InDrawnSpace || Drawn(ref matrix);
         }
 
