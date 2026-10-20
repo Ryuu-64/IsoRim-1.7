@@ -20,8 +20,8 @@ namespace IsoRim
     public static partial class Api
     {
         // Raised when members are added (2: view, projectile, skyfaller, drawing and option members of this file; 3: the
-        // fog lid lock; 4: collapse debris, Debris.cs; 5: XrayDesignator; 6: model states and ModelStandsIn).
-        public static int Version => 6;
+        // fog lid lock; 4: collapse debris, Debris.cs; 5: XrayDesignator; 6: model states and ModelStandsIn; 7: PeekUpperFloors).
+        public static int Version => 7;
 
         // ---- the view
 
@@ -113,6 +113,15 @@ namespace IsoRim
         // (the Mine tool's faint view of the floors next to the viewed one; IsoRim's mineXray option) shows the floor
         // below and/or the floor above, without the crosshair. Both false removes it.
         public static void XrayDesignator(System.Type designator, bool below, bool above) => MineXray.Register(designator, below, above);
+
+        // For an addon's "peek" control (Version 7): while true, the floors above the viewed one are drawn faded instead of
+        // hidden (FadeFloors); the pointer still works only on the viewed floor. Set it each frame from the addon's own key
+        // (IsoRim has no key for it); false (the default) hides them as usual. Not saved.
+        public static bool PeekUpperFloors
+        {
+            get => FadeFloors.Peek;
+            set => FadeFloors.Peek = value;
+        }
 
         // ---- projectiles (all only change how they are drawn)
 

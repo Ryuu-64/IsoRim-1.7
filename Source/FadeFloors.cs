@@ -5,7 +5,7 @@ using Verse;
 
 namespace IsoRim
 {
-    // While the peek key (R3D_PeekUpper, no default key) is held, the floors above the viewed one are drawn faded instead
+    // While an addon asks for it (Api.PeekUpperFloors, Peek), the floors above the viewed one are drawn faded instead
     // of hidden, by screen-door transparency. They stay opaque, depth-written geometry; each of their fragments is dropped
     // where a 4 x 4 ordered dither pattern fixed on the screen is at or above the floor's kept share (Keep), so the viewed
     // floor shows through the gaps. No sorting, no blending.
@@ -30,18 +30,21 @@ namespace IsoRim
         // from k + 1); 0 and 0.5 keep them apart (the viewed floor gets only what both leave).
         public static float[] From = { 0f, 0.375f };
 
-        // Held by the probe (peek=1), as if the key were held.
+        // Set by an addon (Api.PeekUpperFloors, e.g. from its own hold key); IsoRim itself never sets it.
+        public static bool Peek;
+
+        // Held by the probe (peek=1), as if Peek were set.
         public static bool ProbeHeld;
 
         // Probe peeklog=1: the frame times around each press and release are logged.
         public static bool LogFlips;
 
-        // Whether the peek key (R3D_PeekUpper, unbound by default) is held this frame. Read once a frame (Floors.Refresh).
+        // Whether the upper floors are drawn faded this frame. Read once a frame (Floors.Refresh).
         public static bool Enabled
         {
             get
             {
-                bool held = ProbeHeld || View3D.BindingHeld(R3DKeyDefOf.R3D_PeekUpper, false);
+                bool held = ProbeHeld || Peek;
                 if (LogFlips)
                 {
                     NoteFrame(held);

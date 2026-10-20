@@ -91,7 +91,6 @@
   <R3D_Settings_KeyTiltDown>放低镜头</R3D_Settings_KeyTiltDown>
   <R3D_Settings_KeyTiltUp>抬高镜头</R3D_Settings_KeyTiltUp>
   <R3D_Settings_KeyToggleRoofs>开关屋顶</R3D_Settings_KeyToggleRoofs>
-  <R3D_Settings_KeyPeekUpper>按住显示上层</R3D_Settings_KeyPeekUpper>
   <R3D_Settings_FreeLookKeys>自由视角：{0}。</R3D_Settings_FreeLookKeys>
   <R3D_Settings_LookKeysRight>未选中任何东西时用鼠标右键拖动</R3D_Settings_LookKeysRight>
   <R3D_Settings_LookKeysDrag>用{0}拖动</R3D_Settings_LookKeysDrag>

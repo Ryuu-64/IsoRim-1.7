@@ -212,7 +212,7 @@ namespace IsoRim
                     matrices[k] = Matrix4x4.Translate(new Vector3(0f, h / s, -z));
                 }
                 pointer = Mathf.Clamp(layout.PointerFloor(map), 0, n);
-                // Faded floors (FadeFloors): while the peek key is held, the hidden floors right above the viewed one are drawn, faded.
+                // Faded floors (FadeFloors): while an addon peeks (Api.PeekUpperFloors), the hidden floors right above the viewed one are drawn, faded.
                 bool fadeOn = FadeFloors.Enabled;
                 for (int k = 0; k <= n; k++)
                 {

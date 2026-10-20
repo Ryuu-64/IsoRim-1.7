@@ -15,8 +15,8 @@ namespace IsoRim
     //   pzslab=x0,z0,x1,z1[,k]       (with ProjectZ) floor 2 (k = 1, or floor k + 1) laid over that ground block, as
     //                                ProjectZ's own tests set it up: its slab terrain up there, the floor's roof under it
     //   pzview=k                     the floor the player views (ProjectZ's FloorView: 0 the ground, 1 floor 2)
-    //   fadekeep=a,b,...  fadefrom=a,b,...  FadeFloors.Keep / From (peek key): kept share and dither start per floor above
-    //   peek=1|0  peeklog=1         the peek key held (FadeFloors.ProbeHeld); frame times of each press and release logged
+    //   fadekeep=a,b,...  fadefrom=a,b,...  FadeFloors.Keep / From (peek): kept share and dither start per floor above
+    //   peek=1|0  peeklog=1         upper floors faded as if peeking (FadeFloors.ProbeHeld); frame times of each press and release logged
     //   unfogall=1                   every cell of the map revealed (map.fogGrid.ClearAllFog)
     //   U<z> in any coordinate       that ground row's cell on floor 2 (e.g. dressed=40,U30,...); V<z>: on floor 3
     //   want=tag,x:z;x:z|-           what the drag or click with that tag must select, by cell (- nothing): CHECK PASS/FAIL

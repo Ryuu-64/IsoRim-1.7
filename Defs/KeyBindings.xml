@@ -76,10 +76,4 @@
     <defaultKeyCodeA>F5</defaultKeyCodeA>
   </KeyBindingDef>
 
-  <KeyBindingDef>
-    <defName>R3D_PeekUpper</defName>
-    <label>peek upper floors (hold)</label>
-    <category>IsoRim</category>
-  </KeyBindingDef>
-
 </Defs>
