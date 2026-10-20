@@ -46,6 +46,8 @@ namespace IsoRim
                                             // (setting "3D raw materials")
         public List<AppearanceModel> byAppearance;  // a different model for things made of stuff of this look (the
                                             // game's Graphic_Appearances: Planks, Bricks, Smooth ...); others use model
+        public List<StateModel> byState;    // a different model for things in a state an addon names (Api.AddModelState):
+                                            // <li><state>full</state><model>Models/x.obj</model></li>; others use model
         public List<StyleModel> byStyle;    // a different model for things of this style (Ideology's ThingStyleDef):
                                             // <li><style>Morbid_AltarSmall</style><model>Models/x.obj</model></li>;
                                             // wins over byAppearance; things of no listed style use model
@@ -103,6 +105,10 @@ namespace IsoRim
         // upperMoverGraphic does, 0.35 * clamp01(OpenPct * 2.5) door widths, so it is fully back at 40 % open (security
         // door: the armour plates retract first, then the slabs part).
         public string doorUpperLeafModel;
+        // doorLeafRise (wide doors, optional): > 0 makes doorLeafModel one piece across the whole doorway (a portcullis,
+        // built centred and shut) that rises this far (cells, at the walls the models are built for) as the door opens,
+        // OpenPct of the way, instead of two leaves sliding apart.
+        public float doorLeafRise = 0f;
         // One-cell supported doors (vac barrier, ancient blast door; Doors.DrawSupported) use model (frame),
         // doorTopModel (lintel) and doorLeafModel (optional, two sliding leaves) the same way, plus
         // hackTerminalModel: drawn while the door's CompHackable is not hacked (the blast door's terminal).
@@ -502,6 +508,13 @@ namespace IsoRim
         public string model;
     }
 
+    // One entry of ModelDef.byState.
+    public class StateModel
+    {
+        public string state;    // a state name an addon gives things (Api.AddModelState)
+        public string model;
+    }
+
     // One entry of ModelDef.byStyle.
     public class StyleModel
     {
@@ -516,6 +529,7 @@ namespace IsoRim
         public Model[] stack;     // stackModels (a, b, c), or null
         public Dictionary<string, Model> byAppearance;   // StuffAppearanceDef defName -> model; null if none
         public Dictionary<string, Model> byStyle;        // ThingStyleDef defName -> model; null if none
+        public Dictionary<string, Model> byState;        // addon state name -> model (byState); null if none
         public Model leg;   // animals only
         public Model top;   // turrets only
         public Model empty;       // emptyModel, or null
@@ -756,6 +770,13 @@ namespace IsoRim
                     tallest = Mathf.Max(tallest, m != null ? m.maxY : 0f);
                 }
             }
+            if (byState != null)
+            {
+                foreach (Model m in byState.Values)
+                {
+                    tallest = Mathf.Max(tallest, m != null ? m.maxY : 0f);
+                }
+            }
             return tallest;
         }
     }
@@ -938,6 +959,23 @@ namespace IsoRim
                             entry.byStyle = new Dictionary<string, Model>();
                         }
                         entry.byStyle[sm.style] = m;
+                    }
+                }
+            }
+            if (md.byState != null && md.modContentPack != null)
+            {
+                for (int i = 0; i < md.byState.Count; i++)
+                {
+                    StateModel st = md.byState[i];
+                    Model m = st != null && !st.state.NullOrEmpty() && !st.model.NullOrEmpty()
+                        ? LoadFile(Path.Combine(md.modContentPack.RootDir, st.model)) : null;
+                    if (m != null)
+                    {
+                        if (entry.byState == null)
+                        {
+                            entry.byState = new Dictionary<string, Model>();
+                        }
+                        entry.byState[st.state] = m;
                     }
                 }
             }

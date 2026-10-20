@@ -1626,7 +1626,13 @@ namespace IsoRim
             {
                 DynamicModels.DrawLocal(entry.doorTop, centre, yaw, sized, tint, swatch);
             }
-            if (!stuckOpen)
+            if (!stuckOpen && def.doorLeafRise > 0f)
+            {
+                // A portcullis: one leaf across the doorway, raised as the door opens (doorLeafRise).
+                float rise = def.doorLeafRise * Mathf.Clamp01(openPct) * s * height / BuiltForWallHeight;
+                DynamicModels.DrawLocal(entry.doorLeaf, centre + Vector3.up * rise, yaw, sized, tint, swatch);
+            }
+            else if (!stuckOpen)
             {
                 // The game: each leaf's middle sits 0.25 + 0.35 * OpenPct door widths from the centre.
                 float slide = 0.35f * Mathf.Clamp01(openPct) * door.def.size.x * s;
@@ -2084,7 +2090,9 @@ namespace IsoRim
             float sy = b.height * fit.y / FlameHeight;
             float sxz = b.width * Mathf.Max(fit.x, fit.z) / FlameWidth;
             foot.y -= FlameBase * sy;
-            Flame(foot, sy, sxz, b.dark, t.thingIDNumber * 0.37f, time);
+            // Blue as the game's darklight overlay, also for a model that only gives the flame's place (flameAt).
+            bool dark = b.dark || t.TryGetComp<CompDarklightOverlay>() != null;
+            Flame(foot, sy, sxz, dark, t.thingIDNumber * 0.37f, time);
         }
 
         // Three tongues of flame round a brighter heart, each flickering to its own beat; the campfire's at sizes 1, 1.
