@@ -71,7 +71,7 @@ namespace IsoRim
         public float seeStrength = 0.85f;   // BuildSee: share of pixels dropped at the pointer (before: fixed 0.55)
         public float seeRadius = 7f;        // BuildSee: cells to where it ends, full strength to 3 cells less (before: fixed 4.5)
         public bool mineXray = true;        // MineXray: with the Mine tool on an upper floor, the floor below outlined
-        public bool mineCrosshair = true;   // MineXray: a crosshair along x and z from the pointer's cell
+        public bool mineCrosshair = false;   // MineXray: a crosshair along x and z from the pointer's cell
         public int turn = 0;             // eighth turns of the camera, clockwise
         public bool snap45 = true;       // Q and E turn an eighth (45 degrees) at a time; otherwise a quarter
         public bool instantTurn = false; // Q and E (and the free-look snap) jump straight to the new angle, with no swing
@@ -186,7 +186,7 @@ namespace IsoRim
             Scribe_Values.Look(ref seeStrength, "seeStrength", 0.85f);
             Scribe_Values.Look(ref seeRadius, "seeRadius", 7f);
             Scribe_Values.Look(ref mineXray, "mineXray", true);
-            Scribe_Values.Look(ref mineCrosshair, "mineCrosshair", true);
+            Scribe_Values.Look(ref mineCrosshair, "mineCrosshair", false);
             Scribe_Values.Look(ref turn, "turnSteps", 0);
             Scribe_Values.Look(ref snap45, "snap45", true);
             Scribe_Values.Look(ref instantTurn, "instantTurn", false);
