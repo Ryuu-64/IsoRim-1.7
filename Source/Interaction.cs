@@ -281,6 +281,16 @@ namespace IsoRim
         private static IntVec3 snapCell;
         private static float snapTop;
 
+        // The height of the block DesignatorMouseCell picked under the pointer (0: the floor).
+        internal static float MouseTop
+        {
+            get
+            {
+                DesignatorMouseCell();
+                return snapTop;
+            }
+        }
+
         // Stands in for UI.MouseCell() in the designator code (DesignatorManager, DesignationDragger).
         public static IntVec3 DesignatorMouseCell()
         {
