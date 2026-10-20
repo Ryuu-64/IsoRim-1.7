@@ -27,6 +27,10 @@ namespace IsoRim
         public float scale = 1f;
         public Vector3 offset = Vector3.zero;
         public float rotation = 0f;         // extra turn around the vertical axis, degrees
+        public List<float> rotationByFacing; // optional: one more turn (degrees) for each facing of the thing, north, east,
+                                            // south, west, added to rotation (ModelEntry.Yaw): (0, 180, 0, 0) draws a thing
+                                            // facing east as it looks facing west, where the game's east sprite is its west
+                                            // one (VFEM2 forge bellows). Not used by style defs (ModelDef.style)
         public float surfaceHeight = -1f;   // where a pawn lying on it rests; -1 uses the top of the model
                                             // (also the height the game's per-frame drawing of it is raised to:
                                             // contents such as a reliquary's relic, a gibbet's corpse, a cocoon's dryad)
@@ -58,6 +62,7 @@ namespace IsoRim
                                             // entry as its byStyle (ModelLibrary.AddStyles), so everything draws it as
                                             // the thing's model; a one-cell door draws its model as the frame and its
                                             // doorLeafModel as the two leaves (Doors.DrawOne). Never an entry by itself.
+                                            // Its surfaceHeight, if set, is where things rest on it (Forms.SurfaceOf: a shelf's items)
         public string thingCategory;       // apply to every thing in this category instead of one thingDef
         public bool randomRotation = false; // give each thing its own turn
         public float scaleJitter = 0f;      // vary each thing's size by up to this fraction
@@ -634,10 +639,15 @@ namespace IsoRim
         }
 
         // The turn (degrees) a thing's model is drawn at for the thing's rotation: the rotation (none with
-        // ignoreRotation) plus the def's extra rotation. Every drawer of a building's model uses this.
+        // ignoreRotation) plus the def's extra rotation and its rotationByFacing for that facing. Every drawer of a building's model uses this.
         public float Yaw(Rot4 rot)
         {
-            return (def.ignoreRotation ? 0f : rot.AsAngle) + def.rotation;
+            float yaw = (def.ignoreRotation ? 0f : rot.AsAngle) + def.rotation;
+            if (def.rotationByFacing != null && rot.AsInt < def.rotationByFacing.Count)
+            {
+                yaw += def.rotationByFacing[rot.AsInt];
+            }
+            return yaw;
         }
 
         // The same thing always gets the same variant.
@@ -1527,27 +1537,35 @@ namespace IsoRim
         // shade of their own colour (a powered-down panel). The source itself if it has none.
         public static Model GlowOff(Model src)
         {
-            if (src == null || src.materials == null || src.material == null || !Array.Exists(src.materials, mm => mm.glow))
+            return GlowOff(src, GlowOffShade, false);
+        }
+
+        // The same, the switched-off faces in shade times their own colour; keepFire leaves flames and embers
+        // (ModelMaterial.fire) glowing, for the fuel to rule (ModelBaker.NoFire). An unlit lamp: shade 1, keepFire.
+        public static Model GlowOff(Model src, float shade, bool keepFire)
+        {
+            if (src == null || src.materials == null || src.material == null || !Array.Exists(src.materials, mm => mm.glow && !(keepFire && mm.fire)))
             {
                 return src;
             }
             Model m = Merge(new List<Model> { src });   // an own copy with its own id (meshes are cached by id)
             for (int i = 0; i < m.colors.Length; i++)
             {
-                if (m.materials[m.material[i]].glow)
+                ModelMaterial mm = m.materials[m.material[i]];
+                if (mm.glow && !(keepFire && mm.fire))
                 {
                     Color c = m.colors[i];
-                    m.colors[i] = new Color(c.r * GlowOffShade, c.g * GlowOffShade, c.b * GlowOffShade, c.a);
+                    m.colors[i] = new Color(c.r * shade, c.g * shade, c.b * shade, c.a);
                 }
             }
             ModelMaterial[] mats = new ModelMaterial[m.materials.Length];
             for (int i = 0; i < mats.Length; i++)
             {
                 ModelMaterial o = m.materials[i];
-                mats[i] = !o.glow ? o : new ModelMaterial
+                mats[i] = !o.glow || (keepFire && o.fire) ? o : new ModelMaterial
                 {
                     name = o.name, texture = o.texture, tinted = o.tinted, leaf = o.leaf, twig = o.twig, glow = false, fire = o.fire,
-                    color = o.color * GlowOffShade
+                    color = o.color * shade
                 };
             }
             m.materials = mats;

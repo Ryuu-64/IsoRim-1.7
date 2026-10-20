@@ -119,6 +119,54 @@ namespace IsoRim
             return empty && entry.empty != null ? entry.empty : normal;
         }
 
+        // Unlit copies (glow faces in their own colour, shaded), by the id of the model they were made from.
+        private static readonly Dictionary<int, Model> unlit = new Dictionary<int, Model>();
+
+        // Called by ModelBaker.Bake after Choose for the real thing: a lamp whose light is out draws its glow* faces unlit,
+        // in their own colour, as the rest of the model. Out is the game's own state: a spawned thing with a CompGlower
+        // none of whose glowers is lit (CompGlower.Glows: power, fuel, a flick switch, a sun lamp's schedule ...).
+        // Flames and embers are left to the fuel (ModelBaker.NoFire). The game redraws the map mesh at the thing when its
+        // light goes on or off (CompGlower.UpdateLit: MapMeshDirty Things), so the block is rebuilt.
+        public static Model ForLight(Thing t, Model m)
+        {
+            if (m == null || !LightOut(t))
+            {
+                return m;
+            }
+            Model off;
+            if (!unlit.TryGetValue(m.id, out off))
+            {
+                off = ObjLoader.GlowOff(m, 1f, true);
+                unlit[m.id] = off;
+            }
+            return off;
+        }
+
+        // True for a spawned thing with a CompGlower that is not lit now.
+        public static bool LightOut(Thing t)
+        {
+            ThingWithComps twc = t as ThingWithComps;
+            if (twc == null || !twc.Spawned)
+            {
+                return false;
+            }
+            bool any = false;
+            List<ThingComp> comps = twc.AllComps;
+            for (int i = 0; i < comps.Count; i++)
+            {
+                CompGlower g = comps[i] as CompGlower;
+                if (g != null)
+                {
+                    if (g.Glows)
+                    {
+                        return false;
+                    }
+                    any = true;
+                }
+            }
+            return any;
+        }
+
         // True while a model stands in for this thing's body (and so for its empty-state sprite).
         public static bool StandsIn(Thing t)
         {

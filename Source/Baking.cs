@@ -205,7 +205,7 @@ namespace IsoRim
                 return 0f;
             }
             ThingForm f = For(t.def);
-            float h = f.form == Form3D.Flat ? 0f : f.height;
+            float h = f.form == Form3D.Flat ? 0f : f.form == Form3D.Model ? SurfaceOf(t, f) : f.height;
             if (f.form == Form3D.Block)
             {
                 h = WallBoxes.HeightFor(t, f.height);
@@ -232,7 +232,16 @@ namespace IsoRim
                 return 0f;
             }
             ThingForm f = For(b.def);
-            return (f.form == Form3D.Flat || f.form == Form3D.Block) ? 0f : f.height;
+            return (f.form == Form3D.Flat || f.form == Form3D.Block) ? 0f : f.form == Form3D.Model ? SurfaceOf(b, f) : f.height;
+        }
+
+        // The surface of a thing drawn as a model, in cells over the ground: its kind's (form.height), or, for a thing in a
+        // style whose own def (ModelDef.style) sets surfaceHeight, that one fitted to the thing (a Viking shelf's top, where
+        // the items stored on it rest).
+        public static float SurfaceOf(Thing t, ThingForm f)
+        {
+            ModelEntry own = f.form == Form3D.Model ? ModelLibrary.StyledEntry(t) : null;
+            return own != null && own.def.surfaceHeight >= 0f ? own.def.surfaceHeight * own.Fit(t.def).y : f.height;
         }
     }
 
@@ -2171,6 +2180,7 @@ namespace IsoRim
             if (Ghost.a <= 0f)
             {
                 m = StateModels.Choose(thing, entry, m);   // an opened mech capsule: its open model
+                m = StateModels.ForLight(thing, m);        // a lamp whose light is out: its glow faces unlit
             }
             if (R3DMaterials.Solid == null || m == null)
             {

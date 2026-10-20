@@ -720,6 +720,54 @@ namespace IsoRim
                     }
                     break;
                 }
+                case "unpower":
+                {
+                    // unpower=x,z: cuts the building's power for real (CompPowerTrader.PowerOn = false: PowerTurnedOff, as a
+                    // broken grid), after taking it out of the harnesses' forced-power lists (this probe's, Capture17's).
+                    Building up = new IntVec3(I(a[0]), 0, I(a[1])).GetFirstBuilding(map);
+                    CompPowerTrader upc = up != null ? up.TryGetComp<CompPowerTrader>() : null;
+                    if (upc == null)
+                    {
+                        Log.Warning("[IsoRim probe] no powered building at " + a[0] + "," + a[1]);
+                        return;
+                    }
+                    powered.Remove(up);
+                    HashSet<Thing> capLights = AccessTools.StaticFieldRefAccess<HashSet<Thing>>(AccessTools.TypeByName("Capture17.Main"), "PoweredLights");
+                    capLights?.Remove(up);
+                    upc.PowerOn = false;
+                    Log.Message("[IsoRim probe] unpower " + up.def.defName + " at " + up.Position + ": power " + upc.PowerOn + ", lit " + (up.TryGetComp<CompGlower>()?.Glows));
+                    break;
+                }
+                case "flickoff":
+                {
+                    // flickoff=x,z: switches the building off with its own switch (CompFlickable: FlickedOff)
+                    Building fb = new IntVec3(I(a[0]), 0, I(a[1])).GetFirstBuilding(map);
+                    CompFlickable fl = fb != null ? fb.TryGetComp<CompFlickable>() : null;
+                    if (fl == null)
+                    {
+                        Log.Warning("[IsoRim probe] no switch at " + a[0] + "," + a[1]);
+                        return;
+                    }
+                    fl.SwitchIsOn = false;
+                    Log.Message("[IsoRim probe] flickoff " + fb.def.defName + " at " + fb.Position + ": lit " + (fb.TryGetComp<CompGlower>()?.Glows));
+                    break;
+                }
+                case "litcheck":
+                {
+                    // litcheck=x0,z0,x1,z1: each thing with a light in the rect, whether it is lit and its glow faces drawn lit
+                    CellRect lr = CellRect.FromLimits(I(a[0]), I(a[1]), I(a[2]), I(a[3]));
+                    foreach (IntVec3 lc in lr)
+                    {
+                        Building lb = lc.InBounds(map) ? lc.GetFirstBuilding(map) : null;
+                        CompGlower lg = lb != null && lb.Position == lc ? lb.TryGetComp<CompGlower>() : null;
+                        if (lg != null)
+                        {
+                            Log.Message("[IsoRim probe] litcheck " + lb.def.defName + " at " + lc + " style " + (lb.StyleDef?.defName ?? "-") + ": Glows " + lg.Glows
+                                + ", glow faces " + (StateModels.LightOut(lb) ? "unlit" : "lit"));
+                        }
+                    }
+                    break;
+                }
                 case "bookcheck":
                     bookCheckAt = Time.frameCount + 30;   // once the queued rebuilds are done
                     break;
