@@ -22,13 +22,13 @@ namespace IsoRim
     public static class FadeFloors
     {
         // Kept share of pixels for the floors 1, 2, ... above the viewed one (more entries: more floors drawn faded).
-        public static float[] Keep = { 0.5f, 0.25f };
+        public static float[] Keep = { 0.25f, 0.125f };
 
         // Where in the dither pattern (0-1, wrapping) each of those kept ranges starts. Where two faded floors overlap on the
-        // screen, the upper covers the lower only in the pixels their ranges share: 0 and 0.375 overlap by 2 of 4 (as alpha
-        // blending: k + 1 shows 37.5%, k + 2 25%, the viewed floor 37.5%); 0 and 0 nest them (k + 2 steals all its pixels
+        // screen, the upper covers the lower only in the pixels their ranges share: 0 and 0.1875 overlap by 1 of 16 (near alpha
+        // blending: k + 1 shows 18.75%, k + 2 12.5%, the viewed floor 68.75%); 0 and 0 nest them (k + 2 steals all its pixels
         // from k + 1); 0 and 0.5 keep them apart (the viewed floor gets only what both leave).
-        public static float[] From = { 0f, 0.375f };
+        public static float[] From = { 0f, 0.1875f };
 
         // Set by an addon (Api.PeekUpperFloors, e.g. from its own hold key); IsoRim itself never sets it.
         public static bool Peek;
