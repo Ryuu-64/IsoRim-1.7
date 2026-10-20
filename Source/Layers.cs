@@ -184,25 +184,36 @@ namespace IsoRim
             return m;
         }
 
-        // Open water the mod draws.
+        // Open water the mod draws: also under a raised bridge deck (Bridges), seen past its edge.
         public static bool IsWater(Map map, IntVec3 c)
         {
             if (!c.InBounds(map))
             {
                 return true;   // the sea runs on past the edge of the map
             }
-            return Ground.IsWater(map.terrainGrid.TerrainAt(c));
+            return WaterAt(map, c) != null;
+        }
+
+        // The water of a cell (the water under a raised bridge deck), or null.
+        private static TerrainDef WaterAt(Map map, IntVec3 c)
+        {
+            TerrainDef t = map.terrainGrid.TerrainAt(c);
+            if (Ground.IsWater(t))
+            {
+                return t;
+            }
+            if (Bridges.Active && Bridges.DeckAt(map, c) != null)
+            {
+                TerrainDef under = Bridges.UnderAt(map, c);
+                return Ground.IsWater(under) ? under : null;
+            }
+            return null;
         }
 
         // Land for the purpose of a shore: not water, and not a bridge over water either.
         private static bool IsShore(Map map, IntVec3 c)
         {
-            if (!c.InBounds(map))
-            {
-                return false;
-            }
-            TerrainDef top = map.terrainGrid.TerrainAt(c);
-            if (Ground.IsWater(top))
+            if (!c.InBounds(map) || IsWater(map, c))
             {
                 return false;
             }
@@ -262,7 +273,7 @@ namespace IsoRim
                                 }
                             }
                         }
-                        dp = c.InBounds(map) ? DepthOf(map.terrainGrid.TerrainAt(c)) : 2;
+                        dp = c.InBounds(map) ? DepthOf(WaterAt(map, c)) : 2;
                     }
                     dist[z * distW + x] = d;
                     deep[z * distW + x] = dp;
@@ -330,7 +341,7 @@ namespace IsoRim
                     Opaque(sw), Opaque(nw), Opaque(ne), Opaque(se));
 
                 // the moving layer over it
-                TerrainDef t = map.terrainGrid.TerrainAt(c);
+                TerrainDef t = WaterAt(map, c);
                 if (IsMoving(t))
                 {
                     Vector3 dir = Flow(map, c);
@@ -804,6 +815,7 @@ namespace IsoRim
                         bool lit = Lit(t);
                         ModelBaker.NoFire = !lit;
                         ModelBaker.NoFlame = Effects.Animates(t.def);   // a live flame burns there instead (Effects)
+                        bool onDeck = Bridges.BeginPrint(this, t);   // on a bridge deck: lifted onto it
                         try
                         {
                             if (ModelBaker.Bake(this, t, Forms.For(t.def).model, 0f))
@@ -818,6 +830,10 @@ namespace IsoRim
                         }
                         finally
                         {
+                            if (onDeck)
+                            {
+                                Bridges.EndPrint();
+                            }
                             ModelBaker.NoFire = false;
                             ModelBaker.NoFlame = false;
                         }

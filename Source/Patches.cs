@@ -203,6 +203,19 @@ namespace IsoRim
             Patch("ground cut under sunk holes", FindMethod(typeof(SectionLayer_Snow), "Regenerate"), postfix: nameof(SinkCutColours_Postfix));
             Patch("ground cut under sunk holes", FindMethod(typeof(SectionLayer_Sand), "Regenerate"), postfix: nameof(SinkCutColours_Postfix));
 
+            // Bridge decks (Bridges): the ground layers' pieces on a deck are lifted onto it, the game's flat props sprite
+            // is left out (the 3D supports stand in), and things drawn every frame are lifted (Floors.ThingPhase_Prefix:
+            // also a pawn's rise on a stair step and things on hidden floors, with a floor layout).
+            Patch("bridge decks", FindMethod(typeof(SectionLayer_Terrain), "Regenerate"), postfix: nameof(BridgeGround_Postfix));
+            Patch("bridge decks", FindMethod(typeof(SectionLayer_Snow), "Regenerate"), postfix: nameof(BridgeGround_Postfix));
+            Patch("bridge decks", FindMethod(typeof(SectionLayer_Sand), "Regenerate"), postfix: nameof(BridgeGround_Postfix));
+            Patch("bridge decks", FindMethod(typeof(SectionLayer_Plans), "Regenerate"), postfix: nameof(BridgeGround_Postfix));
+            Type zonesLayer = AccessTools.TypeByName("Verse.SectionLayer_Zones");
+            Patch("bridge decks", zonesLayer != null ? FindMethod(zonesLayer, "Regenerate") : null, postfix: nameof(BridgeGround_Postfix));
+            Patch("bridge decks", FindMethod(typeof(SectionLayer_BridgeProps), "Regenerate"), postfix: nameof(BridgeProps_Postfix));
+            Patch("things on bridge decks", AccessTools.Method(typeof(Thing), nameof(Thing.DynamicDrawPhase)),
+                prefix: nameof(ThingLift_Prefix), finalizer: nameof(ThingLift_Finalizer));
+
             // The preview of what is being placed, under the pointer.
             Type ghostDrawer = AccessTools.TypeByName("Verse.GhostDrawer");
             MethodInfo ghostThing = ghostDrawer != null ? FindMethod(ghostDrawer, "DrawGhostThing") : null;
@@ -1129,6 +1142,10 @@ namespace IsoRim
             {
                 lift = Floors.ThingOffset(t);   // its floor's, and the layout's own for this thing (a pawn on a stair)
             }
+            else
+            {
+                lift.y += Bridges.LiftOf(t);   // on a bridge deck
+            }
             float top = Interaction.PickHeight(t);
             if (t is Pawn)
             {
@@ -1369,9 +1386,18 @@ namespace IsoRim
         // Called by the game once for each non-moving thing when it rebuilds a block of the map.
         // Decides what shape the thing takes; the sprite quads it then prints are reshaped in
         // PrintPlane_Postfix.
-        public static bool TakePrintFrom_Prefix(SectionLayer __instance, Thing __0)
+        public static bool TakePrintFrom_Prefix(SectionLayer __instance, Thing __0, out bool __state)
         {
             PrintContext.Clear();
+            __state = false;
+            try
+            {
+                __state = Bridges.BeginPrint(__instance, __0);   // on a bridge deck: what it prints is lifted (finalizer)
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Lifting a thing onto a bridge failed: " + e, 93611471);
+            }
             if (!View3D.Active || __0 == null || __0.def == null)
             {
                 return true;
@@ -1482,8 +1508,12 @@ namespace IsoRim
             return true;
         }
 
-        public static void TakePrintFrom_Finalizer()
+        public static void TakePrintFrom_Finalizer(bool __state)
         {
+            if (__state)
+            {
+                Bridges.EndPrint();
+            }
             // A wall that drew no top sprite still gets plain sides.
             if (PrintContext.mode == PrintMode.Block && !PrintContext.done && PrintContext.thing != null)
             {
@@ -1821,6 +1851,33 @@ namespace IsoRim
         {
             SectionLayer_IsoRimTrees.MapMeshDirty_Postfix(__instance, loc, dirtyFlags);
             IsoCellMap.FogDirty_Postfix(__instance, loc, dirtyFlags);   // a cell's fog changed: the fog clip follows (RoofClip)
+        }
+
+        public static void BridgeGround_Postfix(SectionLayer __instance)
+        {
+            try
+            {
+                Bridges.LiftGround(__instance);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Lifting the ground onto a bridge deck failed: " + e, 93611473);
+            }
+        }
+
+        public static void BridgeProps_Postfix(SectionLayer __instance)
+        {
+            Bridges.HideProps(__instance);
+        }
+
+        public static bool ThingLift_Prefix(Thing __instance, DrawPhase phase, out bool __state)
+        {
+            return Floors.ThingPhase_Prefix(__instance, phase, out __state);
+        }
+
+        public static void ThingLift_Finalizer(bool __state)
+        {
+            Floors.ThingPhase_Finalizer(__state);
         }
 
         public static void SinkCut_Postfix(SectionLayer __instance)
@@ -2364,7 +2421,16 @@ namespace IsoRim
         // The terrain at __0 changed from __1 to __2.
         public static void TerrainChanged_Postfix(TerrainGrid __instance, IntVec3 __0, TerrainDef __1, TerrainDef __2)
         {
-            if (!View3D.Ready || !IsoRimMod.Settings.waterStyle || !(Ground.IsWater(__1) || Ground.IsWater(__2)))
+            try
+            {
+                Bridges.TerrainChanged(terrainMap(__instance), __0, __1, __2);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Noting a bridge change failed: " + e, 93611472);
+            }
+            bool bridge = (__1 != null && __1.bridge) || (__2 != null && __2.bridge);   // the water under a bridge is drawn (Bridges)
+            if (!View3D.Ready || !IsoRimMod.Settings.waterStyle || !(Ground.IsWater(__1) || Ground.IsWater(__2) || bridge))
             {
                 return;
             }

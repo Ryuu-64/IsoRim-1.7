@@ -130,8 +130,6 @@ namespace IsoRim
                     prefix: new HarmonyMethod(typeof(Floors), nameof(DrawSection_Prefix)), finalizer: new HarmonyMethod(typeof(Floors), nameof(Section_Finalizer)));
                 h.Patch(AccessTools.Method(typeof(Section), nameof(Section.DrawDynamicSections)),
                     prefix: new HarmonyMethod(typeof(Floors), nameof(DrawDynamicSections_Prefix)), finalizer: new HarmonyMethod(typeof(Floors), nameof(Section_Finalizer)));
-                h.Patch(AccessTools.Method(typeof(Thing), nameof(Thing.DynamicDrawPhase)),
-                    prefix: new HarmonyMethod(typeof(Floors), nameof(ThingPhase_Prefix)), finalizer: new HarmonyMethod(typeof(Floors), nameof(ThingPhase_Finalizer)));
                 h.Patch(AccessTools.Method(typeof(SectionLayer_Terrain), nameof(SectionLayer_Terrain.Regenerate)),
                     postfix: new HarmonyMethod(typeof(Floors), nameof(TerrainRegenerate_Postfix)));
                 if (SunShadowsType != null)
@@ -366,26 +364,19 @@ namespace IsoRim
             return d;
         }
 
-        // The layout's extra offset of one thing (a pawn on a stair step), as a drawn-space matrix; identity for most.
+        // The layout's extra offset of one thing (a pawn on a stair step) and its lift onto a bridge deck (Bridges), as a
+        // drawn-space matrix; identity for most.
         public static Matrix4x4 ExtraMatrix(Thing t)
         {
-            Vector3 extra;
-            try
-            {
-                extra = Api.Floors.ThingOffset(t);
-            }
-            catch (Exception e)
-            {
-                extra = Vector3.zero;
-                Log.ErrorOnce("[IsoRim] The floor layout's thing offset failed: " + e, 93611402);
-            }
+            Vector3 extra = LayoutOffset(t);
+            extra.y += Bridges.LiftOf(t);
             return extra == Vector3.zero ? Matrix4x4.identity : Matrix4x4.Translate(new Vector3(extra.x, extra.y / View3D.Squash, extra.z));
         }
 
-        // Drawn-space offset of a thing (culling boxes, name labels); zero without floors.
+        // Drawn-space offset of a thing (culling boxes, name labels); zero without floors and off bridges.
         public static Vector3 DrawnOffset(Thing t)
         {
-            if (!On || t == null || !t.Spawned)
+            if (t == null || !t.Spawned)
             {
                 return Vector3.zero;
             }
@@ -393,18 +384,32 @@ namespace IsoRim
             return new Vector3(o.x, o.y / View3D.Squash, o.z);
         }
 
-        // True-space offset of a thing (for culling boxes and labels).
+        // True-space offset of a thing (for culling boxes and labels): its floor's, the layout's own for it, and its lift
+        // onto a bridge deck.
         public static Vector3 ThingOffset(Thing t)
         {
-            Vector3 o = RowOffset(t.Position.z);
+            Vector3 o = On ? RowOffset(t.Position.z) : Vector3.zero;
+            o += LayoutOffset(t);
+            o.y += Bridges.LiftOf(t);
+            return o;
+        }
+
+        // The layout's extra offset of one thing (zero without a layout).
+        private static Vector3 LayoutOffset(Thing t)
+        {
+            if (!On || Api.Floors == null)
+            {
+                return Vector3.zero;
+            }
             try
             {
-                o += Api.Floors.ThingOffset(t);
+                return Api.Floors.ThingOffset(t);
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                Log.ErrorOnce("[IsoRim] The floor layout's thing offset failed: " + e, 93611402);
+                return Vector3.zero;
             }
-            return o;
         }
 
         // ---- the pointer
@@ -988,17 +993,18 @@ namespace IsoRim
 
         // ---- things drawn every frame
 
-        // A thing on a hidden floor is not drawn at all; a pawn on a stair step gets its rise. The floor itself is
-        // added at the bottom (Drawn), like everything else.
+        // A thing on a hidden floor is not drawn at all; a pawn on a stair step gets its rise, a thing on a bridge deck its
+        // lift (Bridges). The floor itself is added at the bottom (Drawn), like everything else. Hooked always (Patches),
+        // not only with a floor layout.
         public static bool ThingPhase_Prefix(Thing __instance, DrawPhase phase, out bool __state)
         {
             __state = false;
-            if (phase != DrawPhase.Draw || !On || __instance == null)
+            if (phase != DrawPhase.Draw || __instance == null || !View3D.Ready)
             {
                 return true;
             }
             Matrix4x4 unused;
-            if (!RowMatrix(__instance.Position.z, out unused))
+            if (On && !RowMatrix(__instance.Position.z, out unused))
             {
                 return false;
             }
