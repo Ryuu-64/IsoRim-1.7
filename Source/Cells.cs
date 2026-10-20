@@ -236,7 +236,11 @@ namespace IsoRim
             Building b = c.GetEdifice(map);
             if (b != null && h <= 0f)
             {
-                h = Forms.HeightOf(b);
+                h = Forms.HeightOf(b) + Bridges.LiftOf(b);   // (standing on a bridge deck)
+            }
+            if (Bridges.Active && Bridges.DeckAt(map, c) != null)
+            {
+                h = Mathf.Max(h, Bridges.Deck);   // the deck itself
             }
             return h;
         }
