@@ -19,8 +19,8 @@ namespace IsoRim
     public static partial class Api
     {
         // Raised when members are added (2: view, projectile, skyfaller, drawing and option members of this file; 3: the
-        // fog lid lock; 4: collapse debris, Debris.cs).
-        public static int Version => 4;
+        // fog lid lock; 4: collapse debris, Debris.cs; 5: XrayDesignator).
+        public static int Version => 5;
 
         // ---- the view
 
@@ -107,6 +107,11 @@ namespace IsoRim
             f.SetValue(st, value);
             return old;
         }
+
+        // For an addon's own designators (Version 5): while one of this type (or a subclass) is in hand, the mining x-ray
+        // (the Mine tool's faint view of the floors next to the viewed one; IsoRim's mineXray option) shows the floor
+        // below and/or the floor above, without the crosshair. Both false removes it.
+        public static void XrayDesignator(System.Type designator, bool below, bool above) => MineXray.Register(designator, below, above);
 
         // ---- projectiles (all only change how they are drawn)
 

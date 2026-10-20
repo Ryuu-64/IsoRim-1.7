@@ -12,7 +12,8 @@ namespace IsoRim
     // and the floor above higher than the viewed one): their open cells (tunnels, rooms, mountain tops, built floors)
     // outlined, with a light fill, rock and walls left empty; the pawns there as dots. Below: only under what the viewed
     // floor covers (its rock, floors, buildings); below the open air the floor is seen anyway. Above: everywhere (the floors
-    // above the viewed one are not drawn). While placing stairs only the floor above is shown (where the exit lands). A
+    // above the viewed one are not drawn). While placing stairs only the floor above is shown (where the exit lands); other mods'
+    // designators show the floors they ask for (Api.XrayDesignator), without the crosshair. A
     // crosshair (Mine tool) runs Reach cells along x and z from the pointer's cell on the viewed floor, all on the plane
     // of the pointer's frame (so on screen its arms run straight through the pointer). All on the overlay shader (no depth test), so the rock never hides it. Only what the player
     // knows is shown: fogged cells count as solid and pawns on them are left out.
@@ -77,6 +78,36 @@ namespace IsoRim
             return d is Designator_Mine;   // Designator_MineVein derives from it
         }
 
+        // Other designators that show the x-ray (Api.XrayDesignator), with the floors they show.
+        private static readonly List<KeyValuePair<Type, int>> others = new List<KeyValuePair<Type, int>>();
+        private const int ShowBelow = 1, ShowAbove = 2;
+
+        public static void Register(Type t, bool below, bool above)
+        {
+            if (t == null)
+            {
+                return;
+            }
+            others.RemoveAll(e => e.Key == t);
+            if (below || above)
+            {
+                others.Add(new KeyValuePair<Type, int>(t, (below ? ShowBelow : 0) | (above ? ShowAbove : 0)));
+            }
+        }
+
+        // The floors a registered designator shows (0: not registered).
+        private static int OtherTool(Designator d)
+        {
+            for (int i = 0; d != null && i < others.Count; i++)
+            {
+                if (others[i].Key.IsInstanceOfType(d))
+                {
+                    return others[i].Value;
+                }
+            }
+            return 0;
+        }
+
         // Placing stairs (ProjectZ's stairs and ship stairs, by name: IsoRim does not reference ProjectZ).
         public static bool StairsTool(Designator d)
         {
@@ -95,9 +126,11 @@ namespace IsoRim
             {
                 return;
             }
-            bool mine = Tool(dm.SelectedDesignator);
-            bool stairs = !mine && StairsTool(dm.SelectedDesignator);
-            if (!mine && !stairs)
+            Designator sel = dm.SelectedDesignator;
+            bool mine = Tool(sel);
+            // the floors shown: Mine both, stairs the floor above (where the exit lands), others as registered
+            int show = mine ? ShowBelow | ShowAbove : StairsTool(sel) ? ShowAbove : OtherTool(sel);
+            if (show == 0)
             {
                 return;
             }
@@ -107,8 +140,8 @@ namespace IsoRim
             {
                 return;
             }
-            int below = mine && k >= 1 ? k - 1 : -1;
-            int above = k + 1 <= Floors.Count ? k + 1 : -1;
+            int below = (show & ShowBelow) != 0 && k >= 1 ? k - 1 : -1;
+            int above = (show & ShowAbove) != 0 && k + 1 <= Floors.Count ? k + 1 : -1;
             if (below < 0 && above < 0)
             {
                 return;
