@@ -36,10 +36,10 @@ namespace IsoRim
         private static readonly bool[] smCovered = new bool[4];
         private static readonly bool[] smMoved = new bool[4];
 
-        // A cell whose block hides the side of a rock block beside it (as Exposed, inverted).
+        // A cell the rock's outline treats as rock: a block at least as tall, or a door (ShapesRock).
         private static bool Solid(Map map, int x, int z, float height)
         {
-            return !Exposed(map, new IntVec3(x, 0, z), height);
+            return ShapesRock(map, new IntVec3(x, 0, z), height);
         }
 
         private static bool NaturalRock(Map map, IntVec3 c)

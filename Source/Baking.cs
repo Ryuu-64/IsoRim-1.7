@@ -1146,10 +1146,10 @@ namespace IsoRim
         // the rim (top), in cells. cx, cz are the corner's map coordinates.
         private static void RockCorner(Map map, int cx, int cz, float height, out Vector3 mid, out Vector3 top)
         {
-            int sw = Exposed(map, new IntVec3(cx - 1, 0, cz - 1), height) ? 0 : 1;
-            int se = Exposed(map, new IntVec3(cx, 0, cz - 1), height) ? 0 : 1;
-            int nw = Exposed(map, new IntVec3(cx - 1, 0, cz), height) ? 0 : 1;
-            int ne = Exposed(map, new IntVec3(cx, 0, cz), height) ? 0 : 1;
+            int sw = ShapesRock(map, new IntVec3(cx - 1, 0, cz - 1), height) ? 1 : 0;
+            int se = ShapesRock(map, new IntVec3(cx, 0, cz - 1), height) ? 1 : 0;
+            int nw = ShapesRock(map, new IntVec3(cx - 1, 0, cz), height) ? 1 : 0;
+            int ne = ShapesRock(map, new IntVec3(cx, 0, cz), height) ? 1 : 0;
 
             // Which way is "into the rock" from this corner.
             int dx = Math.Sign(se + ne - sw - nw);
@@ -1360,6 +1360,14 @@ namespace IsoRim
                 return false;
             }
             return BlockHeightAt(map, neighbour) < height - 0.01f;
+        }
+
+        // How natural rock's outline sees a neighbouring cell (its bevel and lean: RockCorner, CliffLook's Occupancy): as
+        // rock where a block at least as tall stands there (not Exposed), or a door (any Building_Door, every cell of a wide
+        // one), whose straight frame stands flush against the rock, so the rock keeps a square edge beside a door.
+        private static bool ShapesRock(Map map, IntVec3 c, float height)
+        {
+            return !Exposed(map, c, height) || (c.InBounds(map) && c.GetEdifice(map) is Building_Door);
         }
 
         // The same for the side of the block in cell from that looks onto neighbour: also hidden where
