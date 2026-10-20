@@ -847,7 +847,7 @@ namespace IsoRim
             }
             Section s = Floors.SectionOf(layer);
             int k = s != null ? Floors.FloorOfRow(s.botLeft.z) : -1;
-            bool hide = HideCoveredCaps && Floors.On && k >= 0 && Floors.Shown(k + 1);
+            bool hide = HideCoveredCaps && Floors.On && k >= 0 && Floors.ShownSolid(k + 1);
             List<LayerSubMesh> subs = layer.subMeshes;
             for (int i = 0; i < subs.Count; i++)
             {

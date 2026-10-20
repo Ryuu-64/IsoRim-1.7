@@ -130,6 +130,8 @@
   <R3D_Settings_CutFrontOnlyTip>Only the walls between the camera and the pointer are lowered; the ones behind it stay up.</R3D_Settings_CutFrontOnlyTip>
   <R3D_Settings_CutWholeWall>Lower walls on every floor</R3D_Settings_CutWholeWall>
   <R3D_Settings_CutWholeWallTip>With stacked floors, a lowered wall is lowered on all shown floors.</R3D_Settings_CutWholeWallTip>
+  <R3D_Settings_FadeUpper>Fade upper floors</R3D_Settings_FadeUpper>
+  <R3D_Settings_FadeUpperTip>Floors above the viewed one show faded instead of hidden.</R3D_Settings_FadeUpperTip>
   <R3D_Settings_BuildSee>See through while building</R3D_Settings_BuildSee>
   <R3D_Settings_BuildSeeTip>With a build or order tool in hand, what is near the pointer turns see-through.</R3D_Settings_BuildSeeTip>
   <R3D_Settings_SeeStrength>See-through strength</R3D_Settings_SeeStrength>

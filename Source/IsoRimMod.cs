@@ -67,6 +67,7 @@ namespace IsoRim
         public bool cutHover = true;     // walls under the pointer are cut down
         public bool cutRooms = false;    // walls in front of every roofed room are cut down
         public bool cutWholeWall = false;   // stacked floors: a lowered wall is lowered on every shown floor of its column (Cutaway.AddColumns)
+        public bool fadeUpper = false;  // stacked floors: the floors above the viewed one drawn faded instead of hidden (FadeFloors, prototype)
         public bool buildSeeThrough = true; // with a designator in hand, what is near the pointer is drawn see-through (BuildSee)
         public float seeStrength = 0.85f;   // BuildSee: share of pixels dropped at the pointer (before: fixed 0.55)
         public float seeRadius = 7f;        // BuildSee: cells to where it ends, full strength to 3 cells less (before: fixed 4.5)
@@ -182,6 +183,7 @@ namespace IsoRim
             Scribe_Values.Look(ref cutHover, "cutHover", true);
             Scribe_Values.Look(ref cutRooms, "cutRooms", false);
             Scribe_Values.Look(ref cutWholeWall, "cutWholeWall", false);
+            Scribe_Values.Look(ref fadeUpper, "fadeUpper", false);
             Scribe_Values.Look(ref buildSeeThrough, "buildSeeThrough", true);
             Scribe_Values.Look(ref seeStrength, "seeStrength", 0.85f);
             Scribe_Values.Look(ref seeRadius, "seeRadius", 7f);
@@ -791,6 +793,7 @@ namespace IsoRim
                     Check(l, "R3D_Settings_CutFrontOnly".Translate(), ref st.cutFrontOnly, "R3D_Settings_CutFrontOnlyTip".Translate());
                 }
                 Check(l, "R3D_Settings_CutWholeWall".Translate(), ref st.cutWholeWall, "R3D_Settings_CutWholeWallTip".Translate());
+                Check(l, "R3D_Settings_FadeUpper".Translate(), ref st.fadeUpper, "R3D_Settings_FadeUpperTip".Translate());
                 Check(l, "R3D_Settings_BuildSee".Translate(), ref st.buildSeeThrough, "R3D_Settings_BuildSeeTip".Translate());
                 if (st.buildSeeThrough)
                 {

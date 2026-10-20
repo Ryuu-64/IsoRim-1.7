@@ -130,6 +130,8 @@
   <R3D_Settings_CutFrontOnlyTip>只降低镜头与光标之间的墙，光标后面的墙保持不变。</R3D_Settings_CutFrontOnlyTip>
   <R3D_Settings_CutWholeWall>降低所有楼层的墙</R3D_Settings_CutWholeWall>
   <R3D_Settings_CutWholeWallTip>有多层楼时，降低的墙在所有显示的楼层都会降低。</R3D_Settings_CutWholeWallTip>
+  <R3D_Settings_FadeUpper>淡显上层</R3D_Settings_FadeUpper>
+  <R3D_Settings_FadeUpperTip>所看楼层上方的楼层淡淡显示，不再隐藏。</R3D_Settings_FadeUpperTip>
   <R3D_Settings_BuildSee>建造时透视</R3D_Settings_BuildSee>
   <R3D_Settings_BuildSeeTip>手持建造或指令工具时，光标附近的物体变为半透明。</R3D_Settings_BuildSeeTip>
   <R3D_Settings_SeeStrength>透视强度</R3D_Settings_SeeStrength>

@@ -76,7 +76,7 @@ namespace IsoRim
         // (copies on different floors are drawn apart, each with its floor: RoofClip.FloorBlock).
         public static bool Add(Mesh mesh, Matrix4x4 matrix, Material material, int floor = 0)
         {
-            if (!collecting || mesh == null || material == null || !UnityData.IsInMainThread)
+            if (!collecting || mesh == null || material == null || !UnityData.IsInMainThread || Floors.FadeSlot > 0)
             {
                 return false;
             }

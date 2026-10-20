@@ -50,6 +50,8 @@ layout(set = 2, binding = 0) uniform MaterialUniforms
     vec4 _IsoSee;     // global, no default: see-through while building (BuildSee): x, y = the pointer (drawn x, z), z = the viewed floor's height (true cells), w = coverage at the pointer (0 = off)
     vec4 _IsoSee2;    // global, no default: x = radius of full coverage, y = radius where it ends (cells), z = dither cell (pixels)
     float _IsoOwnerFloor; // @default = 0.0   per draw (RoofClip.FloorBlock): 1 + the floor a moving model stands on; 0 = not given
+    float _IsoFade;   // @default = 0.0   faded floors (FadeFloors): share of pixels kept, 0 = drawn solid
+    float _IsoFadeFrom; // @default = 0.0   faded floors: where in the dither pattern (0-1) the kept share starts
 } uMaterial;
 
 layout(set = 2, binding = 1) uniform sampler2D _MainTex;
@@ -266,6 +268,20 @@ vec3 GlowLight(vec4 g)
     return L;
 }
 
+// ---- Faded floors (Source/FadeFloors.cs, prototype): a fragment of a floor above the viewed one is dropped where the
+// 4 x 4 ordered dither pattern, fixed on the screen, is outside the floor's kept range: _IsoFade wide (0 = drawn solid), from
+// _IsoFadeFrom, wrapping round (floors with overlapping ranges cover each other only there).
+const float FadeBayer[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+
+bool FadeDrop()
+{
+    float keep = uMaterial._IsoFade;
+    if (keep <= 0.0)
+        return false;
+    ivec2 q = ivec2(floor(gl_FragCoord.xy)) & 3;
+    return fract((FadeBayer[q.y * 4 + q.x] + 0.5) / 16.0 - uMaterial._IsoFadeFrom) >= keep;
+}
+
 void main()
 {
     // Derivatives first, in uniform control flow (before any discard).
@@ -277,6 +293,8 @@ void main()
     if (dot(n, uMaterial._IsoView.xyz) < 0.0)
         n = -n;
     vec3 faceNormal = n;   // the exact face normal, turned toward the camera
+    if (FadeDrop())
+        discard;
 
     float tagged = vNormal.x;
     if (tagged > 9.0)

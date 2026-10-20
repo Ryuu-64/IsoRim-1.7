@@ -15,6 +15,8 @@ namespace IsoRim
     //   pzslab=x0,z0,x1,z1[,k]       (with ProjectZ) floor 2 (k = 1, or floor k + 1) laid over that ground block, as
     //                                ProjectZ's own tests set it up: its slab terrain up there, the floor's roof under it
     //   pzview=k                     the floor the player views (ProjectZ's FloorView: 0 the ground, 1 floor 2)
+    //   fadekeep=a,b,...  fadefrom=a,b,...  FadeFloors.Keep / From (faded floors prototype): kept share and dither start per floor above
+    //   unfogall=1                   every cell of the map revealed (map.fogGrid.ClearAllFog)
     //   U<z> in any coordinate       that ground row's cell on floor 2 (e.g. dressed=40,U30,...); V<z>: on floor 3
     //   want=tag,x:z;x:z|-           what the drag or click with that tag must select, by cell (- nothing): CHECK PASS/FAIL
     //   then=key:value|key:value     probe keys applied when the queue gets there (after the jobs queued before it)
@@ -227,6 +229,23 @@ namespace IsoRim
                         }
                     }
                     Log.Message("[IsoRim probe] pzslab " + r + ": floor 2 rows start " + UShift() + ", ground rows " + Floors.GroundRowsOf(map) + ", map " + map.Size);
+                    return true;
+                }
+                case "unfogall":
+                    map.fogGrid.ClearAllFog();
+                    return true;
+                case "fadekeep":
+                case "fadefrom":
+                {
+                    float[] v = a.Select(s => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+                    if (key == "fadekeep")
+                    {
+                        FadeFloors.Keep = v;
+                    }
+                    else
+                    {
+                        FadeFloors.From = v;
+                    }
                     return true;
                 }
                 case "pzview":
