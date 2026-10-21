@@ -29,8 +29,9 @@ namespace IsoRim
         // Raised when members are added (2: view, projectile, skyfaller, drawing and option members of this file; 3: the
         // fog lid lock; 4: collapse debris, Debris.cs; 5: XrayDesignator; 6: model states and ModelStandsIn; 7: PeekUpperFloors;
         // 8: figure hooks (FigureFrame) and model drawing: LoadModel, DrawModel, DrawFigure, FigureBounds, the colour helpers;
-        // 9: apparel model bindings (ApparelModelDef) and held shields).
-        public static int Version => 9;
+        // 9: apparel model bindings (ApparelModelDef) and held shields; 10: DrawModel follows the peek fade of the floor it draws
+        // on, apparel decals: AddApparelDecals, RemoveApparelDecals, RefreshApparelDecals, ApparelDecal).
+        public static int Version => 10;
 
         // ---- the view
 
@@ -283,6 +284,8 @@ namespace IsoRim
         /// clockwise seen from above); scale: per axis, before the turn. colour tints the faces whose material starts with
         /// "stuff"; swatch (Wood, Stone, Metal, Fabric; null: Wood, see <see cref="StuffSwatch(ThingDef)"/>) picks the
         /// surface texture of its "{stuff}" textures. Call from draw-time code; does nothing while the 3D view is off.
+        /// From version 10, a model drawn on the rows of a stacked floor that is shown faded (peeking, <see cref="PeekUpperFloors"/>)
+        /// is faded as that floor's own things, also when drawn outside a thing's draw; on a hidden floor nothing shows.
         /// </summary>
         public static void DrawModel(ModelHandle model, Vector3 position, float yaw, Vector3 scale, Color colour, string swatch = null)
         {
@@ -339,6 +342,25 @@ namespace IsoRim
         {
             return FigureScope.Bounds(pawn, out min, out max);
         }
+
+        // ---- apparel decals (Version 10)
+
+        /// <summary>
+        /// Registers a provider of decals (pictures printed on the garment, <see cref="ApparelDecal"/>) for worn apparel of
+        /// this def (null: every apparel). IsoRim asks it for each worn item that shows as a body garment of its own on a 3D
+        /// person figure (a coat or armour, a garment over the coat, a middle-layer or shirt shape; bound by an
+        /// <see cref="ApparelModelDef"/> or IsoRim's own shape) whenever it works out how the wearer looks (about every 1.5
+        /// seconds, and at once after <see cref="RefreshApparelDecals"/>). With no provider registered this costs nothing.
+        /// Registering the same provider twice does nothing. Call once, at startup.
+        /// </summary>
+        public static void AddApparelDecals(ThingDef apparel, ApparelDecalProvider provider) => ApparelDecals.Add(apparel, provider);
+
+        /// <summary>Removes a provider added with <see cref="AddApparelDecals"/>.</summary>
+        public static void RemoveApparelDecals(ThingDef apparel, ApparelDecalProvider provider) => ApparelDecals.Remove(apparel, provider);
+
+        /// <summary>Asks the providers again for this person the next time the figure is drawn (after a change the provider
+        /// knows of, such as a new emblem).</summary>
+        public static void RefreshApparelDecals(Pawn pawn) => People.Refresh(pawn);
 
         // ---- for addons' dev tests only: may change without notice
 

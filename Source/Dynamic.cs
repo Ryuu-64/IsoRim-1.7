@@ -309,22 +309,38 @@ namespace IsoRim
             }
             int floor;
             matrix = Floors.DrawnMatrix(matrix, out floor);   // a thing on an upper floor: before culling, tested where it shows
-            bool outlines = IsoRimMod.Settings.outlines;
-            for (int i = 0; i < parts.Count; i++)
+            // Api 10: a model drawn outside a thing's draw (Api.DrawModel from an addon's own update) on a floor faded while
+            // peeking takes that floor's fade, as the floor's own things do (they set FadeSlot in Floors.ThingPhase_Prefix).
+            // Its rows tell the floor; it is in drawn space by now, so FadeSlot carries the fade to Graphics
+            // (Floors.Fade_Prefix), and PartBatches leaves the draw to be made at once (it only batches solid draws).
+            int fadeWas = Floors.FadeSlot;
+            if (fadeWas == 0 && floor > 0)
             {
-                Part p = parts[i];
-                if (p.outline && !outlines)
+                Floors.FadeSlot = Floors.FadeOfFloor(floor);
+            }
+            try
+            {
+                bool outlines = IsoRimMod.Settings.outlines;
+                for (int i = 0; i < parts.Count; i++)
                 {
-                    continue;
+                    Part p = parts[i];
+                    if (p.outline && !outlines)
+                    {
+                        continue;
+                    }
+                    if (!Cull.MeshVisible(p.mesh, matrix))
+                    {
+                        continue;
+                    }
+                    if (!PartBatches.Add(p.mesh, matrix, p.material, floor))
+                    {
+                        IsoGlow.DrawLit(p.mesh, matrix, p.material, 0, RoofClip.FloorBlock(floor));   // clipped on its own floor (RoofClip)
+                    }
                 }
-                if (!Cull.MeshVisible(p.mesh, matrix))
-                {
-                    continue;
-                }
-                if (!PartBatches.Add(p.mesh, matrix, p.material, floor))
-                {
-                    IsoGlow.DrawLit(p.mesh, matrix, p.material, 0, RoofClip.FloorBlock(floor));   // clipped on its own floor (RoofClip)
-                }
+            }
+            finally
+            {
+                Floors.FadeSlot = fadeWas;
             }
         }
 
