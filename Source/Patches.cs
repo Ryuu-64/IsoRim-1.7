@@ -1977,9 +1977,10 @@ namespace IsoRim
                         // The game does not redraw the map mesh for things it draws every frame.
                         MapSections.QueueAround(map, t.Position, 0, typeof(SectionLayer_IsoRimBodies), true);
                     }
-                    if (Forms.For(t.def).form == Form3D.Block)
+                    if (WallBoxes.IsWallForm(Forms.For(t.def)))
                     {
-                        // Its own block and the ones beside it: a neighbour's side shows or hides.
+                        // Its own block and the ones beside it: a neighbour's side shows or hides. (A wall drawn from a
+                        // model is a block to its neighbours too, WallBoxes.ModelWall.)
                         MapSections.QueueAround(map, t.Position, WallBoxes.RockReach + 1, typeof(SectionLayer_IsoRimWalls), true);
                         if (IsoRimMod.Settings.showRoofs)
                         {

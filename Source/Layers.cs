@@ -936,7 +936,7 @@ namespace IsoRim
                 roof = null;   // kept for the rules, not drawn (an addon's stairwell)
             }
             Building b = c.GetEdifice(map);
-            bool solidBlock = b != null && Forms.For(b.def).form == Form3D.Block;
+            bool solidBlock = b != null && WallBoxes.IsWallForm(Forms.For(b.def));
             bool natural = solidBlock && b.def.building != null && b.def.building.isNaturalRock;
             if (roof != null)
             {

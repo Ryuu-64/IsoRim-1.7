@@ -1265,7 +1265,7 @@ namespace IsoRim
                 return name.Contains("Gate") || name.Contains("Fence") ? 0f : View3D.WallHeight;
             }
             ThingForm form = Forms.For(b.def);
-            return form.form == Form3D.Block && WallBoxes.CanBeCut(b.def) ? form.height : 0f;
+            return WallBoxes.IsWallForm(form) && WallBoxes.CanBeCut(b.def) ? WallBoxes.WallHeightOf(form) : 0f;
         }
 
         // The walls of the block holding the cell: just the wall layer, or (if walls are drawn
@@ -1815,7 +1815,7 @@ namespace IsoRim
             {
                 return 0;
             }
-            return Forms.For(b.def).form == Form3D.Block || b is Building_Door || (b.def.defName != null && b.def.defName.Contains("Fence")) ? 1 : 0;
+            return WallBoxes.IsWallForm(Forms.For(b.def)) || b is Building_Door || (b.def.defName != null && b.def.defName.Contains("Fence")) ? 1 : 0;
         }
     }
 
