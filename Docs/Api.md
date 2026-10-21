@@ -1,7 +1,7 @@
 # IsoRim Waylith Api (for mod authors)
 
 IsoRim's public surface is the static class `IsoRim.Api` and the small types next to it (`FigureFrame`, `FigureHook`,
-`ModelHandle`, `ProjectileCardHook`, `IFloorLayout`). Everything else in the assembly is internal detail and can change
+`ModelHandle`, `ProjectileCardHook`, `IFloorLayout`) and the def `IsoRim.ApparelModelDef` (Api 9). Everything else in the assembly is internal detail and can change
 in any update. Reference `IsoRim.dll` (Publicize is not needed) and keep the reference optional if IsoRim is optional for
 your mod.
 
@@ -11,9 +11,10 @@ your mod.
 
 ```csharp
 if (IsoRim.Api.Version >= 8) { /* figure hooks and model drawing are there */ }
+if (IsoRim.Api.Version >= 9) { /* IsoRim.ApparelModelDef is there */ }
 ```
 
-Members are never removed or changed in meaning within a version. Version 8 adds everything on this page.
+Members are never removed or changed in meaning within a version. Version 8 adds parts 1 and 2 below, version 9 part 3.
 
 ## Spaces
 
@@ -102,8 +103,91 @@ void DrawContents(Thing shelf, Corpse corpse, float shelfTop)
 }
 ```
 
+## Part 3: apparel models (version 9)
+
+A mod can give any apparel its own 3D model with an `IsoRim.ApparelModelDef` in its Defs. Apparel with a binding is drawn
+with it on IsoRim's person figures (and outfit stands); apparel without one keeps IsoRim's own look. A binding whose
+apparel is not loaded is skipped quietly. Since the def type only exists from version 9, a mod that must also load on an
+older IsoRim adds these defs through a patch operation of its own that checks `IsoRim.Api.Version` first (the VFE Medieval
+2 pack's `PatchOperation_IfIsoRimApi` is an example).
+
+| Field | What it does |
+|---|---|
+| `apparel` | The apparel ThingDef's defName. |
+| `slot` | `Head`, `Face`, `Eyes`, `Neck`, `Body`, `Belt` or `Shield` (below). |
+| `model` | The OBJ file (and its .mtl), relative to your mod's folder. For a def added by a patch (it has no mod), the first active mod that has the file. |
+| `bodyModels` | Body: `<male>`, `<female>`, `<thin>`, `<fat>`, `<hulk>` model paths, each made on that build; `model` is used for builds without one. |
+| `hides` | Head: `<li>Hair</li>`, `Beard`, `Face`: also hidden while it is drawn, on top of the game's own rules (renderSkipFlags, FullHead / UpperHead). |
+| `visor` | Head: IsoRim's dark visor strip, as on its sealed helmets. |
+| `under` | Body on the Shell layer: how a flak vest under it shows: `Hidden` (default), `FrontPlate`, `Whole`. |
+| `mount` | Belt: `belt` (default: stretched round the outermost waist), `hip` or `pack`, as `IsoRim.WornGearDef`. |
+| `offset`, `rotation`, `scale` | A shift, a turn (Euler degrees) and a size applied to the model in its own space first (Shield: about the grip). |
+| `alwaysShown` | Shield: shown whenever the person stands (default: see below). |
+| `spriteColour` | Colour the `stuff` faces with the mean of the worn sprite instead of the item's colour. |
+
+Colours are as for other IsoRim models: faces under a material whose name starts with `stuff` take the item's colour (its
+stuff, its dye or the colour its mod gives it, as the game tints the sprite); the others keep their own `Kd`. Faces under a
+`flame...` material are taken out and burn with IsoRim's live flame (a torch).
+
+Slots and frames (the file's axes as IsoRim's `person_*.obj`: one unit = one cell, +y up, the figure faces -z of the file):
+
+- **Head**: made on `person_head.obj` (same origin); drawn as the hat, widened with the head type. One hat at a time, as
+  IsoRim's own (an Overhead one wins). Hair, beard and eyes show under it as the game's own rules say, plus `hides`.
+- **Face / Eyes / Neck**: the same frame; drawn with a hat (a mouth or face item, an eye cover, a collar).
+- **Body**: made on `person_<build>_upper.obj` / `_lower.obj` of each build, drawn with the body type's scale. On the Shell
+  layer it is the coat (closed coats and armour hide what is under them as IsoRim's own); on the Middle layer a shape over
+  the shirt, which keeps its colour; on the OnSkin layer it is the shirt (the shirt and leg parts take its colour).
+- **Belt**: made in the `person_belt_*` frame (the band round y 0.27..0.34); placed by `mount`.
+- **Shield**: the grip at the origin, the face toward -z of the file. Held on the left forearm, a little in front of the
+  body's side at hand height, its face to the front and outward, following facing, walking and sitting. By default it shows
+  only while the game shows the person's weapon (drafted, aiming, a job or duty that shows weapons) and, for apparel that
+  draws its own worn picture (VE Framework's `Apparel_Shield`), while the game draws it (so not with a two-handed weapon);
+  that worn picture gives way to the model. Lying and in bed it is not shown.
+
+```xml
+<!-- a hat, a coat with a model per build, a belt and a shield -->
+<IsoRim.ApparelModelDef>
+  <defName>MyMod_R3D_Hood</defName>
+  <apparel>MyMod_Apparel_Hood</apparel>
+  <slot>Head</slot>
+  <model>Models/my_hood.obj</model>
+  <hides><li>Hair</li></hides>
+</IsoRim.ApparelModelDef>
+
+<IsoRim.ApparelModelDef>
+  <defName>MyMod_R3D_Gambeson</defName>
+  <apparel>MyMod_Apparel_Gambeson</apparel>
+  <slot>Body</slot>
+  <model>Models/gambeson_male.obj</model>
+  <bodyModels>
+    <female>Models/gambeson_female.obj</female>
+    <thin>Models/gambeson_thin.obj</thin>
+    <fat>Models/gambeson_fat.obj</fat>
+    <hulk>Models/gambeson_hulk.obj</hulk>
+  </bodyModels>
+  <under>FrontPlate</under>
+</IsoRim.ApparelModelDef>
+
+<IsoRim.ApparelModelDef>
+  <defName>MyMod_R3D_PouchBelt</defName>
+  <apparel>MyMod_Apparel_PouchBelt</apparel>
+  <slot>Belt</slot>
+  <model>Models/pouch_belt.obj</model>
+  <mount>belt</mount>
+</IsoRim.ApparelModelDef>
+
+<IsoRim.ApparelModelDef>
+  <defName>MyMod_R3D_Buckler</defName>
+  <apparel>MyMod_Shield_Buckler</apparel>
+  <slot>Shield</slot>
+  <model>Models/buckler.obj</model>
+  <offset>(0, 0.04, 0)</offset>      <!-- optional: a little higher on the arm -->
+  <rotation>(0, -10, 0)</rotation>   <!-- optional: turned a little more outward -->
+</IsoRim.ApparelModelDef>
+```
+
 ## Notes
 
 - Figure hooks also run for figures another mod draws through IsoRim's internals; attachments then follow that mod's
   placing as well.
-- The test mode for this Api is `Source/ProbeApi8.cs` (harness only: dev mode, `-isorim3d` and a probe file).
+- The test modes for this Api are `Source/ProbeApi8.cs` and `Source/ProbeApi9.cs` / `ProbeApi9Check.cs` (harness only: dev mode, `-isorim3d` and a probe file).

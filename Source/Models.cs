@@ -2114,6 +2114,73 @@ namespace IsoRim
             return m;
         }
 
+        // A copy of a model without the faces whose material drop picks (a worn torch's flame* faces, where IsoRim's live
+        // flame burns instead: ApparelModels); each kept face keeps its colour and outline. Null if nothing is left.
+        public static Model Without(Model src, Func<ModelMaterial, bool> drop)
+        {
+            if (src == null || src.materials == null || src.material == null)
+            {
+                return src;
+            }
+            List<int> keep = new List<int>();
+            for (int i = 0; i + 2 < src.positions.Length; i += 3)
+            {
+                if (!drop(src.materials[src.material[i]]))
+                {
+                    keep.Add(i);
+                }
+            }
+            if (keep.Count == 0)
+            {
+                return null;
+            }
+            int n = keep.Count * 3;
+            Model m = new Model();
+            m.positions = new Vector3[n];
+            m.normals = new Vector3[n];
+            m.colors = new Color[n];
+            m.tinted = new bool[n];
+            m.uvs = new Vector2[n];
+            m.material = new int[n];
+            m.hull = new Vector3[n];
+            m.noOutline = src.noOutline != null ? new bool[n] : null;
+            m.materials = src.materials;
+            int k = 0;
+            foreach (int i in keep)
+            {
+                for (int v = i; v < i + 3; v++, k++)
+                {
+                    m.positions[k] = src.positions[v];
+                    m.normals[k] = src.normals[v];
+                    m.colors[k] = src.colors[v];
+                    m.tinted[k] = src.tinted[v];
+                    m.uvs[k] = src.uvs != null && v < src.uvs.Length ? src.uvs[v] : Vector2.zero;
+                    m.material[k] = src.material[v];
+                    m.hull[k] = src.hull != null ? src.hull[v] : Vector3.zero;
+                    if (m.noOutline != null)
+                    {
+                        m.noOutline[k] = src.noOutline[v];
+                    }
+                }
+            }
+            m.minX = float.MaxValue;
+            m.minZ = float.MaxValue;
+            m.maxX = float.MinValue;
+            m.maxZ = float.MinValue;
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 p = m.positions[i];
+                m.maxY = Mathf.Max(m.maxY, p.y);
+                m.halfDepth = Mathf.Max(m.halfDepth, Mathf.Abs(p.z));
+                m.minX = Mathf.Min(m.minX, p.x);
+                m.maxX = Mathf.Max(m.maxX, p.x);
+                m.minZ = Mathf.Min(m.minZ, p.z);
+                m.maxZ = Mathf.Max(m.maxZ, p.z);
+            }
+            m.id = nextId++;
+            return m;
+        }
+
         // The part of a model below height top (model space): every face cut off there, nothing squeezed. lid: a flat
         // slab (the model's stuff colour) over the model's whole ground box closes the cut at that height. Its own
         // outline. Null if nothing is left.

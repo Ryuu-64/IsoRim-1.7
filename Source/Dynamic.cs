@@ -2199,6 +2199,22 @@ namespace IsoRim
             Flame(foot, sy, sxz, dark, t.thingIDNumber * 0.37f, time);
         }
 
+        // A live flame on something a figure wears (ApparelModels: a bound model's flame* faces): foot the bottom middle of
+        // the flame* part (true space), height and width its size there, own its flicker's offset.
+        internal static void FigureFlame(Vector3 foot, float height, float width, bool dark, float own)
+        {
+            IsoRimSettings st = IsoRimMod.Settings;
+            if (!st.effects3D || !st.models3D || Find.TickManager == null)
+            {
+                return;
+            }
+            Load();
+            float sy = height / FlameHeight;
+            float sxz = width / FlameWidth;
+            foot.y -= FlameBase * sy;
+            Flame(foot, sy, sxz, dark, own, Find.TickManager.TicksGame / 60f);
+        }
+
         // Three tongues of flame round a brighter heart, each flickering to its own beat; the campfire's at sizes 1, 1.
         private static void Flame(Vector3 foot, float sy, float sxz, bool dark, float own, float t)
         {

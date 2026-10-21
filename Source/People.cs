@@ -96,6 +96,13 @@ namespace IsoRim
             public readonly List<Color> gearTint = new List<Color>();
             public readonly List<bool> gearRigid = new List<bool>();
             public readonly List<Vector3> gearAnchor = new List<Vector3>();   // a rigid one's own point that goes to its place
+            // Apparel model bindings (ApparelModels, Api 9): the held shield (drawn each frame, not merged), what a bound
+            // hat hides besides the game's own rules, and whether a bound part burns (its live flames drawn each frame).
+            public Model shield;
+            public Color shieldColor = Color.white;
+            public ApparelModels.Binding shieldBinding;
+            public int bindHides;
+            public bool flames;
 
             public bool SameGear(Look o)
             {
@@ -140,7 +147,8 @@ namespace IsoRim
                     && skull == o.skull && upperBones == o.upperBones && lowerBones == o.lowerBones
                     && mouthWear == o.mouthWear && eyeWear == o.eyeWear && neckWear == o.neckWear
                     && mouthColor == o.mouthColor && eyeColor == o.eyeColor && neckColor == o.neckColor
-                    && mid == o.mid && shirtWear == o.shirtWear && midColor == o.midColor && shirtWearColor == o.shirtWearColor;
+                    && mid == o.mid && shirtWear == o.shirtWear && midColor == o.midColor && shirtWearColor == o.shirtWearColor
+                    && shield == o.shield && shieldColor == o.shieldColor && shieldBinding == o.shieldBinding && bindHides == o.bindHides && flames == o.flames;
             }
 
             public void Forget()
@@ -508,6 +516,11 @@ namespace IsoRim
             {
                 FaceDecal.Draw(pawn, head, at, yaw, headPlace * Matrix4x4.Scale(new Vector3(look.headWide, 1f, 1f)));
             }
+            if (look.flames && !dead)
+            {
+                // A bound model's flame* parts (a torch belt): IsoRim's live flame (ApparelModels).
+                ApparelModels.DrawFlames(look, pawn.thingIDNumber, at, yaw, headPlace, bodyPlace, !headOnly);
+            }
             if (FigureHooks.Count > 0)
             {
                 // Other mods' attachments (Api.AddFigureHook), placed in this head and body.
@@ -538,6 +551,12 @@ namespace IsoRim
                 Model upper = look.upper;
                 FigureWeapons.Draw(pawn, neverAim, drawLoc, at, yaw, hands, size, upper.halfDepth * look.bodyScale.z,
                     Mathf.Max(-upper.minX, upper.maxX) * look.bodyScale.x);
+                if (look.shield != null && ApparelModels.ShieldShown(pawn, look))
+                {
+                    // A bound shield, held on the left forearm (ApparelModels; after FigureWeapons, which notes whether the
+                    // game drew its worn picture).
+                    ApparelModels.DrawShield(look, at, yaw, hands);
+                }
             }
             return true;
         }
@@ -651,6 +670,13 @@ namespace IsoRim
             return m;
         }
 
+        // For the harness (ProbeApi9Check): the person's look as last worked out, or null.
+        internal static Look LastLook(Pawn pawn)
+        {
+            Look look;
+            return pawn != null && looks.TryGetValue(pawn.thingIDNumber, out look) ? look : null;
+        }
+
         private static Look LookOf(Pawn pawn)
         {
             Look look;
@@ -756,7 +782,12 @@ namespace IsoRim
                 look.visor = false;
                 look.mouthWear = null;
                 look.eyeWear = null;
+                look.bindHides = 0;
                 hatKind = "burka";
+            }
+            if (look.hat == null)
+            {
+                look.bindHides = 0;   // a bound hat hides only while it is drawn
             }
             look.hatKind = hatKind;
             look.hairShown = !Skips(skip, RenderSkipFlagDefOf.Hair);
@@ -773,6 +804,24 @@ namespace IsoRim
                 look.beard = Part("person_beard_" + beardKind);
             }
             look.faceHidden = (skip & RenderSkipFlagDefOf.Eyes) != 0;
+            if (look.bindHides != 0)
+            {
+                // What a bound hat hides besides the game's own rules (ApparelModelDef.hides).
+                if ((look.bindHides & ApparelModels.HideHair) != 0)
+                {
+                    look.hair = null;
+                    look.hairTop = null;
+                    look.hairShown = false;
+                }
+                if ((look.bindHides & ApparelModels.HideBeard) != 0)
+                {
+                    look.beard = null;
+                }
+                if ((look.bindHides & ApparelModels.HideFace) != 0)
+                {
+                    look.faceHidden = true;
+                }
+            }
             Anomaly(pawn, look, build, headName);
             look.faceDecal = !look.faceHidden && look.ownFace == null && look.ownHead == null && FaceDecal.Wanted(pawn);
             if (Corpses.Bones(pawn))
@@ -1080,6 +1129,17 @@ namespace IsoRim
             look.neckWear = null;
             look.mid = null;
             look.shirtWear = null;
+            look.shield = null;
+            look.shieldBinding = null;
+            look.bindHides = 0;
+            // Apparel bound to a model of its own (ApparelModelDef, ApparelModels): the bound hat, coat, middle and on-skin
+            // shapes (null: none, or IsoRim's own), and bound belt gear.
+            ApparelModels.Binding hatBound = null;
+            Model hatBoundModel = null;
+            Model coatBoundModel = null;
+            Model midBoundModel = null;
+            Model skinBoundModel = null;
+            List<Apparel> beltBound = null;
             if (worn != null)
             {
                 for (int i = 0; i < worn.Count; i++)
@@ -1091,6 +1151,87 @@ namespace IsoRim
                         continue;
                     }
                     string name = a.def.defName ?? "";
+                    ApparelModels.Binding bound = ApparelModels.For(a.def);
+                    Model boundModel = bound != null ? bound.ModelFor(build) : null;
+                    if (boundModel != null)
+                    {
+                        // Its own model from a binding: in its slot, in its colour (stuff faces: ApparelModels.Tint).
+                        Color tint = ApparelModels.Tint(bound, a);
+                        switch (bound.slot)
+                        {
+                            case ApparelModels.Slot.Head:
+                                if (OnLayer(props, "Overhead") || hatKind == null)
+                                {
+                                    hatKind = "bound:" + bound.def.defName;
+                                    hatBound = bound;
+                                    hatBoundModel = boundModel;
+                                    look.hatColor = tint;
+                                }
+                                continue;
+                            case ApparelModels.Slot.Face:
+                                look.mouthWear = boundModel;
+                                look.mouthColor = tint;
+                                continue;
+                            case ApparelModels.Slot.Eyes:
+                                look.eyeWear = boundModel;
+                                look.eyeColor = tint;
+                                continue;
+                            case ApparelModels.Slot.Neck:
+                                look.neckWear = boundModel;
+                                look.neckColor = tint;
+                                continue;
+                            case ApparelModels.Slot.Belt:
+                                (beltBound ?? (beltBound = new List<Apparel>())).Add(a);
+                                continue;
+                            case ApparelModels.Slot.Shield:
+                                look.shield = boundModel;
+                                look.shieldColor = tint;
+                                look.shieldBinding = bound;
+                                continue;
+                            case ApparelModels.Slot.Body:
+                            {
+                                bool torsoB = Covers(props, "Torso");
+                                bool legsB = Covers(props, "Legs");
+                                if (OnLayer(props, "Shell"))
+                                {
+                                    // A coat of its own shape (as CoatShapes): over everything, its own shoulders.
+                                    coatKind = null;
+                                    coatBoundModel = boundModel;
+                                    coatUnder = bound.under;
+                                    look.coatColor = tint;
+                                    continue;
+                                }
+                                if (OnLayer(props, "OnSkin"))
+                                {
+                                    // The shirt itself (as an on-skin MidShape): its shape over the shirt part, which takes its colour.
+                                    skinShape = null;
+                                    skinBoundModel = boundModel;
+                                    skinShapeColour = tint;
+                                    if (torsoB && 0 > upperLayer)
+                                    {
+                                        look.upperColor = tint;
+                                        upperLayer = 0;
+                                    }
+                                    if (legsB && 0 > lowerLayer)
+                                    {
+                                        look.lowerColor = tint;
+                                        lowerLayer = 0;
+                                    }
+                                    continue;
+                                }
+                                // A middle layer (as a Middle MidShape): its shape over the shirt, which keeps its own colour.
+                                midShape = null;
+                                midBoundModel = boundModel;
+                                midShapeColour = tint;
+                                if (legsB && 1 > lowerLayer)
+                                {
+                                    look.lowerColor = tint;
+                                    lowerLayer = 1;
+                                }
+                                continue;
+                            }
+                        }
+                    }
                     if (WornGear.For(a.def) != null)
                     {
                         (gearWorn ?? (gearWorn = new List<Apparel>())).Add(a);
@@ -1161,6 +1302,8 @@ namespace IsoRim
                         if (OnLayer(props, "Overhead") || hatKind == null)
                         {
                             hatKind = HatKind(name, Covers(props, "FullHead"));
+                            hatBound = null;
+                            hatBoundModel = null;
                             look.hatColor = colour;
                         }
                         continue;
@@ -1175,6 +1318,7 @@ namespace IsoRim
                         if (mid.onSkin)
                         {
                             skinShape = mid.file;
+                            skinBoundModel = null;
                             skinShapeColour = a.DrawColor;
                             skinShapeTint = colour;
                             skinUnder = mid.under;
@@ -1183,6 +1327,7 @@ namespace IsoRim
                         else
                         {
                             midShape = mid.file;
+                            midBoundModel = null;
                             midShapeColour = a.DrawColor;
                             continue;
                         }
@@ -1204,6 +1349,7 @@ namespace IsoRim
                     {
                         bool longCoat = legs || Has(name, "Duster") || Has(name, "Parka") || Has(name, "Robe") || Has(name, "Cape") || Has(name, "Coat");
                         coatFallback = longCoat && !armour ? "coat_long" : "coat_short";
+                        coatBoundModel = null;
                         CoatShape shape;
                         if (CoatShapes.TryGetValue(name, out shape))
                         {
@@ -1251,9 +1397,19 @@ namespace IsoRim
             // open front of a coat (Under.FrontPlate) and under a strap (Under.Whole); they are thin enough to sit
             // inside every coat and strap. A closed coat, a generic stand-in coat or armour hides them. The ruffle
             // shirt's standing collar and full jabot only show with nothing over it (else its flat _under jabot).
-            bool layersHidden = shellArmourKind != null || (coatKind != null && coatUnder == Under.Hidden);
+            bool layersHidden = shellArmourKind != null || ((coatKind != null || coatBoundModel != null) && coatUnder == Under.Hidden);
             if (!layersHidden)
             {
+                if (midBoundModel != null)
+                {
+                    look.mid = midBoundModel;
+                    look.midColor = midShapeColour;
+                }
+                if (skinBoundModel != null)
+                {
+                    look.shirtWear = skinBoundModel;
+                    look.shirtWearColor = skinShapeColour;
+                }
                 if (midShape != null)
                 {
                     look.mid = Part("person_" + build + "_" + midShape);
@@ -1261,7 +1417,7 @@ namespace IsoRim
                 }
                 if (skinShape != null)
                 {
-                    bool covered = coatKind != null || vestKind != null || midShape != null;
+                    bool covered = coatKind != null || coatBoundModel != null || vestKind != null || midShape != null || midBoundModel != null;
                     look.shirtWear = Part("person_" + build + "_" + skinShape + (covered && skinUnder ? "_under" : ""));
                     look.shirtWearColor = skinShapeColour;
                 }
@@ -1275,6 +1431,22 @@ namespace IsoRim
                 look.coat = Part("person_" + build + "_armor_" + shellArmourFile) ?? Part("person_" + build + "_armor_" + shellArmourKind);
                 look.coatColor = shellArmourColour;
                 look.pads = false;
+            }
+            else if (coatBoundModel != null)
+            {
+                // A bound coat: a flak vest under it shows as its binding says (no strap-over-vest shape of its own: the
+                // whole vest under it).
+                look.coat = coatBoundModel;
+                if (vestKind != null && coatUnder == Under.FrontPlate)
+                {
+                    look.underCoat = NoOutline(Part("person_" + build + "_armor_" + vestKind + "_front"));
+                    look.underCoatColor = vestColour;
+                }
+                else if (vestKind != null && coatUnder == Under.Whole)
+                {
+                    look.underCoat = Part("person_" + build + "_armor_" + vestKind);
+                    look.underCoatColor = vestColour;
+                }
             }
             else if (coatKind != null)
             {
@@ -1305,7 +1477,13 @@ namespace IsoRim
                 look.legArmour = Part("person_" + build + "_armor_" + legArmourKind);
             }
 
-            if (hatKind != null)
+            if (hatBoundModel != null)
+            {
+                look.hat = hatBoundModel;
+                look.visor = hatBound.def.visor;
+                look.bindHides = hatBound.hides;
+            }
+            else if (hatKind != null)
             {
                 look.hat = Part("person_hat_" + hatKind);
                 look.visor = hatKind == "fullhelm";
@@ -1338,6 +1516,20 @@ namespace IsoRim
                 look.gearRigid.Add(rigid);
                 look.gearAnchor.Add(anchor);
             }
+            for (int i = 0; beltBound != null && i < beltBound.Count; i++)
+            {
+                // Bound belt gear (ApparelModels): placed by its mount as a WornGearDef would be.
+                ApparelModels.Binding b = ApparelModels.For(beltBound[i].def);
+                bool rigid;
+                Vector3 anchor;
+                Matrix4x4 place = WornGear.Place(b.gear, look, out rigid, out anchor);
+                look.gear.Add(b.ModelFor(build));
+                look.gearPlace.Add(place);
+                look.gearTint.Add(ApparelModels.Tint(b, beltBound[i]));
+                look.gearRigid.Add(rigid);
+                look.gearAnchor.Add(anchor);
+            }
+            look.flames = ApparelModels.Count > 0 && ApparelModels.Burns(look);
             return hatKind;
         }
 

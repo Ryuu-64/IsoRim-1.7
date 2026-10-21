@@ -28,8 +28,9 @@ namespace IsoRim
     {
         // Raised when members are added (2: view, projectile, skyfaller, drawing and option members of this file; 3: the
         // fog lid lock; 4: collapse debris, Debris.cs; 5: XrayDesignator; 6: model states and ModelStandsIn; 7: PeekUpperFloors;
-        // 8: figure hooks (FigureFrame) and model drawing: LoadModel, DrawModel, DrawFigure, FigureBounds, the colour helpers).
-        public static int Version => 8;
+        // 8: figure hooks (FigureFrame) and model drawing: LoadModel, DrawModel, DrawFigure, FigureBounds, the colour helpers;
+        // 9: apparel model bindings (ApparelModelDef) and held shields).
+        public static int Version => 9;
 
         // ---- the view
 

@@ -542,6 +542,17 @@ namespace IsoRim
 
             RedirectDrawCalls();
 
+            // Held shields bound to a model (ApparelModelDef, Api 9): their own worn picture gives way to the model on 3D
+            // figures (ApparelModels). Nothing is hooked when no shield is bound.
+            try
+            {
+                ApparelModels.Patch(harmony);
+            }
+            catch (Exception e)
+            {
+                Log.Error("[IsoRim] Could not hook bound shields: " + e);
+            }
+
             // Beams and streams drawn in 3D from one end to the other, on one floor and between stacked floors (FloorSprays).
             try
             {

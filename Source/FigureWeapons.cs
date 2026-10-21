@@ -54,6 +54,11 @@ namespace IsoRim
         // DrawHook, while capturing: one mesh the game drew.
         public static void Note(Mesh mesh, Matrix4x4 matrix, Material material)
         {
+            if (ApparelModels.Swallowing)
+            {
+                ApparelModels.GameDrew = true;   // a bound shield's own worn picture: its model stands in (People.Draw)
+                return;
+            }
             caught.Add(new Caught { mesh = mesh, matrix = matrix, material = material, weapon = drawingWeapon, carried = carryPath });
         }
 
@@ -141,6 +146,7 @@ namespace IsoRim
         public static void Draw(Pawn pawn, bool neverAim, Vector3 drawLoc, Vector3 at, float yaw, Matrix4x4 local, float size, float front, float side, bool measure = false)
         {
             caught.Clear();
+            ApparelModels.GameDrew = false;
             Capturing = true;
             try
             {
