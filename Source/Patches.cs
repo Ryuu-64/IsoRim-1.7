@@ -411,6 +411,8 @@ namespace IsoRim
             // Flat sprites drawn every frame over contents that the 3D model replaces (gibbet cage top, dryad sphere front).
             Patch("3D models of buildings drawn every frame", AccessTools.DeclaredMethod(typeof(Building_GibbetCage), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
                 prefix: nameof(GibbetDrawAt_Prefix));
+            Patch("3D models of buildings drawn every frame", AccessTools.DeclaredMethod(typeof(CaveExit), "DrawAt", new[] { typeof(Vector3), typeof(bool) }),
+                prefix: nameof(CaveExitDrawAt_Prefix));
             Patch("3D models of buildings drawn every frame", AccessTools.DeclaredMethod(typeof(CompDryadHolder), "PostDraw"),
                 prefix: nameof(DryadHolderPostDraw_Prefix));
             // Glass over contents (Glass.cs): the flat glass, top and window sprites are left out, the contents placed in the chamber.
@@ -2754,6 +2756,21 @@ namespace IsoRim
             catch (Exception e)
             {
                 Log.ErrorOnce("[IsoRim] Drawing a gibbet cage failed: " + e, 93611251);
+                return true;
+            }
+        }
+
+        // The cave exit's DrawAt draws only its flat rope (no base.DrawAt): left out while the model, which has the
+        // rope as a part, stands in.
+        public static bool CaveExitDrawAt_Prefix(CaveExit __instance)
+        {
+            try
+            {
+                return !ModelStandsIn(__instance);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorOnce("[IsoRim] Drawing a cave exit failed: " + e, 93617021);
                 return true;
             }
         }
