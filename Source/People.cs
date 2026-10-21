@@ -105,6 +105,11 @@ namespace IsoRim
             public ApparelModels.Binding shieldBinding;
             public int bindHides;
             public bool flames;
+            // Which worn apparel each body garment shows (Dress; null: none), for the apparel decals (ApparelDecals, Api 10),
+            // and the decals worked out for this look (null: none). Not part of SameAs: decals are drawn apart from the
+            // merged meshes and carried over to a look kept as it was (LookOf).
+            public Apparel coatFrom, overCoatFrom, midFrom, shirtWearFrom;
+            public List<ApparelDecals.Placed> decals;
 
             public bool SameGear(Look o)
             {
@@ -514,6 +519,10 @@ namespace IsoRim
             if (!headOnly)
             {
                 DynamicModels.DrawParts(Merged(look, false, dead, turned), at, yaw, bodyPlace);
+                if (look.decals != null)
+                {
+                    ApparelDecals.Draw(look, at, yaw, bodyPlace);   // other mods' decals on the body garments (Api 10)
+                }
             }
             DynamicModels.DrawParts(Merged(look, true, dead, turned), at, yaw, headPlace);
             if (look.faceDecal && !look.headHidden && look.skull == null)
@@ -674,6 +683,16 @@ namespace IsoRim
             return m;
         }
 
+        // Api.RefreshApparelDecals: the person's look is worked out again the next time it is drawn.
+        internal static void Refresh(Pawn pawn)
+        {
+            Look look;
+            if (pawn != null && looks.TryGetValue(pawn.thingIDNumber, out look))
+            {
+                look.frame = int.MinValue / 2;
+            }
+        }
+
         // For the harness (ProbeApi9Check): the person's look as last worked out, or null.
         internal static Look LastLook(Pawn pawn)
         {
@@ -707,6 +726,7 @@ namespace IsoRim
                 {
                     if (look != null && old.SameAs(look))
                     {
+                        old.decals = look.decals;   // (asked anew each time: ApparelDecals)
                         look = old;   // nothing has changed: keep the meshes already made
                     }
                     else
@@ -831,6 +851,10 @@ namespace IsoRim
             if (Corpses.Bones(pawn))
             {
                 Bones(look, build);
+            }
+            if (ApparelDecals.Count > 0)
+            {
+                look.decals = ApparelDecals.Collect(pawn, look);   // other mods' decals on the body garments (Api 10)
             }
             return look;
         }
@@ -1149,6 +1173,10 @@ namespace IsoRim
             // coat or armour, as the game draws it.
             Model overModel = null;
             Color overColour = Color.white;
+            // The items behind the coat (bound or IsoRim's own shape), shell armour, flak vest, over-coat, middle and on-skin
+            // shapes (ApparelDecals).
+            Apparel coatFrom = null, shellArmourFrom = null, vestFrom = null, overFrom = null, midFrom = null, skinFrom = null;
+            look.coatFrom = look.overCoatFrom = look.midFrom = look.shirtWearFrom = null;
             if (worn != null)
             {
                 for (int i = 0; i < worn.Count; i++)
@@ -1208,6 +1236,7 @@ namespace IsoRim
                                     coatBoundModel = boundModel;
                                     coatUnder = bound.under;
                                     look.coatColor = tint;
+                                    coatFrom = a;
                                     continue;
                                 }
                                 if (AboveShell(props))
@@ -1215,6 +1244,7 @@ namespace IsoRim
                                     // Drawn by the game over the coat (VE Framework's VFEC_OuterShell): over it here too.
                                     overModel = boundModel;
                                     overColour = tint;
+                                    overFrom = a;
                                     if (legsB)
                                     {
                                         look.lowerColor = tint;
@@ -1228,6 +1258,7 @@ namespace IsoRim
                                     skinShape = null;
                                     skinBoundModel = boundModel;
                                     skinShapeColour = tint;
+                                    skinFrom = a;
                                     if (torsoB && 0 > upperLayer)
                                     {
                                         look.upperColor = tint;
@@ -1244,6 +1275,7 @@ namespace IsoRim
                                 midShape = null;
                                 midBoundModel = boundModel;
                                 midShapeColour = tint;
+                                midFrom = a;
                                 if (legsB && 1 > lowerLayer)
                                 {
                                     look.lowerColor = tint;
@@ -1303,11 +1335,13 @@ namespace IsoRim
                     {
                         vestColour = colour;
                         vestKind = armourKind;
+                        vestFrom = a;
                         continue;
                     }
                     if (armourKind != null && torso)
                     {
                         shellArmourKind = armourKind;
+                        shellArmourFrom = a;
                         shellArmourFile = ArmourVariants.TryGetValue(name, out string variant) ? variant : armourKind;
                         shellArmourColour = colour;
                         if (legs && (armourKind == "marine" || armourKind == "cataphract" || armourKind == "recon"))
@@ -1340,6 +1374,7 @@ namespace IsoRim
                         {
                             skinShape = mid.file;
                             skinBoundModel = null;
+                            skinFrom = a;
                             skinShapeColour = a.DrawColor;
                             skinShapeTint = colour;
                             skinUnder = mid.under;
@@ -1350,6 +1385,7 @@ namespace IsoRim
                             // A shape of IsoRim's own on a layer the game draws over the coat: over it here too.
                             overModel = Part("person_" + build + "_" + mid.file);
                             overColour = a.DrawColor;
+                            overFrom = a;
                             continue;
                         }
                         else
@@ -1357,6 +1393,7 @@ namespace IsoRim
                             midShape = mid.file;
                             midBoundModel = null;
                             midShapeColour = a.DrawColor;
+                            midFrom = a;
                             continue;
                         }
                     }
@@ -1378,6 +1415,7 @@ namespace IsoRim
                         bool longCoat = legs || Has(name, "Duster") || Has(name, "Parka") || Has(name, "Robe") || Has(name, "Cape") || Has(name, "Coat");
                         coatFallback = longCoat && !armour ? "coat_long" : "coat_short";
                         coatBoundModel = null;
+                        coatFrom = a;
                         CoatShape shape;
                         if (CoatShapes.TryGetValue(name, out shape))
                         {
@@ -1432,22 +1470,26 @@ namespace IsoRim
                 {
                     look.mid = midBoundModel;
                     look.midColor = midShapeColour;
+                    look.midFrom = midFrom;
                 }
                 if (skinBoundModel != null)
                 {
                     look.shirtWear = skinBoundModel;
                     look.shirtWearColor = skinShapeColour;
+                    look.shirtWearFrom = skinFrom;
                 }
                 if (midShape != null)
                 {
                     look.mid = Part("person_" + build + "_" + midShape);
                     look.midColor = midShapeColour;
+                    look.midFrom = midFrom;
                 }
                 if (skinShape != null)
                 {
                     bool covered = coatKind != null || coatBoundModel != null || vestKind != null || midShape != null || midBoundModel != null;
                     look.shirtWear = Part("person_" + build + "_" + skinShape + (covered && skinUnder ? "_under" : ""));
                     look.shirtWearColor = skinShapeColour;
+                    look.shirtWearFrom = skinFrom;
                 }
             }
 
@@ -1459,12 +1501,14 @@ namespace IsoRim
                 look.coat = Part("person_" + build + "_armor_" + shellArmourFile) ?? Part("person_" + build + "_armor_" + shellArmourKind);
                 look.coatColor = shellArmourColour;
                 look.pads = false;
+                look.coatFrom = shellArmourFrom;
             }
             else if (coatBoundModel != null)
             {
                 // A bound coat: a flak vest under it shows as its binding says (no strap-over-vest shape of its own: the
                 // whole vest under it).
                 look.coat = coatBoundModel;
+                look.coatFrom = coatFrom;
                 if (vestKind != null && coatUnder == Under.FrontPlate)
                 {
                     look.underCoat = NoOutline(Part("person_" + build + "_armor_" + vestKind + "_front"));
@@ -1480,6 +1524,7 @@ namespace IsoRim
             {
                 Model overVest = vestKind != null && coatUnder == Under.Whole ? Part("person_" + build + "_" + coatKind + "_overvest") : null;
                 look.coat = overVest ?? Part("person_" + build + "_" + coatKind) ?? Part("person_" + build + "_" + coatFallback);
+                look.coatFrom = coatFrom;
                 if (vestKind != null && coatUnder == Under.FrontPlate)
                 {
                     // The game draws the vest under the coat, so its plate shows in the open front; only that plate,
@@ -1499,6 +1544,7 @@ namespace IsoRim
                 look.coat = Part("person_" + build + "_armor_" + vestKind);
                 look.coatColor = vestColour;
                 look.pads = false;
+                look.coatFrom = vestFrom;
             }
             if (legArmourKind != null)
             {
@@ -1521,6 +1567,7 @@ namespace IsoRim
                 // Over everything the game draws under it: fitted out over what reaches further than the bare figure.
                 look.overCoat = FitOver(overModel, look);
                 look.overCoatColor = overColour;
+                look.overCoatFrom = overFrom;
             }
             look.upperWorn = upperLayer >= 0;
             look.lowerWorn = lowerLayer >= 0;

@@ -1,7 +1,7 @@
 # IsoRim Waylith Api (for mod authors)
 
 IsoRim's public surface is the static class `IsoRim.Api` and the small types next to it (`FigureFrame`, `FigureHook`,
-`ModelHandle`, `ProjectileCardHook`, `IFloorLayout`) and the def `IsoRim.ApparelModelDef` (Api 9). Everything else in the assembly is internal detail and can change
+`ModelHandle`, `ProjectileCardHook`, `IFloorLayout`, `ApparelDecal`, `DecalSide`, `ApparelDecalProvider`) and the def `IsoRim.ApparelModelDef` (Api 9). Everything else in the assembly is internal detail and can change
 in any update. Reference `IsoRim.dll` (Publicize is not needed) and keep the reference optional if IsoRim is optional for
 your mod.
 
@@ -12,9 +12,11 @@ your mod.
 ```csharp
 if (IsoRim.Api.Version >= 8) { /* figure hooks and model drawing are there */ }
 if (IsoRim.Api.Version >= 9) { /* IsoRim.ApparelModelDef is there */ }
+if (IsoRim.Api.Version >= 10) { /* apparel decals; DrawModel follows the peek fade */ }
 ```
 
-Members are never removed or changed in meaning within a version. Version 8 adds parts 1 and 2 below, version 9 part 3.
+Members are never removed or changed in meaning within a version. Version 8 adds parts 1 and 2 below, version 9 part 3,
+version 10 part 4 and the peek fade of `Api.DrawModel` (part 2).
 
 ## Spaces
 
@@ -83,6 +85,12 @@ static void Init(ModContentPack content)                      // e.g. from your 
 
 Call the drawing members from draw-time code (a `Draw`/`DrawAt` override, a `MapComponentUpdate`), every frame you want
 the thing shown.
+
+Stacked floors (version 10): a model drawn on the rows of an upper floor shows as that floor shows. On a hidden floor it is
+not drawn; on a floor shown faded while an addon peeks (`Api.PeekUpperFloors`) it is faded like that floor's own things,
+also when you draw it outside a thing's draw (from a `MapComponentUpdate`). So draw every level's models and let IsoRim
+hide or fade them; before version 10 such a model drew solid on a faded floor (leave the levels over the viewed one out
+there).
 
 ```csharp
 // A crate model on a shelf top and a stored corpse lying beside it, each frame.
@@ -189,8 +197,67 @@ Slots and frames (the file's axes as IsoRim's `person_*.obj`: one unit = one cel
 </IsoRim.ApparelModelDef>
 ```
 
+## Part 4: apparel decals (version 10)
+
+A mod can print pictures on worn garments of IsoRim's person figures: an emblem, a faction's colours, a number. Register a
+provider for an apparel def (or for all apparel). IsoRim asks it for each worn item that shows as a body garment of its own
+(a coat or armour, a garment drawn over the coat, a middle-layer or shirt shape; bound by an `ApparelModelDef` or IsoRim's
+own shape) whenever it works out how the wearer looks: about every 1.5 seconds, and at once after
+`Api.RefreshApparelDecals(pawn)`. Not every frame, so the provider may do some work. A decal is a rectangle of the game's
+body sprite of one side, projected straight onto the faces of the garment that look that way: it follows pose, facing,
+build, walking and stacked floors, shows only on the garment's own surface (inside its outline) and is hidden wherever the
+garment is (under something worn over it, a hidden floor). Decals are drawn in the order added, each over the one before.
+
+| Member | What it does |
+|---|---|
+| `Api.AddApparelDecals(ThingDef apparel, ApparelDecalProvider provider)` | Registers a provider for that apparel (null: every apparel). Twice does nothing. |
+| `Api.RemoveApparelDecals(ThingDef apparel, ApparelDecalProvider provider)` | Removes it. |
+| `Api.RefreshApparelDecals(Pawn pawn)` | Asks the providers again for that person on the next frame it is drawn. |
+| `delegate void ApparelDecalProvider(Apparel apparel, Pawn wearer, List<ApparelDecal> decals)` | Add zero or more decals to `decals` (IsoRim clears and reuses the list). |
+| `decal.material` | The material drawn, as is (a game `Graphic`'s `MatSouth`, one from `MaterialPool`, your own). |
+| `decal.texture`, `decal.mask`, `decal.colour`, `decal.colourTwo` | Without a material: the picture, drawn with the game's `Cutout` shader tinted by `colour`, or with `CutoutComplex` when `mask` is set (`colour` where the mask is red, `colourTwo` elsewhere, as the game's masks). |
+| `decal.side` | `DecalSide.Front` (placed as on the south body sprite) or `DecalSide.Back` (the north sprite, seen from behind). |
+| `decal.centre`, `decal.size` | The picture's middle and size on that body sprite, in cells from the sprite's middle (the pawn's draw position): x to the right as the viewer of that side sees it, y up the picture. The adult body quad is 1.5 by 1.5 (the default size); a render node's offset `(x, 0, z)` is `centre (x, z)`. |
+| `decal.wrap` | Also on the faces that turn away from that side (the garment's top and sides), the picture's edge stretched over them: a front and a back decal over the whole quad colour the whole garment. Default false: only the faces that look toward that side. |
+
+Placing follows the game's sprite: the body sprite's feet land on the figure's feet, its chin line on the neck, its width
+across the body (as `FigureFrame.BodySprite`, part 1), per body type. So offsets and sizes from a 2D render node carry
+over unchanged. A provider's type only exists from version 10: keep it in code that runs only after a version check, and
+create the delegate with `new IsoRim.ApparelDecalProvider(Method)` (a plain method group or lambda is cached by the
+compiler in a static field of that type, which the game's start-up check reads even on an older IsoRim).
+
+```csharp
+// A guild emblem on the front and back of a coat, in the wearer's faction colour.
+static Texture2D emblem;
+static void Init()                                   // after defs load (a StaticConstructorOnStartup class)
+{
+    if (IsoRim.Api.Version < 10) return;
+    Register();
+}
+
+[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+static void Register()
+{
+    emblem = ContentFinder<Texture2D>.Get("MyMod/Emblem");
+    IsoRim.Api.AddApparelDecals(ThingDef.Named("MyMod_Apparel_GuildCoat"), new IsoRim.ApparelDecalProvider(Emblems));
+}
+
+static void Emblems(Apparel coat, Pawn wearer, List<IsoRim.ApparelDecal> decals)
+{
+    Color c = wearer.Faction != null ? wearer.Faction.Color : Color.white;
+    decals.Add(new IsoRim.ApparelDecal { texture = emblem, colour = c, side = IsoRim.DecalSide.Front,
+        centre = new Vector2(0f, -0.15f), size = new Vector2(0.3f, 0.3f) });
+    decals.Add(new IsoRim.ApparelDecal { texture = emblem, colour = c, side = IsoRim.DecalSide.Back,
+        centre = new Vector2(0f, -0.1f), size = new Vector2(0.3f, 0.3f) });
+}
+```
+
+The VFE Medieval 2 pack's `Heraldry.cs` uses it to print each faction's heraldry (VE Framework render nodes asked for their
+2D graphic) on the 3D tabard.
+
 ## Notes
 
 - Figure hooks also run for figures another mod draws through IsoRim's internals; attachments then follow that mod's
   placing as well.
 - The test modes for this Api are `Source/ProbeApi8.cs` and `Source/ProbeApi9.cs` / `ProbeApi9Check.cs` (harness only: dev mode, `-isorim3d` and a probe file).
+  Version 10 was tested with harness fixtures outside this repository (the VFEM2 pack's tabards, ProjectZ's lift models).

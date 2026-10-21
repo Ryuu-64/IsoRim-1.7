@@ -284,6 +284,12 @@ namespace IsoRim
             return k > 0 ? heights[k] : 0f;
         }
 
+        // The FadeFloors slot floor k is drawn with this frame (0: solid, hidden or no such floor).
+        internal static int FadeOfFloor(int k)
+        {
+            return On && k > 0 && k <= count ? fade[k] : 0;
+        }
+
         // The light lookup of the shaders (IsoRimSolid.frag.glsl, _IsoFloorGlow): (floors above the ground, storey height,
         // rows from one floor to the next, 0). A face drawn at or above floor k's height reads the glow of the cell k floors
         // north of where it is drawn, i.e. the floor's own cell: its own sky, roof and lamps, not the ground's under it. Zero
