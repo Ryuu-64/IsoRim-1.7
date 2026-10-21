@@ -395,6 +395,22 @@ namespace IsoRim
             return false;
         }
 
+        // A model made from another in code (People.FitOver) burns where that one does, its flames moved as its faces were.
+        internal static void MoveFlames(Model from, Model to, Func<Vector3, Vector3> move)
+        {
+            Flame[] f = FlamesOf(from);
+            if (f == null)
+            {
+                return;
+            }
+            Flame[] moved = (Flame[])f.Clone();
+            for (int i = 0; i < moved.Length; i++)
+            {
+                moved[i].foot = move(moved[i].foot);
+            }
+            flames[to.id] = moved;
+        }
+
         // The flames of a bound model (null: none).
         internal static Flame[] FlamesOf(Model m)
         {
@@ -410,7 +426,7 @@ namespace IsoRim
                 return false;
             }
             if (FlamesOf(look.hat) != null || FlamesOf(look.coat) != null || FlamesOf(look.mid) != null || FlamesOf(look.shirtWear) != null
-                || FlamesOf(look.mouthWear) != null || FlamesOf(look.eyeWear) != null || FlamesOf(look.neckWear) != null)
+                || FlamesOf(look.mouthWear) != null || FlamesOf(look.eyeWear) != null || FlamesOf(look.neckWear) != null || FlamesOf(look.overCoat) != null)
             {
                 return true;
             }
@@ -450,6 +466,7 @@ namespace IsoRim
                     Burn(f, root * bodyPlace * look.GearOnBody(i), id + 7 + i);
                 }
             }
+            Burn(FlamesOf(look.overCoat), b, id + 7 + look.gear.Count);
         }
 
         private static void Burn(Flame[] f, Matrix4x4 place, int id)
@@ -569,6 +586,7 @@ namespace IsoRim
             float side = Side(look.upper) * look.bodyScale.x;
             side = Mathf.Max(side, Side(look.coat) * look.bodyScale.x);
             side = Mathf.Max(side, Side(look.mid) * look.bodyScale.x);
+            side = Mathf.Max(side, Side(look.overCoat) * look.bodyScale.x);
             Matrix4x4 mount = Matrix4x4.Translate(new Vector3(-(side + GripOut), GripY, GripForward))
                 * Matrix4x4.Rotate(Quaternion.AngleAxis(-FaceOut, Vector3.up) * Quaternion.AngleAxis(-Lean, Vector3.right));
             DynamicModels.DrawLocal(look.shield, at, yaw, hands * mount, look.shieldColor, null);

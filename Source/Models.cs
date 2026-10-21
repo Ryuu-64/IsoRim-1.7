@@ -1340,6 +1340,12 @@ namespace IsoRim
         private const float MitreLimit = 1.5f;      // longest outline corner offset, in outline widths
         private static int nextId = 1;
 
+        // A fresh model id, for a model made in code from another (People.FitOver).
+        internal static int NewId()
+        {
+            return nextId++;
+        }
+
         // A copy of a model whose faces of one material give off light (unlit, see ModelMaterial.glow),
         // each separate piece of them (faces joined by shared corners) in the next of colors in turn:
         // the lightball's lenses during a party. Null if the model has no such material.

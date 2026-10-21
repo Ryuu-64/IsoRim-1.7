@@ -137,6 +137,9 @@ Slots and frames (the file's axes as IsoRim's `person_*.obj`: one unit = one cel
 - **Body**: made on `person_<build>_upper.obj` / `_lower.obj` of each build, drawn with the body type's scale. On the Shell
   layer it is the coat (closed coats and armour hide what is under them as IsoRim's own); on the Middle layer a shape over
   the shirt, which keeps its colour; on the OnSkin layer it is the shirt (the shirt and leg parts take its colour).
+  On a layer the game draws over Shell (by the layer's drawOrder, e.g. VE Framework's `VFEC_OuterShell` tabards and
+  mantles) it is drawn over the coat or armour, as in 2D: made on the bare build, it is pushed out over whatever is worn
+  under it.
 - **Belt**: made in the `person_belt_*` frame (the band round y 0.27..0.34); placed by `mount`.
 - **Shield**: the grip at the origin, the face toward -z of the file. Held on the left forearm, a little in front of the
   body's side at hand height, its face to the front and outward, following facing, walking and sitting. By default it shows

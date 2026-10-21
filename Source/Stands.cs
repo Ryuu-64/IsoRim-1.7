@@ -262,6 +262,7 @@ namespace IsoRim
             Add(look.legArmour, Matrix4x4.identity, look.legArmourColor);
             Add(look.underCoat, Matrix4x4.identity, look.underCoatColor);   // a flak vest under an open coat (its front plate) or a strap
             Add(look.coat, Matrix4x4.identity, look.coatColor);
+            Add(look.overCoat, Matrix4x4.identity, look.overCoatColor);   // a tabard or mantle over the coat (People.AboveShell)
             Add(look.neckWear, Matrix4x4.identity, look.neckColor);
             for (int i = 0; i < look.gear.Count; i++)
             {

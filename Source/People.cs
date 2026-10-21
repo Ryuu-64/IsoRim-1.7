@@ -48,6 +48,8 @@ namespace IsoRim
             public Model shirtWear;   // an on-skin garment's over-shape (ruffle collar and jabot, eltex shirt wedges), under mid
             public Color midColor = Color.white;
             public Color shirtWearColor = Color.white;
+            public Model overCoat;    // a garment the game draws over the Shell layer (VE Framework's tabards, mantles), fitted over the coat
+            public Color overCoatColor = Color.white;
             public Model hair;
             public Model hairTop;     // a hairstyle's separate part (topbun_tail's bun), drawn with the hair
             public bool hairShown;    // the game draws hair now (no headgear hides it)
@@ -148,6 +150,7 @@ namespace IsoRim
                     && mouthWear == o.mouthWear && eyeWear == o.eyeWear && neckWear == o.neckWear
                     && mouthColor == o.mouthColor && eyeColor == o.eyeColor && neckColor == o.neckColor
                     && mid == o.mid && shirtWear == o.shirtWear && midColor == o.midColor && shirtWearColor == o.shirtWearColor
+                    && overCoat == o.overCoat && overCoatColor == o.overCoatColor
                     && shield == o.shield && shieldColor == o.shieldColor && shieldBinding == o.shieldBinding && bindHides == o.bindHides && flames == o.flames;
             }
 
@@ -249,6 +252,7 @@ namespace IsoRim
                 AddPart(look.legArmour, bodyPlace, look.legArmourColor);
                 AddPart(look.underCoat, bodyPlace, look.underCoatColor);
                 AddPart(look.coat, bodyPlace, look.coatColor);
+                AddPart(look.overCoat, bodyPlace, look.overCoatColor);
                 AddPart(look.neckWear, bodyPlace, look.neckColor);
                 for (int i = 0; i < look.gear.Count; i++)
                 {
@@ -1129,6 +1133,7 @@ namespace IsoRim
             look.neckWear = null;
             look.mid = null;
             look.shirtWear = null;
+            look.overCoat = null;
             look.shield = null;
             look.shieldBinding = null;
             look.bindHides = 0;
@@ -1140,6 +1145,10 @@ namespace IsoRim
             Model midBoundModel = null;
             Model skinBoundModel = null;
             List<Apparel> beltBound = null;
+            // A garment the game draws over the Shell layer (AboveShell), bound or with a shape of IsoRim's own: over the
+            // coat or armour, as the game draws it.
+            Model overModel = null;
+            Color overColour = Color.white;
             if (worn != null)
             {
                 for (int i = 0; i < worn.Count; i++)
@@ -1199,6 +1208,18 @@ namespace IsoRim
                                     coatBoundModel = boundModel;
                                     coatUnder = bound.under;
                                     look.coatColor = tint;
+                                    continue;
+                                }
+                                if (AboveShell(props))
+                                {
+                                    // Drawn by the game over the coat (VE Framework's VFEC_OuterShell): over it here too.
+                                    overModel = boundModel;
+                                    overColour = tint;
+                                    if (legsB)
+                                    {
+                                        look.lowerColor = tint;
+                                        lowerLayer = 4;
+                                    }
                                     continue;
                                 }
                                 if (OnLayer(props, "OnSkin"))
@@ -1323,6 +1344,13 @@ namespace IsoRim
                             skinShapeTint = colour;
                             skinUnder = mid.under;
                             skinBare = mid.bare;
+                        }
+                        else if (AboveShell(props))
+                        {
+                            // A shape of IsoRim's own on a layer the game draws over the coat: over it here too.
+                            overModel = Part("person_" + build + "_" + mid.file);
+                            overColour = a.DrawColor;
+                            continue;
                         }
                         else
                         {
@@ -1488,6 +1516,12 @@ namespace IsoRim
                 look.hat = Part("person_hat_" + hatKind);
                 look.visor = hatKind == "fullhelm";
             }
+            if (overModel != null)
+            {
+                // Over everything the game draws under it: fitted out over what reaches further than the bare figure.
+                look.overCoat = FitOver(overModel, look);
+                look.overCoatColor = overColour;
+            }
             look.upperWorn = upperLayer >= 0;
             look.lowerWorn = lowerLayer >= 0;
 
@@ -1633,6 +1667,185 @@ namespace IsoRim
         internal static bool PaintedZones(string name)
         {
             return ArmourVariants.ContainsKey(name) || PaintedHats.Contains(name);
+        }
+
+        // Whether the game draws this apparel over the Shell layer: it sorts worn apparel by the draw order of its last layer
+        // (VE Framework's VFEC_OuterShell tabards and mantles; belts, hats and eye covers have their own slots).
+        internal static bool AboveShell(ApparelProperties props)
+        {
+            if (props.layers == null || props.layers.Count == 0 || ApparelLayerDefOf.Shell == null)
+            {
+                return false;
+            }
+            ApparelLayerDef last = props.LastLayer;
+            return last != null && last.drawOrder > ApparelLayerDefOf.Shell.drawOrder;
+        }
+
+        // An over-the-shell shape (look.overCoat), made on the bare figure, fitted over what the look wears under it: each
+        // vertex moves out from the figure's middle line by how much further the clothes under it reach than the bare
+        // figure (upper and lower) there, by height and direction, plus a small gap. As made when nothing under it reaches
+        // further. Kept per shape and clothes under it.
+        private const float OverStep = 0.04f;    // height of a bin
+        private const int OverRows = 60;         // bins up to 2.4 cells
+        private const int OverSectors = 24;      // directions round the middle line
+        private const float OverGap = 0.012f;
+        private static readonly Dictionary<int, float[]> overReach = new Dictionary<int, float[]>();
+        private static readonly Dictionary<string, Model> overFitted = new Dictionary<string, Model>();
+
+        internal static Model FitOver(Model over, Look look)
+        {
+            Model[] under = { look.shirtWear, look.mid, look.legArmour, look.underCoat, look.coat };
+            string key = over.id.ToString();
+            bool any = false;
+            for (int i = 0; i < under.Length; i++)
+            {
+                key += "," + (under[i] != null ? under[i].id : 0);
+                any |= under[i] != null;
+            }
+            if (!any)
+            {
+                return over;
+            }
+            key += "," + (look.upper != null ? look.upper.id : 0) + "," + (look.lower != null ? look.lower.id : 0);
+            Model fitted;
+            if (overFitted.TryGetValue(key, out fitted))
+            {
+                return fitted;
+            }
+            float[] bare = new float[OverRows * OverSectors];
+            float[] worn = new float[OverRows * OverSectors];
+            MaxReach(bare, Reach(look.upper));
+            MaxReach(bare, Reach(look.lower));
+            for (int i = 0; i < under.Length; i++)
+            {
+                MaxReach(worn, Reach(under[i]));
+            }
+            float[] push = new float[bare.Length];
+            bool moves = false;
+            for (int i = 0; i < push.Length; i++)
+            {
+                float d = worn[i] > 0f ? worn[i] - bare[i] : 0f;
+                push[i] = d > 0f ? d + OverGap * Mathf.Min(1f, d / OverGap) : 0f;
+                moves |= push[i] > 0f;
+            }
+            if (!moves)
+            {
+                overFitted[key] = over;
+                return over;
+            }
+            Func<Vector3, Vector3> move = p =>
+            {
+                float r = Mathf.Sqrt(p.x * p.x + p.z * p.z);
+                if (r <= 1e-4f)
+                {
+                    return p;
+                }
+                float d = Sample(push, p.y, Mathf.Atan2(p.z, p.x));
+                return new Vector3(p.x + p.x / r * d, p.y, p.z + p.z / r * d);
+            };
+            int n = over.positions.Length;
+            Vector3[] pos = new Vector3[n];
+            float minX = float.MaxValue, maxX = float.MinValue, minZ = float.MaxValue, maxZ = float.MinValue, maxY = 0f;
+            for (int v = 0; v < n; v++)
+            {
+                Vector3 p = move(over.positions[v]);
+                pos[v] = p;
+                minX = Mathf.Min(minX, p.x);
+                maxX = Mathf.Max(maxX, p.x);
+                minZ = Mathf.Min(minZ, p.z);
+                maxZ = Mathf.Max(maxZ, p.z);
+                maxY = Mathf.Max(maxY, p.y);
+            }
+            fitted = new Model();
+            fitted.positions = pos;
+            fitted.normals = over.normals;
+            fitted.colors = over.colors;
+            fitted.tinted = over.tinted;
+            fitted.uvs = over.uvs;
+            fitted.material = over.material;
+            fitted.materials = over.materials;
+            fitted.hull = over.hull;
+            fitted.noOutline = over.noOutline;
+            fitted.maxY = maxY;
+            fitted.minX = minX;
+            fitted.maxX = maxX;
+            fitted.minZ = minZ;
+            fitted.maxZ = maxZ;
+            fitted.halfDepth = Mathf.Max(maxZ, -minZ);
+            fitted.id = ObjLoader.NewId();
+            ApparelModels.MoveFlames(over, fitted, move);
+            overFitted[key] = fitted;
+            return fitted;
+        }
+
+        private static void MaxReach(float[] into, float[] from)
+        {
+            for (int i = 0; from != null && i < into.Length; i++)
+            {
+                into[i] = Mathf.Max(into[i], from[i]);
+            }
+        }
+
+        // How far a model reaches out from the figure's middle line, per height bin and direction: its faces sampled, not
+        // only its corners, so a big face counts everywhere it passes. Null for none.
+        private static float[] Reach(Model m)
+        {
+            if (m == null)
+            {
+                return null;
+            }
+            float[] reach;
+            if (overReach.TryGetValue(m.id, out reach))
+            {
+                return reach;
+            }
+            reach = new float[OverRows * OverSectors];
+            Vector3[] p = m.positions;
+            for (int t = 0; t + 2 < p.Length; t += 3)
+            {
+                Vector3 a = p[t], b = p[t + 1], c = p[t + 2];
+                float edge = Mathf.Max((b - a).magnitude, Mathf.Max((c - b).magnitude, (a - c).magnitude));
+                int k = Mathf.Clamp(Mathf.CeilToInt(edge / (OverStep * 0.5f)), 1, 48);
+                for (int i = 0; i <= k; i++)
+                {
+                    for (int j = 0; i + j <= k; j++)
+                    {
+                        Vector3 q = a + (b - a) * ((float)i / k) + (c - a) * ((float)j / k);
+                        int row = Mathf.FloorToInt(q.y / OverStep);
+                        if (row < 0 || row >= OverRows)
+                        {
+                            continue;
+                        }
+                        int at = row * OverSectors + Sector(Mathf.Atan2(q.z, q.x));
+                        reach[at] = Mathf.Max(reach[at], Mathf.Sqrt(q.x * q.x + q.z * q.z));
+                    }
+                }
+            }
+            overReach[m.id] = reach;
+            return reach;
+        }
+
+        private static int Sector(float angle)
+        {
+            int s = Mathf.FloorToInt((angle + Mathf.PI) / (2f * Mathf.PI) * OverSectors);
+            return ((s % OverSectors) + OverSectors) % OverSectors;
+        }
+
+        // The push at a height and direction, blended between the bins' middles.
+        private static float Sample(float[] push, float y, float angle)
+        {
+            float fy = Mathf.Clamp(y / OverStep - 0.5f, 0f, OverRows - 1);
+            int y0 = (int)fy;
+            int y1 = Mathf.Min(y0 + 1, OverRows - 1);
+            float ty = fy - y0;
+            float fs = (angle + Mathf.PI) / (2f * Mathf.PI) * OverSectors - 0.5f;
+            int s0 = Mathf.FloorToInt(fs);
+            float ts = fs - s0;
+            s0 = ((s0 % OverSectors) + OverSectors) % OverSectors;
+            int s1 = (s0 + 1) % OverSectors;
+            float lo = Mathf.Lerp(push[y0 * OverSectors + s0], push[y0 * OverSectors + s1], ts);
+            float hi = Mathf.Lerp(push[y1 * OverSectors + s0], push[y1 * OverSectors + s1], ts);
+            return Mathf.Lerp(lo, hi, ty);
         }
 
         // A part drawn with no outline at all (marks every vertex once; the part is shared).
