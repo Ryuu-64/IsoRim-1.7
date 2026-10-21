@@ -264,7 +264,7 @@ namespace IsoRim
                     WallBoxes.FullHeights = false;
                 }
                 Building b = c.GetEdifice(map);
-                if (b != null && Forms.For(b.def).form == Form3D.Block && WallBoxes.IsCut(map, c, b))
+                if (b != null && WallBoxes.IsWallForm(Forms.For(b.def)) && WallBoxes.IsCut(map, c, b))
                 {
                     cut = 255;
                 }

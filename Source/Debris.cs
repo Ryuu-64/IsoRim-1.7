@@ -295,7 +295,7 @@ namespace IsoRim
             {
                 TakeLayer(s, sec.GetLayer(typeof(SectionLayer_Terrain)), null);
                 float unused;
-                if (!(Floors.FullBlock(map, c, out unused) && Floors.FullBlock(map, Floors.Stacked(map, c, -1), out unused)))
+                if (!(Floors.FullBlock(map, c, out unused, true) && Floors.FullBlock(map, Floors.Stacked(map, c, -1), out unused)))
                 {
                     Color32 col = map.terrainGrid.TerrainAt(c).DrawColor;
                     col.a = 255;

@@ -25,6 +25,7 @@ namespace IsoRim
         public Form3D form = Form3D.Flat;
         public float height;        // in cells; for items this is their thickness
         public ModelEntry model;
+        internal float wallTop;     // a wall drawn from a model (WallBoxes.ModelWall): the height of its wall top, cells; else 0
     }
 
     public static class Forms
@@ -109,6 +110,7 @@ namespace IsoRim
                 f.form = Form3D.Model;
                 f.model = entry;
                 f.height = entry.SurfaceHeight * entry.Fit(def).y;
+                f.wallTop = WallBoxes.ModelWallTop(def, entry);
                 return f;
             }
             float setHeight = listed ? entry.def.height : -1f;
@@ -1390,7 +1392,8 @@ namespace IsoRim
         // sides against neighbours that can be cut are baked too; the vertex stage does the cutting.
         public static bool FullHeights;
 
-        // A block in this cell that the cut-away can lower (so the side of a block beside it may come to show).
+        // A block in this cell that the cut-away can lower (so the side of a block beside it may come to show): a block of
+        // the walls layer, or a wall from a model (lowered in the vertex stage too, ModelBaker.BakeModel).
         public static bool MayDrop(Map map, IntVec3 c)
         {
             if (!c.InBounds(map))
@@ -1398,7 +1401,12 @@ namespace IsoRim
                 return false;
             }
             Building b = c.GetEdifice(map);
-            return b != null && Forms.For(b.def).form == Form3D.Block && CanBeCut(b.def) && SectionLayer_IsoRimWalls.Handles(b);
+            if (b == null || !CanBeCut(b.def))
+            {
+                return false;
+            }
+            ThingForm form = Forms.For(b.def);
+            return form.form == Form3D.Block ? SectionLayer_IsoRimWalls.Handles(b) : form.wallTop > 0f && ShaderCut.On;
         }
 
         public static float CutFraction
@@ -1406,7 +1414,8 @@ namespace IsoRim
             get { return Mathf.Clamp(IsoRimMod.Settings.cutHeight, 0.05f, 1f); }
         }
 
-        // The height of the block standing in a cell, or 0 if there is none.
+        // The height of the block standing in a cell (as cut down), or 0 if there is none. A wall drawn from a model counts
+        // as a block of its wall top's height (ModelWall).
         public static float BlockHeightAt(Map map, IntVec3 c)
         {
             if (map == null || !c.InBounds(map))
@@ -1418,12 +1427,12 @@ namespace IsoRim
             {
                 return 0f;
             }
-            ThingForm form = Forms.For(b.def);
-            if (form.form != Form3D.Block)
+            float h = WallHeightOf(Forms.For(b.def));
+            if (h <= 0f)
             {
                 return 0f;
             }
-            return !FullHeights && IsCut(map, c, b) ? form.height * CutFraction : form.height;
+            return !FullHeights && IsCut(map, c, b) ? h * CutFraction : h;
         }
 
         // The height of the block standing in a cell as built, never cut down, or 0 if there is none. For what is
@@ -1440,8 +1449,52 @@ namespace IsoRim
             {
                 return 0f;
             }
-            ThingForm form = Forms.For(b.def);
-            return form.form == Form3D.Block ? form.height : 0f;
+            return WallHeightOf(Forms.For(b.def));
+        }
+
+        // ------------------------------------------------------------ walls drawn from a model
+
+        // A wall from a model pack: a building the game draws as a wall (one cell, linked as walls are: Fill > 0) whose
+        // model is linked (ModelDef.linked: a post in the cell and an arm toward each neighbour it joins) and follows the
+        // walls' height (ModelEntry.WallFit > 0: ModelDef.wallFit, the model's wall top in model space). It stands in for a
+        // wall wherever IsoRim asks what wall is in a cell: BlockHeightAt / BuiltHeightAt / Floors.FullBlock count it as a
+        // block of its wall top's height, so blocks beside it, slabs over it (ProjectZ), wall fixtures on it (WallMount),
+        // rock beside it and joins (ModelBaker.Links) treat it as a wall; the cut-away lowers it as a full-height wall
+        // (CanBeCut, cut tags in ModelBaker.BakeModel). Whatever of its model stands above the wall top (a castle wall's
+        // merlons) is its crown: left out under a floor built right over it (Floors.SlabOver, as a crowned door's), and
+        // clipped by a roof drawn over it (RoofClip). Fences, sandbags and barricades (linked, no wallFit) and fleshmass
+        // (wallFit, but no wall link type) are not walls, so nothing about them changes.
+        public static bool ModelWall(ThingDef def)
+        {
+            return def != null && Forms.For(def).wallTop > 0f;
+        }
+
+        // The wall top (cells, drawn, never cut down) of a wall drawn from this entry, or 0 if it is not one (Forms.Compute).
+        internal static float ModelWallTop(ThingDef def, ModelEntry entry)
+        {
+            if (def == null || entry == null || !entry.def.linked || !entry.HasModel || def.category != ThingCategory.Building
+                || def.IsFrame || def.IsBlueprint || Fill(def) <= 0f)
+            {
+                return 0f;
+            }
+            float fit = entry.WallFit(def);
+            if (fit <= 0f)
+            {
+                return 0f;
+            }
+            return Mathf.Max(0f, fit * entry.def.scale * entry.Fit(def).y + entry.def.offset.y);
+        }
+
+        // How tall a thing of this form stands as a wall, as built: a block's height, a model wall's wall top, else 0.
+        internal static float WallHeightOf(ThingForm form)
+        {
+            return form.form == Form3D.Block ? form.height : form.wallTop;
+        }
+
+        // Whether a thing of this form is a wall IsoRim draws: a block (walls, rock, sandbags ...) or a wall from a model.
+        internal static bool IsWallForm(ThingForm form)
+        {
+            return form.form == Form3D.Block || form.wallTop > 0f;
         }
 
         // As in the Sims games: a built wall is cut down when the cell just behind it, seen from
@@ -1464,7 +1517,7 @@ namespace IsoRim
             {
                 return IsoRimMod.Settings.cutRock;
             }
-            return def != null && Fill(def) >= 0.9f;
+            return def != null && (Fill(def) >= 0.9f || ModelWall(def));
         }
 
         // Whether whatever wall or door stands in this cell is to be drawn cut down: because the
@@ -1531,7 +1584,7 @@ namespace IsoRim
         private static bool IsSolidBlock(Map map, IntVec3 c)
         {
             Building b = c.GetEdifice(map);
-            return b != null && Forms.For(b.def).form == Form3D.Block;
+            return b != null && IsWallForm(Forms.For(b.def));
         }
 
         // True if a wall or door standing in this cell would hide the inside of a room from the camera.
@@ -1561,7 +1614,7 @@ namespace IsoRim
             {
                 return false;
             }
-            return Forms.For(b.def).form != Form3D.Block;
+            return !IsWallForm(Forms.For(b.def));
         }
     }
 
@@ -2196,6 +2249,23 @@ namespace IsoRim
             }
             IsoRimSettings st = IsoRimMod.Settings;
 
+            // A wall drawn from a model (WallBoxes.ModelWall; also its blueprint's ghost): under a floor built right over it
+            // its crown (everything above its wall top, a castle wall's merlons) is left out and a flat lid closes it at the
+            // wall top, as a crowned door's frame (Crowns); the cut-away lowers it as a block (below).
+            ThingDef wallDef = WallDefOf(thing, entry);
+            Model arm = def.linked && entry.variants.Length >= 2 ? entry.variants[1] : null;
+            if (wallDef != null && thing.Map != null && Floors.SlabOver(thing.Map, thing.Position))
+            {
+                float wallTop = entry.WallFit(wallDef);   // model space
+                m = Crowns.Under(m, wallTop, true);
+                arm = Crowns.Under(arm, wallTop, false);
+                if (m == null)
+                {
+                    return false;
+                }
+            }
+            bool wall = wallDef != null && Ghost.a <= 0f;
+
             // Where, which way round and how big.
             float scale, yaw;
             StartPlace(thing, entry, out scale, out yaw);
@@ -2219,56 +2289,132 @@ namespace IsoRim
             Quaternion lay = def.layFlat ? Quaternion.AngleAxis(90f, Vector3.right) : Quaternion.identity;
             Vector3 layLift = def.layFlat ? new Vector3(0f, m.halfDepth, 0f) : Vector3.zero;
             Color tint = def.spriteTint ? SpriteColors.MeanFor(thing) : R3DTextures.ModelTint(thing);
-            if (!Write(layer, thing, m, center, turn, lay, layLift, fit, offset, baseHeight, tint, bare, def.outline))
-            {
-                return false;
-            }
 
-            bool isTree = plant != null && plant.def.plant != null && plant.def.plant.IsTree;
-            if (Ghost.a > 0f || DamageMarks > 0)
+            // A wall drawn from a model goes down with the cut-away as a block does: with the shader cut-away (ShaderCut) it
+            // is baked whole and every vertex of it (post, arms, damage marks) tagged with its cell and Lower, so the vertex
+            // stage presses it down to the cut height (the cell's full height is its wall top: IsoCellMap, BlockHeightAt;
+            // its crown goes down with it); with the old cut-away the block is rebuilt, so it is baked cut down.
+            bool wallTags = wall && ShaderCut.On && WallBoxes.CanBeCut(thing.def);
+            if (wall && !ShaderCut.On && !WallBoxes.FullHeights && WallBoxes.IsCut(thing.Map, thing.Position, thing))
             {
-                isTree = false;   // a ghost (or a set of damage marks) casts no shadow
+                fit.y *= WallBoxes.CutFraction;
             }
-            // A tree hidden in the fog (the fog clips it, RoofClip) casts no sun shadow onto revealed ground; the game's
-            // unfog redraws its block (FogOfWar | Things on the cell, SectionLayer_IsoRimTrees.MapMeshDirty_Postfix).
-            bool fogged = isTree && RoofClip.FogOn && thing.Spawned && thing.Map.fogGrid.IsFogged(thing.Position);
-            if (st.treeShadows && isTree && !def.layFlat && !fogged)
+            bool tagsWere = CutTags.Enabled;
+            int cutMark = -1;
+            if (wallTags)
             {
-                try
-                {
-                    TreeShadows.Print(layer, m, center, turn, scale, offset, baseHeight, bare);
-                }
-                catch (Exception e)
-                {
-                    Log.ErrorOnce("[IsoRim] Drawing a tree's shadow failed: " + e, 93611060);
-                }
+                CutTags.Enabled = true;
+                cutMark = CutTags.Mark(layer);
             }
-            if (st.groundShadows && def.groundShadow && !mounted && baseHeight <= 0.001f && (plant == null || isTree) && Ghost.a <= 0f && DamageMarks <= 0)
+            try
             {
-                try
+                // (a wall drawn from a model is outlined as one wall: no line along the joints with the next one, and its
+                // arms, which carry it on into the post's neighbours, add no outline of their own)
+                int joined = wall ? JoinedSides(thing) : 0;
+                if (!Write(layer, thing, m, center, turn, lay, layLift, fit, offset, baseHeight, tint, bare, def.outline, joined))
                 {
-                    GroundShadows.UnderModel(layer, m, center, turn, fit, offset, def.layFlat, isTree, bare);
+                    return false;
                 }
-                catch (Exception e)
-                {
-                    Log.ErrorOnce("[IsoRim] Shading the ground under a model failed: " + e, 93611063);
-                }
-            }
 
-            // Fences and the like: one more part toward each neighbour the thing joins up with.
-            if (def.linked && entry.variants.Length >= 2 && entry.variants[1] != null && thing.Map != null)
-            {
-                Model arm = entry.variants[1];
-                for (int d = 0; d < 4; d++)
+                bool isTree = plant != null && plant.def.plant != null && plant.def.plant.IsTree;
+                if (Ghost.a > 0f || DamageMarks > 0)
                 {
-                    if (Links(thing, thing.Position + GenAdj.CardinalDirections[d]))
+                    isTree = false;   // a ghost (or a set of damage marks) casts no shadow
+                }
+                // A tree hidden in the fog (the fog clips it, RoofClip) casts no sun shadow onto revealed ground; the game's
+                // unfog redraws its block (FogOfWar | Things on the cell, SectionLayer_IsoRimTrees.MapMeshDirty_Postfix).
+                bool fogged = isTree && RoofClip.FogOn && thing.Spawned && thing.Map.fogGrid.IsFogged(thing.Position);
+                if (st.treeShadows && isTree && !def.layFlat && !fogged)
+                {
+                    try
                     {
-                        Write(layer, thing, arm, center, Quaternion.AngleAxis(90f * d, Vector3.up), Quaternion.identity, Vector3.zero,
-                            fit, offset, baseHeight, tint, false, def.outline);
+                        TreeShadows.Print(layer, m, center, turn, scale, offset, baseHeight, bare);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.ErrorOnce("[IsoRim] Drawing a tree's shadow failed: " + e, 93611060);
                     }
                 }
+                // (a wall from a model gets the band along a wall's foot instead, below)
+                if (st.groundShadows && def.groundShadow && !mounted && baseHeight <= 0.001f && (plant == null || isTree) && Ghost.a <= 0f && DamageMarks <= 0 && !wall)
+                {
+                    try
+                    {
+                        GroundShadows.UnderModel(layer, m, center, turn, fit, offset, def.layFlat, isTree, bare);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.ErrorOnce("[IsoRim] Shading the ground under a model failed: " + e, 93611063);
+                    }
+                }
+
+                // Fences and the like: one more part toward each neighbour the thing joins up with.
+                if (arm != null && thing.Map != null)
+                {
+                    for (int d = 0; d < 4; d++)
+                    {
+                        if (Links(thing, thing.Position + GenAdj.CardinalDirections[d]))
+                        {
+                            Write(layer, thing, arm, center, Quaternion.AngleAxis(90f * d, Vector3.up), Quaternion.identity, Vector3.zero,
+                                fit, offset, baseHeight, tint, false, wall ? 0f : def.outline);
+                        }
+                    }
+                }
+                if (wallTags)
+                {
+                    CutTags.Apply(layer, cutMark, thing.Position, ShaderCut.Lower);
+                }
+            }
+            finally
+            {
+                CutTags.Enabled = tagsWere;
+            }
+            if (wall && DamageMarks <= 0 && thing.Map != null)
+            {
+                IsoCellMap.Dirty(thing.Map, CellRect.SingleCell(thing.Position));   // the fog lid and the cut-away's full height lie on its wall top
+                GroundShadows.AroundBlock(layer, thing);   // the band along a wall's foot, as a block's (not the soft shade under a model)
             }
             return true;
+        }
+
+        // The wall def a thing's model stands for when it is a wall drawn from a model (WallBoxes.ModelWall): the thing's
+        // own, or for a blueprint or frame (its ghost) the def it will become; null for anything else.
+        private static ThingDef WallDefOf(Thing thing, ModelEntry entry)
+        {
+            if (thing == null || thing.def == null || !entry.def.linked)
+            {
+                return null;
+            }
+            ThingDef def = thing.def.entityDefToBuild as ThingDef ?? thing.def;
+            ThingForm f = Forms.For(def);
+            return f.wallTop > 0f && f.model == entry ? def : null;
+        }
+
+        // The sides (bits 1 << d, GenAdj.CardinalDirections order) where a wall drawn from a model joins on to a door or a
+        // wall at least as tall (a block or another such wall) beside it.
+        private static int JoinedSides(Thing t)
+        {
+            Map map = t.Map;
+            if (map == null)
+            {
+                return 0;
+            }
+            float own = WallBoxes.BuiltHeightAt(map, t.Position);
+            int bits = 0;
+            for (int d = 0; d < 4; d++)
+            {
+                IntVec3 c = t.Position + GenAdj.CardinalDirections[d];
+                if (!c.InBounds(map))
+                {
+                    continue;
+                }
+                Building b = c.GetEdifice(map);
+                if (b != null && (b is Building_Door || WallBoxes.BuiltHeightAt(map, c) >= own - 0.01f))
+                {
+                    bits |= 1 << d;
+                }
+            }
+            return bits;
         }
 
         // Whether a fence (or other linked thing) joins on to what is in a neighbouring cell.
@@ -2404,6 +2550,38 @@ namespace IsoRim
             return placed > 0;
         }
 
+        // Whether triangle i of m (as Write places it, relative to the thing's centre) lies on a side of the cell where the
+        // wall joins on to the next one: it faces that way and all its corners are on the cell's edge there.
+        private static bool OnJoint(Model m, int i, Quaternion turn, Quaternion lay, Vector3 layLift, Vector3 scale, Vector3 offset, int joinedSides)
+        {
+            Vector3 n = turn * (lay * m.normals[i]);
+            for (int d = 0; d < 4; d++)
+            {
+                if ((joinedSides & (1 << d)) == 0)
+                {
+                    continue;
+                }
+                Vector3 dir = GenAdj.CardinalDirections[d].ToVector3();
+                if (Vector3.Dot(n, dir) < 0.9f)
+                {
+                    continue;
+                }
+                bool edge = true;
+                for (int k = i; k < i + 3 && edge; k++)
+                {
+                    Vector3 p = turn * (Vector3.Scale(lay * m.positions[k] + layLift, scale) + offset);
+                    edge = Vector3.Dot(p, dir) >= 0.5f - JointSlack;
+                }
+                if (edge)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private const float JointSlack = 0.02f;   // cells: how far inside the cell's edge a face still counts as lying on it
+
         // Writes an extra part next to a thing's model (a book on a bookcase's shelf): unscaled,
         // its origin at offset (model space, turned with the thing) and baseHeight cells up.
         public static bool WritePart(SectionLayer layer, Thing thing, Model m, Vector3 center, Quaternion turn, Vector3 offset, float baseHeight,
@@ -2412,8 +2590,11 @@ namespace IsoRim
             return Write(layer, thing, m, center, turn, Quaternion.identity, Vector3.zero, Vector3.one, offset, baseHeight, tint, false, outlineBold);
         }
 
+        // joinedSides (walls drawn from a model, WallBoxes.ModelWall): bits 1 << d of the sides (GenAdj.CardinalDirections
+        // order) where the wall joins on to the next one: faces lying on such a side get no outline, so a run of wall shows
+        // no line at each joint (as a run of blocks).
         private static bool Write(SectionLayer layer, Thing thing, Model m, Vector3 center, Quaternion turn, Quaternion lay, Vector3 layLift,
-            Vector3 scale, Vector3 offset, float baseHeight, Color tint, bool bare, float outlineBold)
+            Vector3 scale, Vector3 offset, float baseHeight, Color tint, bool bare, float outlineBold, int joinedSides = 0)
         {
             if (DamageMarks > 0)
             {
@@ -2489,6 +2670,7 @@ namespace IsoRim
                     continue;   // no leaves on a bare tree; no hidden twigs on a leafy one; no flame once the fire is out (or where a live one burns)
                 }
                 Vector3 triTag = tagged ? (mm.leaf ? leafTag : twigTag) : Vector3.zero;
+                bool joint = joinedSides != 0 && outline != null && OnJoint(m, i, turn, lay, layLift, scale, offset, joinedSides);
 
                 bool glow = mm != null && mm.glow;
 
@@ -2554,7 +2736,7 @@ namespace IsoRim
                     }
 
                     // 2. outline
-                    if (outline != null && (m.noOutline == null || !m.noOutline[k]))
+                    if (outline != null && !joint && (m.noOutline == null || !m.noOutline[k]))
                     {
                         Vector3 h = turn * (Vector3.Scale(lay * (m.positions[k] + hull) + layLift, scale) + offset);
                         outline.tris.Add(outline.verts.Count);
@@ -3008,7 +3190,7 @@ namespace IsoRim
                 return false;
             }
             Building b = c.GetEdifice(map);
-            return (b == null || (!(b is Building_Door) && Forms.For(b.def).form != Form3D.Block)) && !HullCorners.Covers(map, c, from, 0f)
+            return (b == null || (!(b is Building_Door) && !WallBoxes.IsWallForm(Forms.For(b.def)))) && !HullCorners.Covers(map, c, from, 0f)
                 && Floors.HasFloor(map, c);   // (stacked floors) no band over the open air beside a wall upstairs
         }
 

@@ -50,7 +50,7 @@ namespace IsoRim
             }
             Building b = c.GetEdifice(map);
             float h;
-            return b != null && b.def.building != null && b.def.building.isNaturalRock && Floors.FullBlock(map, c, out h);
+            return b != null && b.def.building != null && b.def.building.isNaturalRock && Floors.FullBlock(map, c, out h, true);
         }
 
         // How many of the four cells round map corner (cx, cz) are solid, and which way is into them.
@@ -182,7 +182,7 @@ namespace IsoRim
             }
             IntVec3 up = Floors.Stacked(map, open, 1);
             float h;
-            return up.IsValid && up.InBounds(map) && !Floors.HasFloor(map, up) && !Floors.FullBlock(map, up, out h) && InHole(map, up);
+            return up.IsValid && up.InBounds(map) && !Floors.HasFloor(map, up) && !Floors.FullBlock(map, up, out h, true) && InHole(map, up);
         }
 
         // Natural rock drawn by the walls layer with a floor right above it (a mountain top).
@@ -270,7 +270,7 @@ namespace IsoRim
                     // (Floors.HasFloor on an upper storey: the terrain is drawn there)
                     IntVec3 c = new IntVec3(x, 0, z);
                     float h;
-                    return terrain.TerrainAt(c).dontRender && !Floors.FullBlock(map, c, out h);
+                    return terrain.TerrainAt(c).dontRender && !Floors.FullBlock(map, c, out h, true);
                 };
                 for (int x = 0; x < w; x++)
                 {
@@ -343,7 +343,7 @@ namespace IsoRim
         private static bool CoveredAbove(Map map, IntVec3 above)
         {
             float h;
-            return above.IsValid && above.InBounds(map) && (Floors.HasFloor(map, above) || Floors.FullBlock(map, above, out h));
+            return above.IsValid && above.InBounds(map) && (Floors.HasFloor(map, above) || Floors.FullBlock(map, above, out h, true));
         }
 
         // One corner of a rock block: the outline at the ground, part of the way up, at the cap; covered says the face
@@ -770,7 +770,7 @@ namespace IsoRim
         private static bool FloorGoesOn(Map map, IntVec3 c)
         {
             float h;
-            return c.InBounds(map) && (Floors.HasFloor(map, c) || Floors.FullBlock(map, c, out h));
+            return c.InBounds(map) && (Floors.HasFloor(map, c) || Floors.FullBlock(map, c, out h, true));
         }
 
         // ---- rock under a floor (rock-top floors, isorim-pz-rocktop-floors-plan.md §4.2-4.3)
@@ -807,7 +807,7 @@ namespace IsoRim
                 return false;
             }
             IntVec3 up = Floors.Stacked(map, c, 1);
-            return up.IsValid && up.InBounds(map) && Floors.HasFloor(map, up) && !Floors.FullBlock(map, up, out h);
+            return up.IsValid && up.InBounds(map) && Floors.HasFloor(map, up) && !Floors.FullBlock(map, up, out h, true);
         }
 
         public static bool HideCoveredCaps = true;   // harness A/B (probe key covercaps=0|1): off, covered caps always drawn

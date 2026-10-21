@@ -965,7 +965,9 @@ namespace IsoRim
                 // fills the cell; over a wall below, the slab's edge starts at that wall's top (no face over its face).
                 float wallHere, wallBelow;
                 bool blockBelow = FullBlock(map, Stacked(map, c, -1), out wallBelow);
-                if (blockBelow && FullBlock(map, c, out wallHere))
+                // (only a block here reaches down through the slab to the wall below, WallColumn; a wall from a model
+                // stands on the slab)
+                if (blockBelow && FullBlock(map, c, out wallHere, true))
                 {
                     continue;
                 }
@@ -1594,8 +1596,15 @@ namespace IsoRim
             return up.IsValid && up.InBounds(map) && !map.terrainGrid.TerrainAt(up).dontRender;
         }
 
-        // A full-height block (a wall) in a cell, and its height.
+        // A full-height block (a wall) in a cell, and its height: a block of fill 0.9 or more, or a wall drawn from a model
+        // (WallBoxes.ModelWall, its wall top; its crown is left out under a floor built over it).
         public static bool FullBlock(Map map, IntVec3 c, out float height)
+        {
+            return FullBlock(map, c, out height, false);
+        }
+
+        // The same; blocksOnly: blocks only, no wall from a model.
+        internal static bool FullBlock(Map map, IntVec3 c, out float height, bool blocksOnly)
         {
             height = 0f;
             if (!c.IsValid || !c.InBounds(map))
@@ -1603,12 +1612,21 @@ namespace IsoRim
                 return false;
             }
             Building b = c.GetEdifice(map);
-            if (b == null || WallBoxes.Fill(b.def) < 0.9f)
+            if (b == null)
             {
                 return false;
             }
             ThingForm f = Forms.For(b.def);
             if (f.form != Form3D.Block)
+            {
+                if (blocksOnly || f.wallTop <= 0f)
+                {
+                    return false;
+                }
+                height = f.wallTop;
+                return true;
+            }
+            if (WallBoxes.Fill(b.def) < 0.9f)
             {
                 return false;
             }
@@ -1686,6 +1704,13 @@ namespace IsoRim
                         // PROTOTYPE (CliffLook.cs): the floor's terrain above follows the rock's chamfer below
                         ulong extra = dk > 0 && WallBoxes.CliffMode > 0 && (dirtyFlags & (ulong)RimWorld.MapMeshFlagDefOf.Buildings) != 0
                             ? (ulong)RimWorld.MapMeshFlagDefOf.Terrain : 0UL;
+                        // a wall drawn from a model below is printed with the things (the game's layer): it is remade too, its
+                        // crown left out under the floor above or shown again (WallBoxes.ModelWall)
+                        Building wb = dk < 0 ? o.GetEdifice(map) : null;
+                        if (wb != null && Forms.For(wb.def).wallTop > 0f)
+                        {
+                            extra |= (ulong)RimWorld.MapMeshFlagDefOf.Things;
+                        }
                         __instance.MapMeshDirty(o, flags | extra);
                         SlabDirty(__instance, o);
                     }
