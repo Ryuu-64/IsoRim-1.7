@@ -21,8 +21,8 @@ namespace IsoRim
         // the two, so the eyes keep about their size and the mouth (pixel row ~80) still lands on the face rather than
         // under the chin: 0.0115 cells a pixel, the eyes' middle (pixel row 70.6 of 128) at height 0.945.
         private const float SpritePixelCells = 0.0115f;
-        private const float SpriteCells = SpritePixelCells * 128f;             // the whole texture, in cells
-        private const float CentreHeight = 0.945f + (70.6f - 64f) * SpritePixelCells;   // the texture's middle
+        internal const float SpriteCells = SpritePixelCells * 128f;             // the whole texture, in cells
+        internal const float CentreHeight = 0.945f + (70.6f - 64f) * SpritePixelCells;   // the texture's middle
         private const float HeadMiddle = 0.98f;                                // People.HeadHeight
 
         private static bool tried, available;
@@ -207,7 +207,7 @@ namespace IsoRim
         public static void Draw(Pawn pawn, Model head, Vector3 position, float yaw, Matrix4x4 headLocal)
         {
             Face f = FaceOf(pawn);
-            if (f == null || f.parts.Count == 0 || head == null)
+            if (f == null || f.parts.Count == 0 || head == null || FigureScope.Measuring)
             {
                 return;
             }
@@ -250,7 +250,7 @@ namespace IsoRim
                         * Matrix4x4.Scale(new Vector3(grow, grow, grow))
                         * Matrix4x4.Translate(new Vector3(0f, -HeadMiddle, 0f));
                     bool isMouth = f.controllers[i].GetType().Name == "MouthControllerComp";
-                    Graphics.DrawMesh(isMouth && mouth != null ? mouth : m, Floors.DrawnMatrix(placed * local), gm, 0);
+                    Graphics.DrawMesh(isMouth && mouth != null ? mouth : m, Floors.DrawnMatrix(FigureScope.Apply(placed * local)), gm, 0);
                 }
             }
             catch (Exception e)

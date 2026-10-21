@@ -3016,6 +3016,10 @@ namespace IsoRim
         // halfWidth and halfLength are in cells; yaw turns its long side to face the same way.
         public static void Blob(Vector3 position, float yaw, float halfWidth, float halfLength)
         {
+            if (FigureScope.Active && !FigureScope.Blob(ref position, ref yaw))
+            {
+                return;   // a figure drawn for another mod without its shadow (Api.DrawFigure)
+            }
             Material mat = R3DMaterials.GroundShadow;
             if (!On || mat == null)
             {

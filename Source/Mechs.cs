@@ -238,6 +238,7 @@ namespace IsoRim
             }
             Matrix4x4 whole = pose * sized;
             Vector3 at = new Vector3(drawLoc.x, lift, drawLoc.z);
+            FigureScope.Root(at, yaw);   // (Api.DrawFigure: placed elsewhere)
 
             Faction faction = pawn.Faction;
             Color mark;

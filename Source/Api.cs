@@ -12,6 +12,13 @@ namespace IsoRim
     // and the full matrix to draw it with instead; false draws it as usual.
     public delegate bool ProjectileCardHook(Projectile p, Vector3 at, Quaternion rotation, out Matrix4x4 matrix);
 
+    /// <summary>
+    /// Called for each person figure IsoRim draws (Api version 8; <see cref="Api.AddFigureHook"/>), after the figure is
+    /// placed, normally once a frame per figure. Read the frame and attach models with it; it is only valid during the
+    /// call.
+    /// </summary>
+    public delegate void FigureHook(FigureFrame frame);
+
     // The public surface for gameplay addons (stacked floors and the like). Addons should use only Api, IFloorLayout and
     // the delegate and enum types next to them: everything else in IsoRim is internal detail and may change between
     // versions.
@@ -20,8 +27,9 @@ namespace IsoRim
     public static partial class Api
     {
         // Raised when members are added (2: view, projectile, skyfaller, drawing and option members of this file; 3: the
-        // fog lid lock; 4: collapse debris, Debris.cs; 5: XrayDesignator; 6: model states and ModelStandsIn; 7: PeekUpperFloors).
-        public static int Version => 7;
+        // fog lid lock; 4: collapse debris, Debris.cs; 5: XrayDesignator; 6: model states and ModelStandsIn; 7: PeekUpperFloors;
+        // 8: figure hooks (FigureFrame) and model drawing: LoadModel, DrawModel, DrawFigure, FigureBounds, the colour helpers).
+        public static int Version => 8;
 
         // ---- the view
 
@@ -204,6 +212,131 @@ namespace IsoRim
             {
                 IsoGlow.DrawLit(mesh, matrix, mat, 0);
             }
+        }
+
+        // ---- figures and models (Version 8)
+
+        /// <summary>
+        /// Registers a hook IsoRim calls for each person figure it draws (people and creepjoiners drawn as 3D figures,
+        /// alive or dead, also when drawn by <see cref="DrawFigure"/>; not statues), after the figure is placed. With no
+        /// hook registered this costs nothing per frame. Registering the same hook twice does nothing. Call once, at startup.
+        /// </summary>
+        public static void AddFigureHook(FigureHook hook) => FigureHooks.Add(hook);
+
+        /// <summary>Removes a hook added with <see cref="AddFigureHook"/>.</summary>
+        public static void RemoveFigureHook(FigureHook hook) => FigureHooks.Remove(hook);
+
+        /// <summary>The 3D view is on and IsoRim draws models (its 3D models option): what the drawing calls below need.</summary>
+        public static bool ModelsOn => View3D.Ready && IsoRimMod.Settings != null && IsoRimMod.Settings.models3D;
+
+        /// <summary>
+        /// Loads an OBJ model file (with its .mtl, if it names one) from a mod's folder, once; null (and a warning in the
+        /// log) if it is missing or unreadable. path is relative to the mod's root folder, e.g. "Models/horn.obj". Faces
+        /// whose material name starts with "stuff" take the colour given when drawing; the others keep their own colour.
+        /// </summary>
+        public static ModelHandle LoadModel(ModContentPack mod, string path)
+        {
+            if (mod == null || path.NullOrEmpty())
+            {
+                return null;
+            }
+            return HandleOf(ModelLibrary.LoadFile(System.IO.Path.GetFullPath(System.IO.Path.Combine(mod.RootDir, path))));
+        }
+
+        /// <summary>The same, relative to the folder of the mod whose assembly calls it.</summary>
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public static ModelHandle LoadModel(string path)
+        {
+            Assembly caller = Assembly.GetCallingAssembly();
+            foreach (ModContentPack mod in LoadedModManager.RunningModsListForReading)
+            {
+                if (mod.assemblies != null && mod.assemblies.loadedAssemblies.Contains(caller))
+                {
+                    return LoadModel(mod, path);
+                }
+            }
+            Log.Warning("[IsoRim] Api.LoadModel: no mod found for assembly " + caller.GetName().Name + "; use LoadModel(ModContentPack, path)");
+            return null;
+        }
+
+        private static readonly System.Collections.Generic.Dictionary<Model, ModelHandle> handles = new System.Collections.Generic.Dictionary<Model, ModelHandle>();
+
+        private static ModelHandle HandleOf(Model m)
+        {
+            ModelHandle h;
+            if (m == null)
+            {
+                return null;
+            }
+            if (!handles.TryGetValue(m, out h))
+            {
+                h = new ModelHandle(m);
+                handles[m] = h;
+            }
+            return h;
+        }
+
+        /// <summary>
+        /// Draws a model this frame as IsoRim draws its moving models (lit, outlined, shadowed, on its stacked floor). position:
+        /// true space (x, z map cells, y the height over the ground in cells); yaw: degrees about the vertical (0 = as modelled,
+        /// clockwise seen from above); scale: per axis, before the turn. colour tints the faces whose material starts with
+        /// "stuff"; swatch (Wood, Stone, Metal, Fabric; null: Wood, see <see cref="StuffSwatch(ThingDef)"/>) picks the
+        /// surface texture of its "{stuff}" textures. Call from draw-time code; does nothing while the 3D view is off.
+        /// </summary>
+        public static void DrawModel(ModelHandle model, Vector3 position, float yaw, Vector3 scale, Color colour, string swatch = null)
+        {
+            if (model != null && View3D.Ready)
+            {
+                DynamicModels.Draw(model.model, position, yaw, scale, colour, swatch);
+            }
+        }
+
+        /// <summary>
+        /// The same with a whole placing in the model's own space: local (cells, true heights) is applied first, then the
+        /// turn by yaw and the move to position, as IsoRim places the parts of an animal or a held tool.
+        /// </summary>
+        public static void DrawModel(ModelHandle model, Vector3 position, float yaw, Matrix4x4 local, Color colour, string swatch = null)
+        {
+            if (model != null && View3D.Ready)
+            {
+                DynamicModels.DrawLocal(model.model, position, yaw, local, colour, swatch);
+            }
+        }
+
+        /// <summary>The surface IsoRim gives models made of this stuff: "Wood", "Stone", "Metal" or "Fabric" (null or no
+        /// stuff: "Wood"). Pass it as the swatch of the drawing calls.</summary>
+        public static string StuffSwatch(ThingDef stuff) => R3DTextures.SwatchOf(stuff);
+
+        /// <summary>The same for what a thing is made of.</summary>
+        public static string StuffSwatch(Thing thing) => thing != null ? R3DTextures.StuffSwatch(thing) : R3DTextures.SwatchOf(null);
+
+        /// <summary>The mean colour of a thing's own sprite (its texture times its colour, read once per texture), as IsoRim
+        /// colours models that take their colour from the sprite.</summary>
+        public static Color SpriteColour(Thing thing) => SpriteColors.MeanFor(thing);
+
+        /// <summary>
+        /// Draws a pawn's 3D figure this frame (a person, an animal or a mech IsoRim has a model for; alive or dead: pass a
+        /// corpse's InnerPawn) somewhere else than where it is, as IsoRim poses it now (a corpse lying, a downed pawn on its
+        /// back, ...), without what it holds or carries. The figure's own placing (its spot, its turn and the height it rests
+        /// at) is taken out: local is applied to the figure in its own space (cells, true heights; the point under it at the
+        /// origin, facing +z), then the turn by yaw and the move to position (true space), as DrawModel. shadow: its blob
+        /// shadow on the ground under position; false leaves it out (on a shelf). Figure hooks run for it (their frames
+        /// moved alike). False if IsoRim does not draw this pawn as a figure now (3D view, models or that kind of figure off,
+        /// no model): draw its sprite then.
+        /// </summary>
+        public static bool DrawFigure(Pawn pawn, Vector3 position, float yaw, Matrix4x4 local, bool shadow)
+        {
+            return FigureScope.Draw(pawn, position, yaw, local, shadow);
+        }
+
+        /// <summary>
+        /// The box a pawn's figure fills as <see cref="DrawFigure"/> would draw it with local = identity, position = origin,
+        /// yaw = 0 (its own space: cells, true heights, the point under it at the origin), measured from its model parts
+        /// (outlines left out); nothing is drawn. For fitting a figure into a slot. False if it is not drawn as a figure now.
+        /// </summary>
+        public static bool FigureBounds(Pawn pawn, out Vector3 min, out Vector3 max)
+        {
+            return FigureScope.Bounds(pawn, out min, out max);
         }
 
         // ---- for addons' dev tests only: may change without notice

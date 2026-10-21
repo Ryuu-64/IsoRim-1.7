@@ -332,6 +332,7 @@ namespace IsoRim
                 const float South = 180f;
                 Vector3 onBase = new Vector3(drawLoc.x, Statues.ground, drawLoc.z);
                 Matrix4x4 scaled = Matrix4x4.Scale(new Vector3(look.size, look.size, look.size));
+                FigureScope.Root(onBase, South);
                 DynamicModels.DrawParts(Merged(look, false, false, 4, stone), onBase, South, scaled);
                 DynamicModels.DrawParts(Merged(look, true, false, 4, stone), onBase, South, scaled);
                 return true;   // nothing held, no weapon
@@ -497,6 +498,7 @@ namespace IsoRim
             // The whole figure is two ready-made meshes (body and head), each a single draw, put
             // together once for this look and the way it is facing.
             int turned = Mathf.RoundToInt(Mathf.Repeat(yaw, 360f) / 45f) % 8;
+            FigureScope.Root(at, yaw);   // (Api.DrawFigure: placed elsewhere)
             if (!headOnly)
             {
                 DynamicModels.DrawParts(Merged(look, false, dead, turned), at, yaw, bodyPlace);
@@ -505,6 +507,11 @@ namespace IsoRim
             if (look.faceDecal && !look.headHidden && look.skull == null)
             {
                 FaceDecal.Draw(pawn, head, at, yaw, headPlace * Matrix4x4.Scale(new Vector3(look.headWide, 1f, 1f)));
+            }
+            if (FigureHooks.Count > 0)
+            {
+                // Other mods' attachments (Api.AddFigureHook), placed in this head and body.
+                FigureHooks.Raise(pawn, look, at, yaw, headPlace, bodyPlace, size, lift, lying, crawling, seated, dead, !headOnly);
             }
             if (workTool != null)
             {
@@ -517,6 +524,7 @@ namespace IsoRim
             {
                 GroundShadows.Blob(at, yaw, (lying ? 0.30f : 0.34f) * size * look.bodyScale.x, (lying ? 0.70f : 0.30f * look.bodyScale.z) * size);
             }
+            standing &= !FigureScope.Active;   // a figure drawn for another mod (Api.DrawFigure): without what it holds
             if (standing && pawn.carryTracker != null && pawn.carryTracker.CarriedThing != null)
             {
                 // Held in front, at the hands (the game draws it a little in front of the pawn the way it faces).

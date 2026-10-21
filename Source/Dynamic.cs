@@ -283,8 +283,26 @@ namespace IsoRim
             Submit(parts, matrix);
         }
 
+        // A model drawn with a whole matrix of its own (drawn space, before the floor shift): figure attachments (Api 8).
+        internal static void DrawMatrix(Model m, Matrix4x4 matrix, Color tint, string swatch)
+        {
+            if (m == null)
+            {
+                return;
+            }
+            List<Part> parts = PartsFor(m, tint, swatch);
+            if (parts.Count > 0)
+            {
+                Submit(parts, matrix);
+            }
+        }
+
         private static void Submit(List<Part> parts, Matrix4x4 matrix)
         {
+            if (FigureScope.Active && FigureScope.Submit(parts, ref matrix))
+            {
+                return;   // a figure measured for another mod (Api.FigureBounds): nothing drawn
+            }
             if (retired.Count > 0)
             {
                 Sweep();

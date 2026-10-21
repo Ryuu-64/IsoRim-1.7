@@ -143,6 +143,7 @@ namespace IsoRim
 
             // rotation turns the body model only (one built facing south); its hips and legs are given facing north.
             Matrix4x4 bodyTurn = def.rotation != 0f ? Matrix4x4.Rotate(Quaternion.AngleAxis(def.rotation, Vector3.up)) : Matrix4x4.identity;
+            FigureScope.Root(position, yaw);   // (Api.DrawFigure: placed elsewhere)
             DynamicModels.DrawLocal(body, position, yaw, bodyPose * sized * bodyTurn, Color.white, null);
             if (ground - flight <= 0f)
             {
