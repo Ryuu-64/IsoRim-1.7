@@ -94,6 +94,9 @@ namespace IsoRim
         public float outlineMinSize = 0f;   // separate pieces smaller than this (cells, largest side), and flat sheets,
                                             // get no outline (a chess table's pieces and board), so small detail does not turn black
         public bool linked = false;         // the first model stands in the cell; the second is added toward each neighbour it joins
+                                            // (with wallFit on a building the game draws as a wall: a wall drawn from a model,
+                                            // WallBoxes.ModelWall: cut down, built over and hung with fixtures as a wall; what
+                                            // stands above wallFit is its crown, left out under a floor built over it)
 
         // Matching by name: every building or item whose defName has one of these as a whole word or
         // run of words (ignoring case, plural allowed; see ModelLibrary.NameMatches) and that has no entry of its own or of its category. Used for the wrecks and junk
